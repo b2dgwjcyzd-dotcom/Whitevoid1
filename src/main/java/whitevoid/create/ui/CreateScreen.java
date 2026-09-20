@@ -467,19 +467,55 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     private void extrudeSelectedEdge(double amount) {
         var viewport = core.editorContext().viewport();
         var model = core.editorContext().model();
-        var node = viewport.meshComponentSelection().node(model);
-        int a = viewport.meshComponentSelection().indexA();
-        int b = viewport.meshComponentSelection().indexB();
-        if (node == null || a < 0 || b < 0) return;
+        var selection = viewport.meshComponentSelection();
+        var node = selection.node(model);
+        if (node == null || selection.size() == 0) return;
 
         var oldMesh = node.ensureMeshGeometry();
         if (oldMesh == null) return;
+
+        if (selection.size() > 1) {
+            var selected = new java.util.LinkedHashSet<Long>();
+            for (int[] edge : selection.edgeIndices()) {
+                selected.add(MeshTopologySelection.edgeKey(edge[0], edge[1]));
+            }
+
+            var newMesh = MeshOperations.extrudeEdges(oldMesh, selected, amount);
+            core.editorContext().history().execute(
+                    new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+
+            selection.clear();
+            for (long key : selected) {
+                int a = (int) (key >>> 32);
+                int b = (int) key;
+                int newA = findExtrudedVertex(oldMesh, newMesh, a);
+                int newB = findExtrudedVertex(oldMesh, newMesh, b);
+                if (newA < 0 || newB < 0) continue;
+                if (selection.size() == 0) selection.selectEdge(node, newA, newB);
+                else selection.addEdge(node, newA, newB);
+            }
+            return;
+        }
+
+        int a = selection.indexA();
+        int b = selection.indexB();
+        if (a < 0 || b < 0) return;
+
         var newMesh = MeshOperations.extrudeEdge(oldMesh, a, b, amount);
         core.editorContext().history().execute(
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
         int newA = newMesh.vertices().size() - 2;
         int newB = newMesh.vertices().size() - 1;
-        viewport.meshComponentSelection().selectEdge(node, newA, newB);
+        selection.selectEdge(node, newA, newB);
+    }
+
+    private int findExtrudedVertex(whitevoid.create.model.MeshGeometry oldMesh,
+                                   whitevoid.create.model.MeshGeometry newMesh, int oldIndex) {
+        int offset = oldMesh.vertices().size();
+        // Multi-edge extrusion appends exactly one duplicate per affected vertex.
+        if (oldIndex < 0 || oldIndex >= oldMesh.vertices().size()) return -1;
+        int candidate = offset + oldIndex;
+        return candidate < newMesh.vertices().size() ? candidate : -1;
     }
 
     private void bevelSelectedEdge(double amount) {
