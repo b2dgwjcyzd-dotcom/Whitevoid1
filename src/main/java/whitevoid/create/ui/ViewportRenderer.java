@@ -17,7 +17,10 @@ import whitevoid.create.ui.ViewportProjector.Point;
 public final class ViewportRenderer {
     private final ModelRenderer modelRenderer = new ModelRenderer();
 
-    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace, int hoveredMeshFace) {
+    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model,
+                       ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace,
+                       int hoveredMeshFace, ComponentTransformGizmo.Axis hoveredComponentAxis,
+                       Operation componentOperation, ComponentTransformGizmo.PivotMode componentPivotMode) {
         int left = 16, top = 16, right = width - 16, bottom = height - 16;
         int centerX = (left + right) / 2, centerY = (top + bottom) / 2;
         context.fill(left, top, right, bottom, 0xFF111216);
@@ -52,7 +55,7 @@ public final class ViewportRenderer {
                 drawMeshFaceHighlight(context, projector, selected, hoveredMeshFace,
                         centerX, centerY, left, top, right, bottom, false);
             }
-            if (selectedMeshFace < 0 && hoveredMeshFace < 0) {
+            if (hoveredMeshFace < 0) {
                 GeometryFace faceToDraw = viewport.geometryFaceSelection().matches(selected)
                         ? selectedFace : hoveredFace;
                 drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
@@ -251,8 +254,9 @@ public final class ViewportRenderer {
         var selection=viewport.meshComponentSelection();
         if(!selection.matches(node) || selection.size()==0) return;
         ComponentTransformGizmo gizmo=new ComponentTransformGizmo();
-        TransformMath.Point p3=gizmo.pivot(node,selection.mode(),selection.vertexIndices(),
+        TransformMath.Point localPivot=gizmo.localPivot(node,selection.mode(),selection.vertexIndices(),
                 selection.edgeIndices(),selection.faceIndices(),pivotMode);
+        TransformMath.Point p3=TransformMath.applyHierarchy(localPivot,node);
         Point o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null)return;
         double[][] dirs={{2.4,0,0},{0,2.4,0},{0,0,2.4}};
