@@ -190,6 +190,45 @@ public final class MeshComponentSelection {
         if (isEmpty()) nodeId = null;
     }
 
+    public enum RemapPolicy {
+        PRESERVE,
+        CREATED
+    }
+
+    /**
+     * Applies an operation result to the current component selection.
+     * PRESERVE follows explicit old-element mappings; CREATED selects the
+     * elements produced by the operation.
+     */
+    public void applyOperation(ModelNode node, MeshOperations.OperationResult result,
+                               RemapPolicy policy) {
+        if (node == null || result == null) {
+            clear();
+            return;
+        }
+
+        if (policy == RemapPolicy.CREATED) {
+            clear();
+            nodeId = node.id();
+            if (mode == MeshSelectionMode.VERTEX) {
+                for (int index : result.createdVertices()) addVertex(node, index);
+            } else if (mode == MeshSelectionMode.EDGE) {
+                for (long key : result.createdEdges()) {
+                    int a = MeshTopology.edgeA(key);
+                    int b = MeshTopology.edgeB(key);
+                    if (a < result.mesh().vertices().size() && b < result.mesh().vertices().size()) {
+                        addEdge(node, a, b);
+                    }
+                }
+            } else {
+                for (int index : result.createdFaces()) addFace(node, index);
+            }
+            return;
+        }
+
+        remap(node, result);
+    }
+
     public void setMode(MeshSelectionMode mode) {
         if (mode != null) this.mode = mode;
         clearSelectionOnly();
