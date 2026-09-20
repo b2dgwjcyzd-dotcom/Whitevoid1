@@ -34,6 +34,7 @@ public final class CreateScreen extends Screen {
     private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
     private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
     private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
+    private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
     private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
     private boolean gizmoDragging;
     private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
@@ -816,6 +817,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             var mesh = selected.ensureMeshGeometry();
                             if (mesh != null) {
                                 vertexDragOldMesh = mesh.copy();
+                                meshComponentDrag.beginVertex(selected);
                                 vertexDragging = true;
                             }
                         }
@@ -826,6 +828,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             var mesh = selected.ensureMeshGeometry();
                             if (mesh != null) {
                                 edgeDragOldMesh = mesh.copy();
+                                meshComponentDrag.beginEdge(selected, meshPick.edgeA(), meshPick.edgeB());
                                 edgeDragging = true;
                             }
                         }
@@ -917,28 +920,14 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             return true;
         }
         if (vertexDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null && vertexDragOldMesh != null) {
-                var current = node.ensureMeshGeometry();
-                if (current != null && !vertexDragOldMesh.equals(current)) {
-                    core.editorContext().history().recordExecuted(
-                            new SetMeshGeometryCommand(node, vertexDragOldMesh, current.copy()));
-                }
-            }
+            meshComponentDrag.finish(core, core.editorContext().viewport().selection().first(core.editorContext().model()));
             vertexDragging = false;
             activeVertex = -1;
             vertexDragOldMesh = null;
             return true;
         }
         if (edgeDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null && edgeDragOldMesh != null) {
-                var current = node.ensureMeshGeometry();
-                if (current != null && !edgeDragOldMesh.equals(current)) {
-                    core.editorContext().history().recordExecuted(
-                            new SetMeshGeometryCommand(node, edgeDragOldMesh, current.copy()));
-                }
-            }
+            meshComponentDrag.finish(core, core.editorContext().viewport().selection().first(core.editorContext().model()));
             edgeDragging = false;
             activeEdgeA = -1;
             activeEdgeB = -1;
