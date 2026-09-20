@@ -41,6 +41,9 @@ public final class CreateScreen extends Screen {
     private boolean faceDragging;
     private GeometryFace activeFace = GeometryFace.NONE;
     private int hoveredMeshFace = -1;
+    private int hoveredMeshVertex = -1;
+    private int hoveredMeshEdgeA = -1;
+    private int hoveredMeshEdgeB = -1;
     private boolean vertexDragging;
     private int activeVertex = -1;
     private MeshGeometry vertexDragOldMesh;
@@ -1220,11 +1223,25 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             projector,mouseX,mouseY,width/2,height/2,componentOperation,componentPivotMode,
                             viewport.meshComponentSelection());
                 } else hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
+                var meshProjector = new ViewportProjector(viewport.viewport().camera());
                 hoveredMeshFace = (hoveredAxis == ViewportGizmo.Axis.NONE
                         && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE)
-                        ? gizmo.meshFaceHit(selected,new ViewportProjector(viewport.viewport().camera()),
-                        mouseX,mouseY,width/2,height/2)
+                        ? gizmo.meshFaceHit(selected, meshProjector, mouseX, mouseY, width / 2, height / 2)
                         : -1;
+                hoveredMeshVertex = -1;
+                hoveredMeshEdgeA = -1;
+                hoveredMeshEdgeB = -1;
+                if (hoveredAxis == ViewportGizmo.Axis.NONE && hoveredComponentAxis == ComponentTransformGizmo.Axis.NONE) {
+                    if (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
+                        hoveredMeshVertex = gizmo.meshVertexHit(selected, meshProjector, mouseX, mouseY, width / 2, height / 2);
+                    } else if (viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
+                        int[] hitEdge = gizmo.meshEdgeHit(selected, meshProjector, mouseX, mouseY, width / 2, height / 2);
+                        if (hitEdge != null) {
+                            hoveredMeshEdgeA = hitEdge[0];
+                            hoveredMeshEdgeB = hitEdge[1];
+                        }
+                    }
+                }
                 hoveredFace = GeometryFace.NONE;
             } else if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
                 hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
@@ -1260,8 +1277,12 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             String snap = hasControlDown() ? " • SNAP" : "";
             String numeric = componentNumericEntry ? " • Value " + (componentNumericNegative ? "-" : "") + componentNumericBuffer : "";
             String proportional = proportionalEditing ? " • PROP " + String.format(java.util.Locale.ROOT, "%.1f", proportionalRadius) : "";
+            String hover = hoveredMeshVertex >= 0 ? " • Hover V" + hoveredMeshVertex
+                    : hoveredMeshEdgeA >= 0 ? " • Hover E" + hoveredMeshEdgeA + "-" + hoveredMeshEdgeB
+                    : hoveredMeshFace >= 0 ? " • Hover F" + hoveredMeshFace : "";
+            String topology = topologyPathPickArmed ? " • PATH: " + (topologyPathHasStart ? "pick target" : "pick start") : "";
             context.drawTextWithShadow(textRenderer,
-                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap + numeric + proportional,
+                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap + numeric + proportional + hover + topology,
                     26, height - 30, 0xFFE8E8E8);
         }
         if (componentBoxSelecting) {
