@@ -527,22 +527,23 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     selected.add(MeshTopologySelection.edgeKey(edge[0], edge[1]));
                 }
 
-                var newMesh = MeshOperations.bevelEdges(oldMesh, selected, amount);
-                int bevelFaceStart = oldMesh.faces().size();
+                MeshOperations.OperationResult result =
+                        MeshOperations.bevelEdgesResult(oldMesh, selected, amount);
+                var newMesh = result.mesh();
+                if (result.createdFaces().isEmpty()) return;
 
                 core.editorContext().history().execute(
                         new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
-                // Keep the generated bevel strips easy to continue editing.
+                // Select the actual newly-created bevel faces' edges.
                 selection.clear();
-                int bevelFaceCount = newMesh.faces().size() - bevelFaceStart;
-                for (int i = 0; i < bevelFaceCount; i++) {
-                    int faceIndex = bevelFaceStart + i;
-                    if (faceIndex < 0 || faceIndex >= newMesh.faces().size()) continue;
+                for (int faceIndex : result.createdFaces()) {
                     int[] face = newMesh.faces().get(faceIndex).vertices();
                     if (face.length < 2) continue;
-                    if (i == 0) selection.selectEdge(node, face[0], face[1]);
-                    else selection.addEdge(node, face[0], face[1]);
+                    int a = face[0];
+                    int b = face[1];
+                    if (selection.size() == 0) selection.selectEdge(node, a, b);
+                    else selection.addEdge(node, a, b);
                 }
             } else {
                 int a = selection.indexA();
