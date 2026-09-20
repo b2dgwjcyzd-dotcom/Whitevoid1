@@ -852,7 +852,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 componentBoxSelecting = true;
                 boxStartX = boxCurrentX = mouseX;
                 boxStartY = boxCurrentY = mouseY;
-                if (!hasShiftDown() && !hasAltDown()) viewport.meshComponentSelection().clear();
                 return true;
             }
 
@@ -1407,18 +1406,24 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         var selection=viewport.meshComponentSelection();
 
         if (selection.mode() == MeshSelectionMode.VERTEX) {
+            java.util.Set<Integer> hits = new java.util.LinkedHashSet<>();
             for (int i=0;i<mesh.vertices().size();i++) {
                 var v=mesh.vertices().get(i);
                 var w=whitevoid.create.model.TransformMath.applyHierarchy(
                         new whitevoid.create.model.TransformMath.Point(v.x(),v.y(),v.z()),node);
                 var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
-                if(p!=null && p.x()>=left && p.x()<=right && p.y()>=top && p.y()<=bottom) {
-                    if (hasAltDown()) selection.removeVertex(node,i);
-                    else if (hasShiftDown()) selection.addVertex(node,i);
-                    else selection.addVertex(node,i);
-                }
+                if(p!=null && p.x()>=left && p.x()<=right && p.y()>=top && p.y()<=bottom) hits.add(i);
+            }
+            if (hasAltDown()) {
+                for (int i : hits) selection.removeVertex(node, i);
+            } else if (hasShiftDown()) {
+                for (int i : hits) selection.addVertex(node, i);
+            } else {
+                selection.clear();
+                for (int i : hits) selection.addVertex(node, i);
             }
         } else if (selection.mode() == MeshSelectionMode.EDGE) {
+            java.util.List<int[]> hits = new java.util.ArrayList<>();
             for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
                 var a=mesh.vertices().get(edge[0]); var b=mesh.vertices().get(edge[1]);
                 var wa=whitevoid.create.model.TransformMath.applyHierarchy(
@@ -1427,11 +1432,15 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                         new whitevoid.create.model.TransformMath.Point(b.x(),b.y(),b.z()),node);
                 var pa=projector.project(wa.x(),wa.y(),wa.z(),cx,cy,300);
                 var pb=projector.project(wb.x(),wb.y(),wb.z(),cx,cy,300);
-                if(pa!=null && pb!=null && pointInsideBox(pa.x(),pa.y(),left,top,right,bottom)
-                        && pointInsideBox(pb.x(),pb.y(),left,top,right,bottom)) {
-                    if (hasAltDown()) selection.removeEdge(node, edge[0], edge[1]);
-                    else selection.addEdge(node, edge[0], edge[1]);
+                if(pa!=null && pb!=null && pointInsideBox(pa.x(),pa.y(),left,top,right,bottom)) {
+                    hits.add(new int[]{edge[0], edge[1]});
                 }
+            }
+            if (hasAltDown()) {
+                for (int[] edge : hits) selection.removeEdge(node, edge[0], edge[1]);
+            } else {
+                if (!hasShiftDown()) selection.clear();
+                for (int[] edge : hits) selection.addEdge(node, edge[0], edge[1]);
             }
         } else {
             for (int i=0;i<mesh.faces().size();i++) {
@@ -1444,11 +1453,17 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
                     if(p!=null){sx+=p.x();sy+=p.y();count++;}
                 }
-                if(count>0 && pointInsideBox(sx/count,sy/count,left,top,right,bottom))
+                if(count>0 && pointInsideBox(sx/count,sy/count,left,top,right,bottom)) {
                     if (hasAltDown()) selection.removeFace(node, i);
-                    else selection.addFace(node, i);
+                    else {
+                        if (!hasShiftDown()) selection.clear();
+                        selection.addFace(node, i);
+                    }
+                }
             }
-        }
+            if (!hasAltDown() && hasShiftDown()) {
+                // Shift preserves existing selection; the loop above only adds hits.
+            }
     }
 
     private boolean pointInsideBox(double x,double y,int left,int top,int right,int bottom) {
