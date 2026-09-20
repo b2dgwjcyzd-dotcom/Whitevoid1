@@ -543,6 +543,45 @@ public final class MeshOperations {
                 SelectionHint.faces(focusFaces, activeFace));
     }
 
+    public static OperationResult extrudeFaceResult(MeshGeometry mesh, int faceIndex, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
+            throw new IllegalArgumentException("Invalid face index: " + faceIndex);
+        }
+
+        MeshGeometry result = extrudeFace(mesh, faceIndex, amount);
+        if (amount == 0.0) return new OperationResult(result, Set.of(), Set.of(), Set.of());
+
+        java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.vertices().size(); i++) vertexMapping.put(i, i);
+
+        java.util.Map<Integer, Integer> faceMapping = new java.util.LinkedHashMap<>();
+        int mappedFace = 0;
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            if (i != faceIndex) faceMapping.put(i, mappedFace++);
+        }
+
+        int baseFaceCount = mesh.faces().size() - 1;
+        java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
+        for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) createdVertices.add(i);
+
+        java.util.Set<Integer> createdFaces = new java.util.LinkedHashSet<>();
+        for (int i = baseFaceCount; i < result.faces().size(); i++) createdFaces.add(i);
+
+        java.util.Set<Long> createdEdges = new java.util.LinkedHashSet<>();
+        for (int created : createdFaces) {
+            int[] ids = result.faces().get(created).vertices();
+            for (int i = 0; i < ids.length; i++) {
+                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+            }
+        }
+
+        int activeFace = result.faces().isEmpty() ? -1 : result.faces().size() - 1;
+        Set<Integer> focus = activeFace >= 0 ? Set.of(activeFace) : Set.of();
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges,
+                vertexMapping, faceMapping, SelectionHint.faces(focus, activeFace));
+    }
+
     public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
@@ -772,6 +811,45 @@ public final class MeshOperations {
         }
 
         return new MeshGeometry(vertices, faces);
+    }
+
+    public static OperationResult insetFaceResult(MeshGeometry mesh, int faceIndex, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
+            throw new IllegalArgumentException("Invalid face index: " + faceIndex);
+        }
+
+        MeshGeometry result = insetFace(mesh, faceIndex, amount);
+        if (amount <= 0.0) return new OperationResult(result, Set.of(), Set.of(), Set.of());
+
+        java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.vertices().size(); i++) vertexMapping.put(i, i);
+
+        java.util.Map<Integer, Integer> faceMapping = new java.util.LinkedHashMap<>();
+        int mappedFace = 0;
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            if (i != faceIndex) faceMapping.put(i, mappedFace++);
+        }
+
+        int baseFaceCount = mesh.faces().size() - 1;
+        java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
+        for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) createdVertices.add(i);
+
+        java.util.Set<Integer> createdFaces = new java.util.LinkedHashSet<>();
+        for (int i = baseFaceCount; i < result.faces().size(); i++) createdFaces.add(i);
+
+        java.util.Set<Long> createdEdges = new java.util.LinkedHashSet<>();
+        for (int created : createdFaces) {
+            int[] ids = result.faces().get(created).vertices();
+            for (int i = 0; i < ids.length; i++) {
+                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+            }
+        }
+
+        int activeFace = result.faces().isEmpty() ? -1 : result.faces().size() - 1;
+        Set<Integer> focus = activeFace >= 0 ? Set.of(activeFace) : Set.of();
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges,
+                vertexMapping, faceMapping, SelectionHint.faces(focus, activeFace));
     }
 
     public static MeshGeometry insetFace(MeshGeometry mesh, int faceIndex, double amount) {
