@@ -243,6 +243,34 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             return true;
         }
 
+        // Topology traversal: U = loop, K = ring.
+        if (keyCode == GLFW.GLFW_KEY_U && viewport.transform().mode() == TransformMode.GEOMETRY
+                && viewport.meshComponentSelection().size() > 0) {
+            var selection = viewport.meshComponentSelection();
+            var selected = viewport.selection().first(core.editorContext().model());
+            if (selected != null) {
+                if (selection.mode() == MeshSelectionMode.EDGE && selection.activeEdgeA() >= 0) {
+                    selection.selectEdgeLoop(selected, selection.activeEdgeA(), selection.activeEdgeB());
+                } else if (selection.mode() == MeshSelectionMode.FACE && selection.activeFace() >= 0) {
+                    selection.selectFaceLoop(selected, selection.activeFace());
+                }
+            }
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_K && viewport.transform().mode() == TransformMode.GEOMETRY
+                && viewport.meshComponentSelection().size() > 0) {
+            var selection = viewport.meshComponentSelection();
+            var selected = viewport.selection().first(core.editorContext().model());
+            if (selected != null) {
+                if (selection.mode() == MeshSelectionMode.EDGE && selection.activeEdgeA() >= 0) {
+                    selection.selectEdgeRing(selected, selection.activeEdgeA(), selection.activeEdgeB());
+                } else if (selection.mode() == MeshSelectionMode.FACE && selection.activeFace() >= 0) {
+                    selection.selectFaceRing(selected, selection.activeFace());
+                }
+            }
+            return true;
+        }
+
         if (keyCode == 90 && hasControlDown()) {
             if (hasShiftDown()) viewportContextHistoryRedo();
             else viewportContextHistoryUndo();
