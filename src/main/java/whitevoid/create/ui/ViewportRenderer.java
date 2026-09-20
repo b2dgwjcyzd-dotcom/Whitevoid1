@@ -19,7 +19,8 @@ public final class ViewportRenderer {
 
     public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model,
                        ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace,
-                       int hoveredMeshFace, ComponentTransformGizmo.Axis hoveredComponentAxis,
+                       int hoveredMeshFace, int hoveredMeshVertex, int hoveredMeshEdgeA, int hoveredMeshEdgeB,
+                       ComponentTransformGizmo.Axis hoveredComponentAxis,
                        Operation componentOperation, ComponentTransformGizmo.PivotMode componentPivotMode) {
         int left = 16, top = 16, right = width - 16, bottom = height - 16;
         int centerX = (left + right) / 2, centerY = (top + bottom) / 2;
@@ -64,7 +65,8 @@ public final class ViewportRenderer {
             drawMeshComponentSelection(context, projector, selected, viewport,
                     centerX, centerY, left, top, right, bottom);
             drawMeshComponentHover(context, projector, selected, viewport,
-                    centerX, centerY, left, top, right, bottom);
+                    centerX, centerY, left, top, right, bottom,
+                    hoveredMeshVertex, hoveredMeshEdgeA, hoveredMeshEdgeB);
             drawComponentGizmo(context, projector, selected, viewport,
                     centerX, centerY, left, top, right, bottom, hoveredComponentAxis, componentOperation, componentPivotMode);
             if (selected.meshGeometry() == null) {
@@ -380,24 +382,54 @@ public final class ViewportRenderer {
 
     private void drawMeshComponentHover(DrawContext context, ViewportProjector projector,
                                            ModelNode node, ViewportContext viewport,
-                                           int cx, int cy, int left, int top, int right, int bottom) {
+                                           int cx, int cy, int left, int top, int right, int bottom,
+                                           int hoveredVertex, int hoveredEdgeA, int hoveredEdgeB) {
         var selection = viewport.meshComponentSelection();
         if (!selection.matches(node)) return;
-        // Hover itself is resolved by CreateScreen and rendered through the selection state.
-        // Keep this pass intentionally lightweight; selected components remain visually dominant.
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+
+        if (selection.mode() == MeshSelectionMode.VERTEX && hoveredVertex >= 0
+                && hoveredVertex < mesh.vertices().size()
+                && !selection.containsVertex(hoveredVertex)) {
+            var v = mesh.vertices().get(hoveredVertex);
+            var w = TransformMath.applyHierarchy(new TransformMath.Point(v.x(), v.y(), v.z()), node);
+            Point p = projector.project(w.x(), w.y(), w.z(), cx, cy, 300);
+            if (p != null) {
+                int x = (int)Math.round(p.x()), y = (int)Math.round(p.y());
+                context.fill(x - 4, y - 4, x + 5, y + 5, 0xFFE7E9EF);
+                context.fill(x - 2, y - 2, x + 3, y + 3, 0xFFFFFFFF);
+            }
+        } else if (selection.mode() == MeshSelectionMode.EDGE && hoveredEdgeA >= 0 && hoveredEdgeB >= 0
+                && !selection.containsEdge(hoveredEdgeA, hoveredEdgeB)) {
+            if (hoveredEdgeA < mesh.vertices().size() && hoveredEdgeB < mesh.vertices().size()) {
+                var a = mesh.vertices().get(hoveredEdgeA);
+                var b = mesh.vertices().get(hoveredEdgeB);
+                var wa = TransformMath.applyHierarchy(new TransformMath.Point(a.x(), a.y(), a.z()), node);
+                var wb = TransformMath.applyHierarchy(new TransformMath.Point(b.x(), b.y(), b.z()), node);
+                Point pa = projector.project(wa.x(), wa.y(), wa.z(), cx, cy, 300);
+                Point pb = projector.project(wb.x(), wb.y(), wb.z(), cx, cy, 300);
+                if (pa != null && pb != null) {
+                    drawLine(context, pa, pb, left, top, right, bottom, 0xFFFFFFFF);
+                    drawLine(context, new Point(pa.x()+1,pa.y(),pa.depth()),
+                            new Point(pb.x()+1,pb.y(),pb.depth()), left,top,right,bottom,0xFFE7E9EF);
+                }
+            }
+        }
+
+        // Keep selected components visually dominant and make the active component the brightest.
         if (selection.mode() == MeshSelectionMode.VERTEX) {
             for (int index : selection.vertexIndices()) {
-                if (index < 0 || index >= node.ensureMeshGeometry().vertices().size()) continue;
-                var v = node.ensureMeshGeometry().vertices().get(index);
+                if (index < 0 || index >= mesh.vertices().size()) continue;
+                var v = mesh.vertices().get(index);
                 var w = TransformMath.applyHierarchy(new TransformMath.Point(v.x(), v.y(), v.z()), node);
                 Point p = projector.project(w.x(), w.y(), w.z(), cx, cy, 300);
                 if (p == null) continue;
                 int x = (int)Math.round(p.x()), y = (int)Math.round(p.y());
-                context.fill(x - 2, y - 2, x + 3, y + 3, index == selection.activeVertex() ? 0xFFFFFFFF : 0xFFD6D9E2);
+                context.fill(x - 2, y - 2, x + 3, y + 3,
+                        index == selection.activeVertex() ? 0xFFFFFFFF : 0xFFD6D9E2);
             }
         } else if (selection.mode() == MeshSelectionMode.EDGE) {
-            var mesh = node.ensureMeshGeometry();
-            if (mesh == null) return;
             for (int[] edge : selection.edgeIndices()) {
                 if (edge[0] < 0 || edge[1] < 0 || edge[0] >= mesh.vertices().size() || edge[1] >= mesh.vertices().size()) continue;
                 var a = mesh.vertices().get(edge[0]);
