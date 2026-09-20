@@ -21,7 +21,8 @@ public final class ViewportRenderer {
                        ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace,
                        int hoveredMeshFace, int hoveredMeshVertex, int hoveredMeshEdgeA, int hoveredMeshEdgeB,
                        ComponentTransformGizmo.Axis hoveredComponentAxis,
-                       Operation componentOperation, ComponentTransformGizmo.PivotMode componentPivotMode) {
+                       Operation componentOperation, ComponentTransformGizmo.PivotMode componentPivotMode,
+                       boolean xrayMode) {
         int left = 16, top = 16, right = width - 16, bottom = height - 16;
         int centerX = (left + right) / 2, centerY = (top + bottom) / 2;
         context.fill(left, top, right, bottom, 0xFF111216);
@@ -60,6 +61,10 @@ public final class ViewportRenderer {
                 GeometryFace faceToDraw = viewport.geometryFaceSelection().matches(selected)
                         ? selectedFace : hoveredFace;
                 drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
+                        centerX, centerY, left, top, right, bottom);
+            }
+            if (xrayMode) {
+                drawMeshComponentXRay(context, projector, selected, viewport,
                         centerX, centerY, left, top, right, bottom);
             }
             drawMeshComponentSelection(context, projector, selected, viewport,
@@ -339,6 +344,58 @@ public final class ViewportRenderer {
                     drawLine(context, previous, current, left, top, right, bottom, color);
                 }
                 previous = current;
+            }
+        }
+    }
+
+    private void drawMeshComponentXRay(DrawContext context, ViewportProjector projector,
+                                            ModelNode node, ViewportContext viewport,
+                                            int cx, int cy, int left, int top, int right, int bottom) {
+        var selection = viewport.meshComponentSelection();
+        if (!selection.matches(node)) return;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+
+        int modeColor = 0x887F8799;
+        if (selection.mode() == MeshSelectionMode.VERTEX) {
+            for (int i = 0; i < mesh.vertices().size(); i++) {
+                if (selection.containsVertex(i)) continue;
+                var v = mesh.vertices().get(i);
+                var w = TransformMath.applyHierarchy(new TransformMath.Point(v.x(), v.y(), v.z()), node);
+                Point p = projector.project(w.x(), w.y(), w.z(), cx, cy, 300);
+                if (p == null) continue;
+                int x = (int) Math.round(p.x()), y = (int) Math.round(p.y());
+                context.fill(x - 2, y - 2, x + 3, y + 3, modeColor);
+            }
+        } else if (selection.mode() == MeshSelectionMode.EDGE) {
+            for (int[] edge : ModelRenderer.meshEdges(mesh)) {
+                if (selection.containsEdge(edge[0], edge[1])) continue;
+                var a = mesh.vertices().get(edge[0]);
+                var b = mesh.vertices().get(edge[1]);
+                var wa = TransformMath.applyHierarchy(new TransformMath.Point(a.x(), a.y(), a.z()), node);
+                var wb = TransformMath.applyHierarchy(new TransformMath.Point(b.x(), b.y(), b.z()), node);
+                Point pa = projector.project(wa.x(), wa.y(), wa.z(), cx, cy, 300);
+                Point pb = projector.project(wb.x(), wb.y(), wb.z(), cx, cy, 300);
+                if (pa != null && pb != null) {
+                    drawLine(context, pa, pb, left, top, right, bottom, modeColor);
+                }
+            }
+        } else {
+            for (int faceIndex = 0; faceIndex < mesh.faces().size(); faceIndex++) {
+                if (selection.containsFace(faceIndex)) continue;
+                int[] ids = mesh.faces().get(faceIndex).vertices();
+                for (int i = 0; i < ids.length; i++) {
+                    int aIndex = ids[i], bIndex = ids[(i + 1) % ids.length];
+                    var a = mesh.vertices().get(aIndex);
+                    var b = mesh.vertices().get(bIndex);
+                    var wa = TransformMath.applyHierarchy(new TransformMath.Point(a.x(), a.y(), a.z()), node);
+                    var wb = TransformMath.applyHierarchy(new TransformMath.Point(b.x(), b.y(), b.z()), node);
+                    Point pa = projector.project(wa.x(), wa.y(), wa.z(), cx, cy, 300);
+                    Point pb = projector.project(wb.x(), wb.y(), wb.z(), cx, cy, 300);
+                    if (pa != null && pb != null) {
+                        drawLine(context, pa, pb, left, top, right, bottom, modeColor);
+                    }
+                }
             }
         }
     }
