@@ -61,10 +61,6 @@ public final class ComponentTransformGizmo {
         if(mode==MeshSelectionMode.VERTEX) ids.addAll(vertices);
         else if(mode==MeshSelectionMode.EDGE) for(int[] e:edges){ids.add(e[0]);ids.add(e[1]);}
         else for(int fi:faces) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
-        java.util.LinkedHashSet<Integer> ids=new java.util.LinkedHashSet<>();
-        if(mode==MeshSelectionMode.VERTEX) ids.addAll(vertices);
-        else if(mode==MeshSelectionMode.EDGE) for(int[] e:edges){ids.add(e[0]);ids.add(e[1]);}
-        else for(int fi:faces) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
         if(ids.isEmpty()) return new TransformMath.Point(0,0,0);
 
         if(pivotMode == PivotMode.ACTIVE) {
