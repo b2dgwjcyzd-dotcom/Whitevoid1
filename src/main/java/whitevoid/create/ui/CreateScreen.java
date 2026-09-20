@@ -10,6 +10,7 @@ import whitevoid.create.core.history.commands.DeleteNodeCommand;
 import whitevoid.create.core.history.commands.DuplicateNodeCommand;
 import whitevoid.create.core.history.commands.SetTransformCommand;
 import whitevoid.create.core.history.commands.SetCubeGeometryCommand;
+import whitevoid.create.core.history.commands.ResizeCubeFaceCommand;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
@@ -240,9 +241,15 @@ public final class CreateScreen extends Screen {
             if (node != null) {
                 if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY
                         && dragOldGeometry != null && node.geometry() != null) {
-                    if (!dragOldGeometry.equals(node.geometry())) {
+                    var t = node.transform();
+                    boolean geometryChanged = !dragOldGeometry.equals(node.geometry());
+                    boolean positionChanged = dragOldX != t.x() || dragOldY != t.y() || dragOldZ != t.z();
+                    if (geometryChanged || positionChanged) {
                         core.editorContext().history().recordExecuted(
-                                new SetCubeGeometryCommand(node, dragOldGeometry, node.geometry()));
+                                new ResizeCubeFaceCommand(node,
+                                        dragOldGeometry, node.geometry(),
+                                        dragOldX, dragOldY, dragOldZ,
+                                        t.x(), t.y(), t.z()));
                     }
                     dragOldGeometry = null;
                     gizmoDragging=false;
@@ -282,14 +289,23 @@ public final class CreateScreen extends Screen {
                         double width = g.width();
                         double height = g.height();
                         double depth = g.depth();
-                        double move = amount * 2.0;
+                        double sign = (activeAxis == ViewportGizmo.Axis.NEG_X ||
+                                activeAxis == ViewportGizmo.Axis.NEG_Y ||
+                                activeAxis == ViewportGizmo.Axis.NEG_Z) ? -1.0 : 1.0;
+                        double move = amount * 2.0 * sign;
 
                         if (activeAxis == ViewportGizmo.Axis.X || activeAxis == ViewportGizmo.Axis.NEG_X) {
                             width = Math.max(0.1, width + move);
+                            node.transform().position(node.transform().x() + amount * sign,
+                                    node.transform().y(), node.transform().z());
                         } else if (activeAxis == ViewportGizmo.Axis.Y || activeAxis == ViewportGizmo.Axis.NEG_Y) {
                             height = Math.max(0.1, height + move);
+                            node.transform().position(node.transform().x(),
+                                    node.transform().y() + amount * sign, node.transform().z());
                         } else if (activeAxis == ViewportGizmo.Axis.Z || activeAxis == ViewportGizmo.Axis.NEG_Z) {
                             depth = Math.max(0.1, depth + move);
+                            node.transform().position(node.transform().x(),
+                                    node.transform().y(), node.transform().z() + amount * sign);
                         }
 
                         node.setGeometry(new CubeGeometry(width, height, depth));
