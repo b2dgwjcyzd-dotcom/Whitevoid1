@@ -138,13 +138,14 @@ public final class CreateScreen extends Screen {
         if (node != null) {
             if (viewport.transform().mode() == TransformMode.GEOMETRY
                     && viewport.meshComponentSelection().matches(node)
-                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
+                    && (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX
+                        || viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE)) {
                 double step = hasShiftDown() ? 0.1 : 0.25;
-                if (keyCode == GLFW.GLFW_KEY_LEFT) { moveSelectedVertex(-step, 0, 0); return true; }
-                if (keyCode == GLFW.GLFW_KEY_RIGHT) { moveSelectedVertex(step, 0, 0); return true; }
-                if (keyCode == GLFW.GLFW_KEY_DOWN) { moveSelectedVertex(0, 0, step); return true; }
-                if (keyCode == GLFW.GLFW_KEY_UP) { moveSelectedVertex(0, 0, -step); return true; }
-                if (keyCode == GLFW.GLFW_KEY_SPACE) { moveSelectedVertex(0, step, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_LEFT) { moveSelectedComponents(-step, 0, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_RIGHT) { moveSelectedComponents(step, 0, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_DOWN) { moveSelectedComponents(0, 0, step); return true; }
+                if (keyCode == GLFW.GLFW_KEY_UP) { moveSelectedComponents(0, 0, -step); return true; }
+                if (keyCode == GLFW.GLFW_KEY_SPACE) { moveSelectedComponents(0, step, 0); return true; }
             }
             double step = hasShiftDown() ? 0.1 : 1.0;
             if (viewport.transform().mode() == TransformMode.MOVE) {
@@ -178,6 +179,32 @@ public final class CreateScreen extends Screen {
             int face = core.editorContext().viewport().meshFaceSelection().faceIndex();
             if (node != null && face >= 0) selection.selectFace(node, face);
         }
+    }
+
+    private void moveSelectedComponents(double dx, double dy, double dz) {
+        var viewport = core.editorContext().viewport();
+        var node = viewport.meshComponentSelection().node(core.editorContext().model());
+        if (node == null) return;
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null) return;
+
+        java.util.LinkedHashSet<Integer> indices = new java.util.LinkedHashSet<>();
+        if (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
+            indices.addAll(viewport.meshComponentSelection().vertexIndices());
+        } else {
+            for (int[] edge : viewport.meshComponentSelection().edgeIndices()) {
+                indices.add(edge[0]);
+                indices.add(edge[1]);
+            }
+        }
+        if (indices.isEmpty()) return;
+
+        var newMesh = oldMesh.copy();
+        for (int index : indices) {
+            newMesh = MeshOperations.moveVertex(newMesh, index, dx, dy, dz);
+        }
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
     }
 
     private void moveSelectedVertex(double dx, double dy, double dz) {
