@@ -66,9 +66,67 @@ public final class ViewportRenderer {
         for(int i=0;i<3;i++){
             TransformMath.Point p3=TransformMath.applyHierarchy(new TransformMath.Point(dirs[i][0],dirs[i][1],dirs[i][2]),node);
             Point p=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
-            if(p!=null) drawLine(context,o,p,left,top,right,bottom,colors[i]);
+            if(p==null) continue;
+            drawLine(context,o,p,left,top,right,bottom,colors[i]);
+            if(mode==whitevoid.create.editor.transform.TransformMode.MOVE) {
+                drawArrowHead(context,p,o,colors[i],left,top,right,bottom);
+            } else if(mode==whitevoid.create.editor.transform.TransformMode.SCALE) {
+                drawHandle(context,p,colors[i],left,top,right,bottom);
+            }
         }
-        context.fill((int)o.x()-3,(int)o.y()-3,(int)o.x()+4,(int)o.y()+4,0xFFFFFFFF);
+        if(mode==whitevoid.create.editor.transform.TransformMode.ROTATE) {
+            drawRotationRings(context,projector,node,cx,cy,left,top,right,bottom);
+        }
+        context.fill((int)o.x()-4,(int)o.y()-4,(int)o.x()+5,(int)o.y()+5,0xFFFFFFFF);
+    }
+
+
+
+    private void drawArrowHead(DrawContext context, Point tip, Point origin, int color,
+                               int left, int top, int right, int bottom) {
+        double dx=tip.x()-origin.x(), dy=tip.y()-origin.y();
+        double len=Math.hypot(dx,dy);
+        if(len<1) return;
+        dx/=len; dy/=len;
+        double px=-dy, py=dx;
+        Point a=new Point(tip.x()-dx*10+px*4,tip.y()-dy*10+py*4,tip.depth());
+        Point b=new Point(tip.x()-dx*10-px*4,tip.y()-dy*10-py*4,tip.depth());
+        drawLine(context,tip,a,left,top,right,bottom,color);
+        drawLine(context,tip,b,left,top,right,bottom,color);
+    }
+
+    private void drawHandle(DrawContext context, Point p, int color,
+                            int left, int top, int right, int bottom) {
+        int x=(int)Math.round(p.x()), y=(int)Math.round(p.y());
+        context.fill(x-4,y-4,x+5,y+5,0xFF111216);
+        context.fill(x-3,y-3,x+4,y+4,color);
+    }
+
+    private void drawRotationRings(DrawContext context, ViewportProjector projector, ModelNode node,
+                                   int cx, int cy, int left, int top, int right, int bottom) {
+        TransformMath.Point origin3=TransformMath.applyHierarchy(new TransformMath.Point(0,0,0),node);
+        Point origin=projector.project(origin3.x(),origin3.y(),origin3.z(),cx,cy,300);
+        if(origin==null) return;
+
+        double[][] basis={{2.0,0,0},{0,2.0,0},{0,0,2.0}};
+        int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
+        for(int axis=0;axis<3;axis++){
+            TransformMath.Point a3=TransformMath.applyHierarchy(
+                    new TransformMath.Point(basis[axis][0],basis[axis][1],basis[axis][2]),node);
+            Point a=projector.project(a3.x(),a3.y(),a3.z(),cx,cy,300);
+            if(a==null) continue;
+            double radius=Math.hypot(a.x()-origin.x(),a.y()-origin.y());
+            if(radius<8) continue;
+            double prevX=origin.x()+radius, prevY=origin.y();
+            for(int i=1;i<=48;i++){
+                double angle=(Math.PI*2*i)/48.0;
+                double x=origin.x()+Math.cos(angle)*radius;
+                double y=origin.y()+Math.sin(angle)*radius;
+                drawLine(context,new Point(prevX,prevY,0),new Point(x,y,0),
+                        left,top,right,bottom,colors[axis]);
+                prevX=x; prevY=y;
+            }
+        }
     }
 
     private void drawAxes(DrawContext context, ViewportProjector projector, int cx, int cy,
