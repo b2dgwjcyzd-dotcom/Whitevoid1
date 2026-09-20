@@ -104,6 +104,12 @@ public final class CreateScreen extends Screen {
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         ViewportContext viewport = core.editorContext().viewport();
 
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && cubeFaceEditor.dragging()) {
+            cubeFaceEditor.cancel();
+            viewport.geometryFaceSelection().clear();
+            return true;
+        }
+
         if (componentKeyboardTransformArmed && viewport.transform().mode() == TransformMode.GEOMETRY
                 && viewport.meshComponentSelection().size() > 0) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
