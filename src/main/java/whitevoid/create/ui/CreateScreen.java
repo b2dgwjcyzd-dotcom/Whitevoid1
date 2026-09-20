@@ -1315,7 +1315,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
                 core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace,
                 hoveredMeshVertex, hoveredMeshEdgeA, hoveredMeshEdgeB,
-                hoveredComponentAxis, componentOperation, componentPivotMode);
+                hoveredComponentAxis, componentOperation, componentPivotMode, selectThrough);
 
         ViewportContext activeViewport = core.editorContext().viewport();
         if (activeViewport.transform().mode() == TransformMode.GEOMETRY
@@ -1339,9 +1339,10 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             String hover = hoveredMeshVertex >= 0 ? " • Hover V" + hoveredMeshVertex
                     : hoveredMeshEdgeA >= 0 ? " • Hover E" + hoveredMeshEdgeA + "-" + hoveredMeshEdgeB
                     : hoveredMeshFace >= 0 ? " • Hover F" + hoveredMeshFace : "";
+            String xray = selectThrough ? " • X-RAY" : "";
             String topology = topologyPathPickArmed ? " • PATH: " + (topologyPathHasStart ? "pick target" : "pick start") : "";
             context.drawTextWithShadow(textRenderer,
-                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap + numeric + proportional + hover + topology,
+                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap + numeric + proportional + hover + xray + topology,
                     26, height - 30, 0xFFE8E8E8);
         }
         if (componentBoxSelecting) {
