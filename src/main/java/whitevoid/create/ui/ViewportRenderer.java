@@ -14,7 +14,7 @@ import whitevoid.create.ui.ViewportProjector.Point;
 public final class ViewportRenderer {
     private final ModelRenderer modelRenderer = new ModelRenderer();
 
-    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace) {
+    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace) {
         int left = 16, top = 16, right = width - 16, bottom = height - 16;
         int centerX = (left + right) / 2, centerY = (top + bottom) / 2;
         context.fill(left, top, right, bottom, 0xFF111216);
@@ -34,7 +34,10 @@ public final class ViewportRenderer {
                     hoveredAxis);
         }
         if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            drawGeometryFaceHighlight(context, projector, selected, hoveredFace,
+            GeometryFace faceToDraw = viewport.geometryFaceSelection().matches(selected)
+                    ? selectedFace
+                    : hoveredFace;
+            drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
                     centerX, centerY, left, top, right, bottom);
             drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
         }
