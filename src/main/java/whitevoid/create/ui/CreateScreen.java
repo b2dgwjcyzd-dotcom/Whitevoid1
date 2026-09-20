@@ -374,10 +374,12 @@ public final class CreateScreen extends Screen {
                 if (meshMode == MeshSelectionMode.VERTEX) {
                     int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (vertex >= 0) {
-                        viewport.meshComponentSelection().selectVertex(selected, vertex);
+                        if (hasShiftDown()) viewport.meshComponentSelection().toggleVertex(selected, vertex);
+                        else viewport.meshComponentSelection().selectVertex(selected, vertex);
                         viewport.meshFaceSelection().clear();
                         viewport.geometryFaceSelection().clear();
                         activeVertex = vertex;
+                        if (hasShiftDown()) return true;
                         var mesh = selected.ensureMeshGeometry();
                         if (mesh != null) {
                             vertexDragOldMesh = mesh.copy();
@@ -400,11 +402,13 @@ public final class CreateScreen extends Screen {
                     } else if (meshMode == MeshSelectionMode.EDGE) {
                         int[] edge = gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy);
                         if (edge != null) {
-                            viewport.meshComponentSelection().selectEdge(selected, edge[0], edge[1]);
+                            if (hasShiftDown()) viewport.meshComponentSelection().toggleEdge(selected, edge[0], edge[1]);
+                            else viewport.meshComponentSelection().selectEdge(selected, edge[0], edge[1]);
                             viewport.meshFaceSelection().clear();
                             viewport.geometryFaceSelection().clear();
                             activeEdgeA = edge[0];
                             activeEdgeB = edge[1];
+                            if (hasShiftDown()) return true;
                             var mesh = selected.ensureMeshGeometry();
                             if (mesh != null) {
                                 edgeDragOldMesh = mesh.copy();
@@ -415,7 +419,8 @@ public final class CreateScreen extends Screen {
                     } else {
                         int clickedMeshFace = gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy);
                         if (clickedMeshFace >= 0) {
-                            viewport.meshComponentSelection().selectFace(selected, clickedMeshFace);
+                            if (hasShiftDown()) viewport.meshComponentSelection().toggleFace(selected, clickedMeshFace);
+                            else viewport.meshComponentSelection().selectFace(selected, clickedMeshFace);
                             viewport.meshFaceSelection().select(selected, clickedMeshFace);
                             viewport.geometryFaceSelection().clear();
                             hoveredMeshFace = clickedMeshFace;
