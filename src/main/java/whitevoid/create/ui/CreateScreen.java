@@ -898,7 +898,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             return true;
                         }
                     }
-                    viewport.meshFaceSelection().clear();
                     GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (clickedFace != GeometryFace.NONE) {
                         viewport.geometryFaceSelection().select(selected, clickedFace);
