@@ -131,32 +131,46 @@ public final class ViewportGizmo {
 
     public int meshVertexHit(ModelNode node, ViewportProjector projector,
                                 double mouseX, double mouseY, int cx, int cy) {
-        if (node == null) return -1;
+        var hits = meshVertexHits(node, projector, mouseX, mouseY, cx, cy);
+        return hits.isEmpty() ? -1 : hits.get(0);
+    }
+
+    /** Returns all vertex hits ordered front-to-back by camera depth. */
+    public java.util.List<Integer> meshVertexHits(ModelNode node, ViewportProjector projector,
+                                                   double mouseX, double mouseY, int cx, int cy) {
+        if (node == null) return java.util.List.of();
         var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return -1;
-        int best = -1;
-        double bestDistance = 7.0;
+        if (mesh == null) return java.util.List.of();
+        record Hit(int index, double depth, double distance) {}
+        var hits = new java.util.ArrayList<Hit>();
         for (int i = 0; i < mesh.vertices().size(); i++) {
             var v = mesh.vertices().get(i);
             var world = TransformMath.applyHierarchy(new TransformMath.Point(v.x(), v.y(), v.z()), node);
             var p = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
             if (p == null) continue;
             double distance = Math.hypot(mouseX - p.x(), mouseY - p.y());
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = i;
-            }
+            if (distance <= 7.0) hits.add(new Hit(i, p.depth(), distance));
         }
-        return best;
+        hits.sort(java.util.Comparator.comparingDouble(Hit::depth).thenComparingDouble(Hit::distance));
+        var result = new java.util.ArrayList<Integer>(hits.size());
+        for (Hit hit : hits) result.add(hit.index());
+        return result;
     }
 
     public int[] meshEdgeHit(ModelNode node, ViewportProjector projector,
                              double mouseX, double mouseY, int cx, int cy) {
-        if (node == null) return null;
+        var hits = meshEdgeHits(node, projector, mouseX, mouseY, cx, cy);
+        return hits.isEmpty() ? null : hits.get(0);
+    }
+
+    /** Returns all edge hits ordered front-to-back by average camera depth. */
+    public java.util.List<int[]> meshEdgeHits(ModelNode node, ViewportProjector projector,
+                                               double mouseX, double mouseY, int cx, int cy) {
+        if (node == null) return java.util.List.of();
         var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return null;
-        int[] best = null;
-        double bestDistance = 6.0;
+        if (mesh == null) return java.util.List.of();
+        record Hit(int[] edge, double depth, double distance) {}
+        var hits = new java.util.ArrayList<Hit>();
         for (int[] edge : ModelRenderer.meshEdges(mesh)) {
             var a = mesh.vertices().get(edge[0]);
             var b = mesh.vertices().get(edge[1]);
@@ -166,52 +180,51 @@ public final class ViewportGizmo {
             var pb = projector.project(wb.x(), wb.y(), wb.z(), cx, cy, 300);
             if (pa == null || pb == null) continue;
             double distance = distanceToSegment(mouseX, mouseY, pa.x(), pa.y(), pb.x(), pb.y());
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = new int[]{edge[0], edge[1]};
-            }
+            if (distance <= 6.0) hits.add(new Hit(new int[]{edge[0], edge[1]},
+                    (pa.depth() + pb.depth()) * 0.5, distance));
         }
-        return best;
+        hits.sort(java.util.Comparator.comparingDouble(Hit::depth).thenComparingDouble(Hit::distance));
+        var result = new java.util.ArrayList<int[]>(hits.size());
+        for (Hit hit : hits) result.add(hit.edge());
+        return result;
     }
 
     public int meshFaceHit(ModelNode node, ViewportProjector projector,
                               double mouseX, double mouseY, int cx, int cy) {
-        if (node == null) return -1;
+        var hits = meshFaceHits(node, projector, mouseX, mouseY, cx, cy);
+        return hits.isEmpty() ? -1 : hits.get(0);
+    }
+
+    /** Returns all face hits ordered front-to-back by average camera depth. */
+    public java.util.List<Integer> meshFaceHits(ModelNode node, ViewportProjector projector,
+                                                 double mouseX, double mouseY, int cx, int cy) {
+        if (node == null) return java.util.List.of();
         var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return -1;
-
-        int bestFace = -1;
-        double bestDepth = Double.POSITIVE_INFINITY;
-        double bestDistance = 8.0;
-
+        if (mesh == null) return java.util.List.of();
+        record Hit(int face, double depth, double distance) {}
+        var hits = new java.util.ArrayList<Hit>();
         for (int faceIndex = 0; faceIndex < mesh.faces().size(); faceIndex++) {
             int[] indices = mesh.faces().get(faceIndex).vertices();
             ViewportProjector.Point[] projected = new ViewportProjector.Point[indices.length];
             boolean valid = true;
+            double depth = 0.0;
             for (int i = 0; i < indices.length; i++) {
                 var v = mesh.vertices().get(indices[i]);
                 TransformMath.Point world = TransformMath.applyHierarchy(
                         new TransformMath.Point(v.x(), v.y(), v.z()), node);
                 projected[i] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
-                if (projected[i] == null) {
-                    valid = false;
-                    break;
-                }
+                if (projected[i] == null) { valid = false; break; }
+                depth += projected[i].depth();
             }
             if (!valid) continue;
-
+            depth /= projected.length;
             double distance = pointToPolygon(mouseX, mouseY, projected);
-            if (distance <= bestDistance) {
-                double depth = 0.0;
-                for (var point : projected) depth += point.depth();
-                depth /= projected.length;
-                if (depth < bestDepth) {
-                    bestDepth = depth;
-                    bestFace = faceIndex;
-                }
-            }
+            if (distance <= 8.0) hits.add(new Hit(faceIndex, depth, distance));
         }
-        return bestFace;
+        hits.sort(java.util.Comparator.comparingDouble(Hit::depth).thenComparingDouble(Hit::distance));
+        var result = new java.util.ArrayList<Integer>(hits.size());
+        for (Hit hit : hits) result.add(hit.face());
+        return result;
     }
 
     private double pointToPolygon(double px, double py, ViewportProjector.Point[] polygon) {
