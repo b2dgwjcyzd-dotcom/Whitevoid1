@@ -26,6 +26,11 @@ public final class ViewportRenderer {
         modelRenderer.render(model, (node, corners) ->
                 drawModelNode(context, projector, node, corners, viewport, centerX, centerY, left, top, right, bottom));
 
+        ModelNode selected = viewport.selection().first(model);
+        if (selected != null && viewport.transform().mode() != whitevoid.create.editor.transform.TransformMode.SELECT) {
+            drawGizmo(context, projector, selected, viewport.transform().mode(), centerX, centerY, left, top, right, bottom);
+        }
+
         var textRenderer = MinecraftClient.getInstance().textRenderer;
         context.drawTextWithShadow(textRenderer, "CREATE • Model Viewport", left + 10, top + 10, 0xFFE8E8E8);
         context.drawTextWithShadow(textRenderer,
@@ -48,6 +53,22 @@ public final class ViewportRenderer {
             Point a = points[edge[0]], b = points[edge[1]];
             if (a != null && b != null) drawLine(context, a, b, left, top, right, bottom, color);
         }
+    }
+
+    private void drawGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
+                           whitevoid.create.editor.transform.TransformMode mode,
+                           int cx, int cy, int left, int top, int right, int bottom) {
+        TransformMath.Point o3 = TransformMath.applyHierarchy(new TransformMath.Point(0,0,0), node);
+        Point o = projector.project(o3.x(),o3.y(),o3.z(),cx,cy,300);
+        if(o==null) return;
+        double[][] dirs={{2.2,0,0},{0,2.2,0},{0,0,2.2}};
+        int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
+        for(int i=0;i<3;i++){
+            TransformMath.Point p3=TransformMath.applyHierarchy(new TransformMath.Point(dirs[i][0],dirs[i][1],dirs[i][2]),node);
+            Point p=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
+            if(p!=null) drawLine(context,o,p,left,top,right,bottom,colors[i]);
+        }
+        context.fill((int)o.x()-3,(int)o.y()-3,(int)o.x()+4,(int)o.y()+4,0xFFFFFFFF);
     }
 
     private void drawAxes(DrawContext context, ViewportProjector projector, int cx, int cy,
