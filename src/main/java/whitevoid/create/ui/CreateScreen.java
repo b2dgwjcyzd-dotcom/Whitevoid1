@@ -206,7 +206,9 @@ public final class CreateScreen extends Screen {
         var newMesh = MeshOperations.extrudeEdge(oldMesh, a, b, amount);
         core.editorContext().history().execute(
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-        viewport.meshComponentSelection().selectEdge(node, a, b);
+        int newA = newMesh.vertices().size() - 2;
+        int newB = newMesh.vertices().size() - 1;
+        viewport.meshComponentSelection().selectEdge(node, newA, newB);
     }
 
     private void bevelSelectedEdge(double amount) {
