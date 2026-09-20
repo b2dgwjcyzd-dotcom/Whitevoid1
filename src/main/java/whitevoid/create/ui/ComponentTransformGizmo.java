@@ -6,6 +6,15 @@ import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.TransformMath;
 
 public final class ComponentTransformGizmo {
+    private static final double MIN_GIZMO_RADIUS = 1.5;
+    private static final double MAX_GIZMO_RADIUS = 4.0;
+
+    public static double gizmoRadius(ViewportProjector projector) {
+        if (projector == null) return 2.4;
+        return Math.max(MIN_GIZMO_RADIUS, Math.min(MAX_GIZMO_RADIUS,
+                projector.cameraDistance() * 0.30));
+    }
+
     public enum Axis { NONE, X, Y, Z }
     public enum Operation { MOVE, ROTATE, SCALE }
     public enum PivotMode {
@@ -123,8 +132,8 @@ public final class ComponentTransformGizmo {
             for (int i = 0; i <= 48; i++) {
                 double angle = Math.PI * 2.0 * i / 48.0;
                 double[] offset = {0.0, 0.0, 0.0};
-                offset[planes[axis][0]] = Math.cos(angle) * 2.0;
-                offset[planes[axis][1]] = Math.sin(angle) * 2.0;
+                offset[planes[axis][0]] = Math.cos(angle) * gizmoRadius(projector);
+                offset[planes[axis][1]] = Math.sin(angle) * gizmoRadius(projector);
 
                 TransformMath.Point local = new TransformMath.Point(
                         localPivot.x() + offset[0],
@@ -164,7 +173,7 @@ public final class ComponentTransformGizmo {
         var o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null) return Axis.NONE;
         double best=12; Axis result=Axis.NONE;
-        double[][] dirs={{2.0,0,0},{0,2.0,0},{0,0,2.0}};
+        double[][] dirs={{gizmoRadius,0,0},{0,gizmoRadius,0},{0,0,gizmoRadius}};
         Axis[] axes={Axis.X,Axis.Y,Axis.Z};
         for(int i=0;i<3;i++){
             TransformMath.Point localAxisEnd = new TransformMath.Point(
@@ -206,7 +215,7 @@ public final class ComponentTransformGizmo {
 
         int axisIndex = axis == Axis.X ? 0 : axis == Axis.Y ? 1 : 2;
         double[] offset = {0.0, 0.0, 0.0};
-        offset[axisIndex] = 2.0;
+        offset[axisIndex] = gizmoRadius(projector);
         TransformMath.Point worldEnd = TransformMath.applyHierarchy(
                 new TransformMath.Point(localPivot.x() + offset[0],
                         localPivot.y() + offset[1],
@@ -282,8 +291,8 @@ public final class ComponentTransformGizmo {
                                                    int[] plane, double angle,
                                                    ViewportProjector projector, int cx, int cy) {
         double[] offset = {0.0, 0.0, 0.0};
-        offset[plane[0]] = Math.cos(angle) * 2.0;
-        offset[plane[1]] = Math.sin(angle) * 2.0;
+        offset[plane[0]] = Math.cos(angle) * gizmoRadius(projector);
+        offset[plane[1]] = Math.sin(angle) * gizmoRadius(projector);
         var local = new TransformMath.Point(localPivot.x() + offset[0],
                 localPivot.y() + offset[1], localPivot.z() + offset[2]);
         var world = TransformMath.applyHierarchy(local, node);
