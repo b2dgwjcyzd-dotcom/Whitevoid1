@@ -12,6 +12,7 @@ import whitevoid.create.core.history.commands.SetTransformCommand;
 import whitevoid.create.core.history.commands.SetCubeGeometryCommand;
 import whitevoid.create.core.history.commands.ResizeCubeFaceCommand;
 import whitevoid.create.editor.selection.SelectionMode;
+import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
 import whitevoid.create.model.CubeGeometry;
@@ -27,6 +28,7 @@ public final class CreateScreen extends Screen {
     private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
     private double dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz;
     private CubeGeometry dragOldGeometry;
+    private GeometryFace hoveredFace = GeometryFace.NONE;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -207,6 +209,10 @@ public final class CreateScreen extends Screen {
                 int cx=width/2, cy=height/2;
                 activeAxis = gizmo.geometryHit(selected,
                         new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
+                if (activeAxis == ViewportGizmo.Axis.NONE) {
+                    hoveredFace = gizmo.faceHit(selected,
+                            new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
+                }
                 gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
                 hoveredAxis = activeAxis;
                 if (gizmoDragging) {
@@ -347,6 +353,10 @@ public final class CreateScreen extends Screen {
             if(selected!=null && viewport.transform().mode()==TransformMode.GEOMETRY) {
                 hoveredAxis=gizmo.geometryHit(selected,new ViewportProjector(viewport.viewport().camera()),
                         mouseX,mouseY,width/2,height/2);
+                hoveredFace = hoveredAxis == ViewportGizmo.Axis.NONE
+                        ? gizmo.faceHit(selected,new ViewportProjector(viewport.viewport().camera()),
+                        mouseX,mouseY,width/2,height/2)
+                        : GeometryFace.NONE;
             } else if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
                 hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()),mouseX,mouseY,width/2,height/2);
@@ -357,7 +367,7 @@ public final class CreateScreen extends Screen {
 
     @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
-        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model(), hoveredAxis);
+        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model(), hoveredAxis, hoveredFace);
         super.render(context, mouseX, mouseY, delta);
     }
 
