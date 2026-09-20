@@ -1,6 +1,7 @@
 package whitevoid.create.ui;
 
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
@@ -815,10 +816,9 @@ public final class CreateScreen extends Screen {
                         double dx=axis==0?amount:0, dy=axis==1?amount:0, dz=axis==2?amount:0;
                         updated=MeshComponentTransforms.translate(updated,ids,dx,dy,dz);
                     } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
-                        TransformMath.Point worldPivot=TransformMath.applyHierarchy(pivot,node);
-                        double degrees=componentGizmo.rotationAmount(componentAxis,
+                        double degrees=componentGizmo.rotationAmount(componentAxis, node, pivot,
                                 componentDragStartX, componentDragStartY, mouseX, mouseY,
-                                projector, width / 2, height / 2, worldPivot);
+                                projector, width / 2, height / 2);
                         if (hasControlDown()) degrees = snapScalar(degrees, ROTATE_SNAP_INCREMENT);
                         updated=MeshComponentTransforms.rotate(updated,ids,pivot,axis,degrees);
                     } else {
@@ -992,6 +992,23 @@ public final class CreateScreen extends Screen {
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
                 core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace,
                 hoveredComponentAxis, componentOperation, componentPivotMode);
+
+        ViewportContext activeViewport = core.editorContext().viewport();
+        if (activeViewport.transform().mode() == TransformMode.GEOMETRY
+                && activeViewport.meshComponentSelection().size() > 0) {
+            var textRenderer = MinecraftClient.getInstance().textRenderer;
+            String mode = activeViewport.meshComponentSelection().mode().name();
+            String operation = componentOperation.name();
+            String axis = componentAxis == ComponentTransformGizmo.Axis.NONE
+                    ? (hoveredComponentAxis == ComponentTransformGizmo.Axis.NONE
+                    ? "" : " " + hoveredComponentAxis.name())
+                    : " " + componentAxis.name();
+            String pivot = componentPivotMode.name().replace('_', ' ');
+            String snap = hasControlDown() ? " • SNAP" : "";
+            context.drawTextWithShadow(textRenderer,
+                    operation + axis + " • " + mode + " • Pivot " + pivot + snap,
+                    26, height - 30, 0xFFE8E8E8);
+        }
         if (componentBoxSelecting) {
             int left = (int) Math.round(Math.min(boxStartX, boxCurrentX));
             int top = (int) Math.round(Math.min(boxStartY, boxCurrentY));
