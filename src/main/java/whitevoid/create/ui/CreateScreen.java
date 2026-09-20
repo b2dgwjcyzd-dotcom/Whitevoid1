@@ -13,6 +13,7 @@ import whitevoid.create.core.history.commands.SetCubeGeometryCommand;
 import whitevoid.create.core.history.commands.ResizeCubeFaceCommand;
 import whitevoid.create.core.history.commands.SetMeshGeometryCommand;
 import whitevoid.create.editor.geometry.MeshOperations;
+import whitevoid.create.editor.geometry.MeshSelectionMode;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.editor.transform.TransformMode;
@@ -57,6 +58,19 @@ public final class CreateScreen extends Screen {
         if (keyCode == 71) { viewport.transform().setMode(TransformMode.MOVE); return true; }
         if (keyCode == 82) { viewport.transform().setMode(TransformMode.ROTATE); return true; }
         if (keyCode == 83) { viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == GLFW.GLFW_KEY_1 && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            setMeshSelectionMode(MeshSelectionMode.VERTEX);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_2 && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            setMeshSelectionMode(MeshSelectionMode.EDGE);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_3 && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            setMeshSelectionMode(MeshSelectionMode.FACE);
+            return true;
+        }
+
         if (keyCode == GLFW.GLFW_KEY_B) {
             viewport.transform().setMode(TransformMode.GEOMETRY);
             viewport.geometryFaceSelection().clear();
@@ -104,6 +118,16 @@ public final class CreateScreen extends Screen {
 
         ModelNode node = viewport.selection().first(core.editorContext().model());
         if (node != null) {
+            if (viewport.transform().mode() == TransformMode.GEOMETRY
+                    && viewport.meshComponentSelection().matches(node)
+                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
+                double step = hasShiftDown() ? 0.1 : 0.25;
+                if (keyCode == GLFW.GLFW_KEY_LEFT) { moveSelectedVertex(-step, 0, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_RIGHT) { moveSelectedVertex(step, 0, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_DOWN) { moveSelectedVertex(0, 0, step); return true; }
+                if (keyCode == GLFW.GLFW_KEY_UP) { moveSelectedVertex(0, 0, -step); return true; }
+                if (keyCode == GLFW.GLFW_KEY_SPACE) { moveSelectedVertex(0, step, 0); return true; }
+            }
             double step = hasShiftDown() ? 0.1 : 1.0;
             if (viewport.transform().mode() == TransformMode.MOVE) {
                 if (keyCode == 263) { transformMove(node, -step, 0, 0); return true; }
@@ -126,6 +150,29 @@ public final class CreateScreen extends Screen {
 
         if (keyCode == 27) viewport.transform().setMode(TransformMode.SELECT);
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void setMeshSelectionMode(MeshSelectionMode mode) {
+        var selection = core.editorContext().viewport().meshComponentSelection();
+        selection.clear();
+        if (mode == MeshSelectionMode.FACE) {
+            var node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            int face = core.editorContext().viewport().meshFaceSelection().faceIndex();
+            if (node != null && face >= 0) selection.selectFace(node, face);
+        }
+    }
+
+    private void moveSelectedVertex(double dx, double dy, double dz) {
+        var viewport = core.editorContext().viewport();
+        var node = viewport.meshComponentSelection().node(core.editorContext().model());
+        if (node == null || viewport.meshComponentSelection().mode() != MeshSelectionMode.VERTEX) return;
+        int index = viewport.meshComponentSelection().indexA();
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null) return;
+        var newMesh = MeshOperations.moveVertex(oldMesh, index, dx, dy, dz);
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+        viewport.meshComponentSelection().selectVertex(node, index);
     }
 
     private void insetSelectedFace(double amount) {
