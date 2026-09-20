@@ -825,10 +825,14 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             return true;
                         }
                     } else if (meshMode == MeshSelectionMode.EDGE) {
-                        java.util.List<int[]> edgeHits = selectThrough
-        ? gizmo.meshEdgeHits(selected, projector, mouseX, mouseY, cx, cy)
-        : java.util.List.ofNullable(gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy));
-                        int[] edge = edgeHits.isEmpty() ? null : edgeHits.get(nextThroughIndex(meshMode, mouseX, mouseY, edgeHits.size()));
+                        java.util.List<int[]> edgeHits;
+                    if (selectThrough) {
+                        edgeHits = gizmo.meshEdgeHits(selected, projector, mouseX, mouseY, cx, cy);
+                    } else {
+                        int[] singleEdge = gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy);
+                        edgeHits = singleEdge == null ? java.util.List.of() : java.util.List.of(singleEdge);
+                    }
+                    int[] edge = edgeHits.isEmpty() ? null : edgeHits.get(nextThroughIndex(meshMode, mouseX, mouseY, edgeHits.size()));
                         if (edge != null) {
                             var selection = viewport.meshComponentSelection();
                             if (hasAltDown()) {
