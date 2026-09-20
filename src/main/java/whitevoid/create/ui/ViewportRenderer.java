@@ -38,14 +38,19 @@ public final class ViewportRenderer {
                     hoveredAxis);
         }
         if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            int selectedMeshFace = viewport.meshComponentSelection().matches(selected)
+            if (viewport.meshComponentSelection().matches(selected)
+                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE) {
+                for (int faceIndex : viewport.meshComponentSelection().faceIndices()) {
+                    drawMeshFaceHighlight(context, projector, selected,
+                            faceIndex, centerX, centerY, left, top, right, bottom, true);
+                }
+            }
+            if (hoveredMeshFace >= 0
+                    && !(viewport.meshComponentSelection().matches(selected)
                     && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE
-                    ? viewport.meshComponentSelection().indexA() : -1;
-            drawMeshFaceHighlight(context, projector, selected,
-                    selectedMeshFace, centerX, centerY, left, top, right, bottom);
-            if (selectedMeshFace < 0 && hoveredMeshFace >= 0) {
+                    && viewport.meshComponentSelection().containsFace(hoveredMeshFace))) {
                 drawMeshFaceHighlight(context, projector, selected, hoveredMeshFace,
-                        centerX, centerY, left, top, right, bottom);
+                        centerX, centerY, left, top, right, bottom, false);
             }
             if (selectedMeshFace < 0 && hoveredMeshFace < 0) {
                 GeometryFace faceToDraw = viewport.geometryFaceSelection().matches(selected)
@@ -331,6 +336,13 @@ public final class ViewportRenderer {
     private void drawMeshFaceHighlight(DrawContext context, ViewportProjector projector,
                                           ModelNode node, int faceIndex,
                                           int cx, int cy, int left, int top, int right, int bottom) {
+        drawMeshFaceHighlight(context, projector, node, faceIndex, cx, cy, left, top, right, bottom, true);
+    }
+
+    private void drawMeshFaceHighlight(DrawContext context, ViewportProjector projector,
+                                          ModelNode node, int faceIndex,
+                                          int cx, int cy, int left, int top, int right, int bottom,
+                                          boolean selected) {
         if (faceIndex < 0) return;
         var mesh = node.ensureMeshGeometry();
         if (mesh == null || faceIndex >= mesh.faces().size()) return;
@@ -347,10 +359,12 @@ public final class ViewportRenderer {
 
         for (int i = 0; i < points.length; i++) {
             Point a = points[i], b = points[(i + 1) % points.length];
-            drawLine(context, a, b, left, top, right, bottom, 0xFFFFFFFF);
+            int primary = selected ? 0xFFFFFFFF : 0xFF8D96A8;
+            int secondary = selected ? 0xFFE7E9EF : 0xFF596174;
+            drawLine(context, a, b, left, top, right, bottom, primary);
             drawLine(context, new Point(a.x() + 1, a.y(), a.depth()),
                     new Point(b.x() + 1, b.y(), b.depth()),
-                    left, top, right, bottom, 0xFFE7E9EF);
+                    left, top, right, bottom, secondary);
         }
     }
 
