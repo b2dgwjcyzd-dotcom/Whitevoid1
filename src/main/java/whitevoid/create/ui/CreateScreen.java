@@ -558,7 +558,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
 
         selection.applySelectionHint(node, result);
-        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
@@ -581,7 +580,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
 
         selection.applySelectionHint(node, result);
-        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
@@ -604,7 +602,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
 
         selection.applySelectionHint(node, result);
-        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
@@ -627,7 +624,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
 
         selection.applySelectionHint(node, result);
-        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
