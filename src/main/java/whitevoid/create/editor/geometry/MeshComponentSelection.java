@@ -15,9 +15,13 @@ public final class MeshComponentSelection {
     private final Set<Long> edges = new LinkedHashSet<>();
     private final Set<Integer> faces = new LinkedHashSet<>();
 
-    public void selectVertex(ModelNode node, int vertexIndex) { setSingle(node, MeshSelectionMode.VERTEX); vertices.add(vertexIndex); }
-    public void selectEdge(ModelNode node, int a, int b) { setSingle(node, MeshSelectionMode.EDGE); edges.add(edgeKey(a,b)); }
-    public void selectFace(ModelNode node, int faceIndex) { setSingle(node, MeshSelectionMode.FACE); faces.add(faceIndex); }
+    private int activeVertex = -1;
+    private long activeEdge = -1L;
+    private int activeFace = -1;
+
+    public void selectVertex(ModelNode node, int vertexIndex) { setSingle(node, MeshSelectionMode.VERTEX); vertices.add(vertexIndex); activeVertex = vertexIndex; }
+    public void selectEdge(ModelNode node, int a, int b) { setSingle(node, MeshSelectionMode.EDGE); long key=edgeKey(a,b); edges.add(key); activeEdge=key; }
+    public void selectFace(ModelNode node, int faceIndex) { setSingle(node, MeshSelectionMode.FACE); faces.add(faceIndex); activeFace=faceIndex; }
 
     public void toggleVertex(ModelNode node, int index) { toggle(node, MeshSelectionMode.VERTEX, index, -1); }
     public void toggleEdge(ModelNode node, int a, int b) { toggle(node, MeshSelectionMode.EDGE, a, b); }
@@ -27,35 +31,43 @@ public final class MeshComponentSelection {
     public void addVertex(ModelNode node, int index) {
         prepareForMultiSelect(node, MeshSelectionMode.VERTEX);
         vertices.add(index);
+        activeVertex = index;
     }
 
     /** Adds an edge without removing or toggling existing selection. */
     public void addEdge(ModelNode node, int a, int b) {
         prepareForMultiSelect(node, MeshSelectionMode.EDGE);
-        edges.add(edgeKey(a, b));
+        long key = edgeKey(a, b);
+        edges.add(key);
+        activeEdge = key;
     }
 
     /** Adds a face without removing or toggling existing selection. */
     public void addFace(ModelNode node, int index) {
         prepareForMultiSelect(node, MeshSelectionMode.FACE);
         faces.add(index);
+        activeFace = index;
     }
 
     public void removeVertex(ModelNode node, int index) {
         if (!matchesMode(node, MeshSelectionMode.VERTEX)) return;
         vertices.remove(index);
+        if (activeVertex == index) activeVertex = first(vertices);
         clearIfEmpty();
     }
 
     public void removeEdge(ModelNode node, int a, int b) {
         if (!matchesMode(node, MeshSelectionMode.EDGE)) return;
-        edges.remove(edgeKey(a, b));
+        long key = edgeKey(a, b);
+        edges.remove(key);
+        if (activeEdge == key) activeEdge = firstLong(edges);
         clearIfEmpty();
     }
 
     public void removeFace(ModelNode node, int index) {
         if (!matchesMode(node, MeshSelectionMode.FACE)) return;
         faces.remove(index);
+        if (activeFace == index) activeFace = first(faces);
         clearIfEmpty();
     }
 
@@ -87,11 +99,30 @@ public final class MeshComponentSelection {
         if (node == null) { clear(); return; }
         prepareForMultiSelect(node, newMode);
         if (newMode == MeshSelectionMode.VERTEX) {
-            if (vertices.contains(a)) vertices.remove(a); else vertices.add(a);
+            if (vertices.contains(a)) {
+                vertices.remove(a);
+                if (activeVertex == a) activeVertex = first(vertices);
+            } else {
+                vertices.add(a);
+                activeVertex = a;
+            }
         } else if (newMode == MeshSelectionMode.EDGE) {
-            long key=edgeKey(a,b); if (edges.contains(key)) edges.remove(key); else edges.add(key);
+            long key=edgeKey(a,b);
+            if (edges.contains(key)) {
+                edges.remove(key);
+                if (activeEdge == key) activeEdge = firstLong(edges);
+            } else {
+                edges.add(key);
+                activeEdge = key;
+            }
         } else {
-            if (faces.contains(a)) faces.remove(a); else faces.add(a);
+            if (faces.contains(a)) {
+                faces.remove(a);
+                if (activeFace == a) activeFace = first(faces);
+            } else {
+                faces.add(a);
+                activeFace = a;
+            }
         }
         if (isEmpty()) nodeId = null;
     }
@@ -102,7 +133,16 @@ public final class MeshComponentSelection {
     }
 
     public void clear() { nodeId = null; clearSelectionOnly(); }
-    private void clearSelectionOnly() { vertices.clear(); edges.clear(); faces.clear(); }
+    private void clearSelectionOnly() {
+        vertices.clear(); edges.clear(); faces.clear();
+        activeVertex = -1; activeEdge = -1L; activeFace = -1;
+    }
+
+    public int activeVertex() { return activeVertex; }
+    public long activeEdgeKey() { return activeEdge; }
+    public int activeEdgeA() { return activeEdge < 0 ? -1 : (int)(activeEdge >>> 32); }
+    public int activeEdgeB() { return activeEdge < 0 ? -1 : (int)activeEdge; }
+    public int activeFace() { return activeFace; }
 
     public MeshSelectionMode mode() { return mode; }
     public int indexA() {
@@ -136,12 +176,15 @@ public final class MeshComponentSelection {
         nodeId = node.id();
         if (mode == MeshSelectionMode.VERTEX) {
             for (int i = 0; i < mesh.vertices().size(); i++) vertices.add(i);
+            activeVertex = first(vertices);
         } else if (mode == MeshSelectionMode.EDGE) {
             for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
                 edges.add(edgeKey(edge[0], edge[1]));
             }
+            activeEdge = firstLong(edges);
         } else {
             for (int i = 0; i < mesh.faces().size(); i++) faces.add(i);
+            activeFace = first(faces);
         }
     }
 
@@ -154,18 +197,18 @@ public final class MeshComponentSelection {
         if (mode == MeshSelectionMode.VERTEX) {
             Set<Integer> next = new LinkedHashSet<>();
             for (int i = 0; i < mesh.vertices().size(); i++) if (!vertices.contains(i)) next.add(i);
-            vertices.clear(); vertices.addAll(next);
+            vertices.clear(); vertices.addAll(next); activeVertex = first(vertices);
         } else if (mode == MeshSelectionMode.EDGE) {
             Set<Long> next = new LinkedHashSet<>();
             for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
                 long key = edgeKey(edge[0], edge[1]);
                 if (!edges.contains(key)) next.add(key);
             }
-            edges.clear(); edges.addAll(next);
+            edges.clear(); edges.addAll(next); activeEdge = firstLong(edges);
         } else {
             Set<Integer> next = new LinkedHashSet<>();
             for (int i = 0; i < mesh.faces().size(); i++) if (!faces.contains(i)) next.add(i);
-            faces.clear(); faces.addAll(next);
+            faces.clear(); faces.addAll(next); activeFace = first(faces);
         }
         if (isEmpty()) nodeId = null;
     }
