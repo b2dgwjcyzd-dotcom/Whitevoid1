@@ -229,6 +229,94 @@ public final class MeshOperations {
         return new MeshGeometry(vertices, faces);
     }
 
+    /** Extrudes a selected face region as one connected operation. */
+    public static MeshGeometry extrudeFaces(MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedFaces == null || selectedFaces.isEmpty() || amount == 0.0) return mesh.copy();
+
+        java.util.Set<Integer> valid = new java.util.LinkedHashSet<>();
+        for (int face : selectedFaces) {
+            if (face >= 0 && face < mesh.faces().size()) valid.add(face);
+        }
+        if (valid.isEmpty()) return mesh.copy();
+
+        java.util.Map<Integer, double[]> normals = new java.util.LinkedHashMap<>();
+        java.util.Set<Integer> affected = new java.util.LinkedHashSet<>();
+        for (int faceIndex : valid) {
+            MeshGeometry.Face face = mesh.faces().get(faceIndex);
+            double[] n = faceNormal(mesh, face);
+            for (int id : face.vertices()) {
+                affected.add(id);
+                double[] sum = normals.computeIfAbsent(id, ignored -> new double[3]);
+                sum[0] += n[0]; sum[1] += n[1]; sum[2] += n[2];
+            }
+        }
+
+        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
+        java.util.Map<Integer, Integer> duplicate = new java.util.LinkedHashMap<>();
+        for (int id : affected) {
+            double[] n = normals.get(id);
+            double len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+            if (len < 1e-9) { n[0] = 0; n[1] = 1; n[2] = 0; }
+            else { n[0] /= len; n[1] /= len; n[2] /= len; }
+            MeshGeometry.Vertex v = mesh.vertices().get(id);
+            int copy = vertices.size();
+            vertices.add(new MeshGeometry.Vertex(v.x() + n[0] * amount,
+                    v.y() + n[1] * amount, v.z() + n[2] * amount));
+            duplicate.put(id, copy);
+        }
+
+        List<MeshGeometry.Face> faces = new ArrayList<>();
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            if (!valid.contains(i)) faces.add(mesh.faces().get(i));
+        }
+
+        for (int faceIndex : valid) {
+            int[] original = mesh.faces().get(faceIndex).vertices();
+            int[] moved = new int[original.length];
+            for (int i = 0; i < original.length; i++) moved[i] = duplicate.get(original[i]);
+            reverse(moved);
+            faces.add(new MeshGeometry.Face(moved));
+        }
+
+        for (int faceIndex : valid) {
+            int[] original = mesh.faces().get(faceIndex).vertices();
+            for (int i = 0; i < original.length; i++) {
+                int a = original[i];
+                int b = original[(i + 1) % original.length];
+                if (!isSelectedEdge(mesh, a, b, valid)) {
+                    faces.add(new MeshGeometry.Face(a, b, duplicate.get(b), duplicate.get(a)));
+                }
+            }
+        }
+        return new MeshGeometry(vertices, faces);
+    }
+
+    private static boolean isSelectedEdge(MeshGeometry mesh, int a, int b,
+                                           java.util.Set<Integer> selectedFaces) {
+        int count = 0;
+        for (int face : selectedFaces) {
+            int[] ids = mesh.faces().get(face).vertices();
+            for (int i = 0; i < ids.length; i++) {
+                if (sameEdge(ids[i], ids[(i + 1) % ids.length], a, b)) {
+                    count++;
+                    break;
+                }
+            }
+        }
+        return count >= 2;
+    }
+
+    private static boolean sameEdge(int a, int b, int c, int d) {
+        return (a == c && b == d) || (a == d && b == c);
+    }
+
+    private static void reverse(int[] values) {
+        for (int i = 0, j = values.length - 1; i < j; i++, j--) {
+            int temp = values[i]; values[i] = values[j]; values[j] = temp;
+        }
+    }
+
     public static MeshGeometry insetFace(MeshGeometry mesh, int faceIndex, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
