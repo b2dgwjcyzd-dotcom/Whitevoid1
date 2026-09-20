@@ -167,7 +167,11 @@ public final class ComponentTransformGizmo {
         double[][] dirs={{2.0,0,0},{0,2.0,0},{0,0,2.0}};
         Axis[] axes={Axis.X,Axis.Y,Axis.Z};
         for(int i=0;i<3;i++){
-            TransformMath.Point q3=new TransformMath.Point(p3.x()+dirs[i][0],p3.y()+dirs[i][1],p3.z()+dirs[i][2]);
+            TransformMath.Point localAxisEnd = new TransformMath.Point(
+                    localPivot(node, mode, vertices, edges, faces, pivotMode).x() + dirs[i][0],
+                    localPivot(node, mode, vertices, edges, faces, pivotMode).y() + dirs[i][1],
+                    localPivot(node, mode, vertices, edges, faces, pivotMode).z() + dirs[i][2]);
+            TransformMath.Point q3=TransformMath.applyHierarchy(localAxisEnd,node);
             var q=projector.project(q3.x(),q3.y(),q3.z(),cx,cy,300);
             if(q==null) continue;
             double d=distance(mouseX,mouseY,o.x(),o.y(),q.x(),q.y());
@@ -176,6 +180,10 @@ public final class ComponentTransformGizmo {
         return result;
     }
 
+    /**
+     * Projects the actual local model axis and measures the mouse delta along it.
+     * The old overload is kept for compatibility with non-component callers.
+     */
     public double amount(Axis axis, ViewportProjector projector,double dx,double dy){
         if(axis==Axis.NONE)return 0;
         double yaw=Math.toRadians(projector.cameraYaw()), pitch=Math.toRadians(projector.cameraPitch());
@@ -185,6 +193,33 @@ public final class ComponentTransformGizmo {
         else {sx=-Math.sin(yaw);sy=-Math.cos(yaw)*Math.sin(pitch);}
         double len=Math.hypot(sx,sy); if(len<0.05)return 0;
         return (dx*(sx/len)+dy*(sy/len))/35.0;
+    }
+
+    public double amount(Axis axis, ViewportProjector projector, ModelNode node,
+                         TransformMath.Point localPivot, int cx, int cy,
+                         double dx, double dy) {
+        if (axis == Axis.NONE || node == null || localPivot == null) return 0;
+
+        TransformMath.Point worldPivot = TransformMath.applyHierarchy(localPivot, node);
+        var origin = projector.project(worldPivot.x(), worldPivot.y(), worldPivot.z(), cx, cy, 300);
+        if (origin == null) return 0;
+
+        int axisIndex = axis == Axis.X ? 0 : axis == Axis.Y ? 1 : 2;
+        double[] offset = {0.0, 0.0, 0.0};
+        offset[axisIndex] = 2.0;
+        TransformMath.Point worldEnd = TransformMath.applyHierarchy(
+                new TransformMath.Point(localPivot.x() + offset[0],
+                        localPivot.y() + offset[1],
+                        localPivot.z() + offset[2]), node);
+        var end = projector.project(worldEnd.x(), worldEnd.y(), worldEnd.z(), cx, cy, 300);
+        if (end == null) return 0;
+
+        double sx = end.x() - origin.x();
+        double sy = end.y() - origin.y();
+        double length = Math.hypot(sx, sy);
+        if (length < 2.0) return 0;
+
+        return (dx * (sx / length) + dy * (sy / length)) / 35.0;
     }
 
     public double rotationAmount(Axis axis, double startX, double startY,
@@ -210,6 +245,13 @@ public final class ComponentTransformGizmo {
 
     public double scaleFactor(Axis axis, ViewportProjector projector, double dx, double dy) {
         double amount = amount(axis, projector, dx, dy);
+        return Math.max(0.01, 1.0 + amount * 0.5);
+    }
+
+    public double scaleFactor(Axis axis, ViewportProjector projector, ModelNode node,
+                              TransformMath.Point localPivot, int cx, int cy,
+                              double dx, double dy) {
+        double amount = amount(axis, projector, node, localPivot, cx, cy, dx, dy);
         return Math.max(0.01, 1.0 + amount * 0.5);
     }
 
