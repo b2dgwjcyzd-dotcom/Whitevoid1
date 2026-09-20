@@ -33,6 +33,7 @@ public final class CreateScreen extends Screen {
     private final ViewportGizmo gizmo = new ViewportGizmo();
     private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
     private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
+    private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
     private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
     private boolean gizmoDragging;
     private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
@@ -1198,26 +1199,16 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             projector,mouseX,mouseY,width/2,height/2,componentOperation,componentPivotMode,
                             viewport.meshComponentSelection());
                 } else hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
-                var meshProjector = new ViewportProjector(viewport.viewport().camera());
-                hoveredMeshFace = (hoveredAxis == ViewportGizmo.Axis.NONE
-                        && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE)
-                        ? gizmo.meshFaceHit(selected, meshProjector, mouseX, mouseY, width / 2, height / 2)
-                        : -1;
-                hoveredMeshVertex = -1;
-                hoveredMeshEdgeA = -1;
-                hoveredMeshEdgeB = -1;
-                if (hoveredAxis == ViewportGizmo.Axis.NONE && hoveredComponentAxis == ComponentTransformGizmo.Axis.NONE) {
-                    if (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
-                        hoveredMeshVertex = gizmo.meshVertexHit(selected, meshProjector, mouseX, mouseY, width / 2, height / 2);
-                    } else if (viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
-                        int[] hitEdge = gizmo.meshEdgeHit(selected, meshProjector, mouseX, mouseY, width / 2, height / 2);
-                        if (hitEdge != null) {
-                            hoveredMeshEdgeA = hitEdge[0];
-                            hoveredMeshEdgeB = hitEdge[1];
-                        }
-                    }
-                }
-                hoveredFace = GeometryFace.NONE;
+                MeshEditorHoverController.HoverResult meshHover = meshEditorHover.resolve(
+                        selected, viewport, mouseX, mouseY, width / 2, height / 2,
+                        hoveredAxis, hoveredComponentAxis);
+                hoveredMeshFace = meshHover.face();
+                hoveredMeshVertex = meshHover.vertex();
+                hoveredMeshEdgeA = meshHover.edgeA();
+                hoveredMeshEdgeB = meshHover.edgeB();
+                hoveredFace = meshEditorHover.primitiveFace(
+                        selected, viewport, mouseX, mouseY, width / 2, height / 2,
+                        hoveredAxis, hoveredComponentAxis);
             } else if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
                 hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()),mouseX,mouseY,width/2,height/2);
