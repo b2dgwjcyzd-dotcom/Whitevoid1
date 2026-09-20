@@ -4,5 +4,6 @@ public enum TransformMode {
     SELECT,
     MOVE,
     ROTATE,
-    SCALE
+    SCALE,
+    GEOMETRY
 }
