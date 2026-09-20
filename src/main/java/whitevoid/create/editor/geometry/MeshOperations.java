@@ -474,7 +474,16 @@ public final class MeshOperations {
                 createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
-        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
+        java.util.Set<Integer> focusFaces = new java.util.LinkedHashSet<>();
+        int focusCount = valid.size();
+        int focusSeen = 0;
+        for (int faceIndex : createdFaces) {
+            if (focusSeen++ >= focusCount) break;
+            focusFaces.add(faceIndex);
+        }
+        int activeFace = focusFaces.isEmpty() ? -1 : focusFaces.iterator().next();
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
+                SelectionHint.faces(focusFaces, activeFace));
     }
 
     public static OperationResult insetFacesResult(
@@ -512,7 +521,16 @@ public final class MeshOperations {
                 createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
-        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
+        java.util.Set<Integer> focusFaces = new java.util.LinkedHashSet<>();
+        int focusCount = valid.size();
+        int focusSeen = 0;
+        for (int faceIndex : createdFaces) {
+            if (focusSeen++ >= focusCount) break;
+            focusFaces.add(faceIndex);
+        }
+        int activeFace = focusFaces.isEmpty() ? -1 : focusFaces.iterator().next();
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
+                SelectionHint.faces(focusFaces, activeFace));
     }
 
     public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
