@@ -8,14 +8,14 @@ import whitevoid.create.model.Model;
 public final class EditorContext {
     private final CommandHistory history = new CommandHistory();
     private final ViewportContext viewport = new ViewportContext();
-    private Model model = new Model();
+    private Model model = Model.withDefaultCube();
     private boolean editing;
 
     public void reset() {
         editing = false;
         history.clear();
         viewport.reset();
-        model = new Model();
+        model = Model.withDefaultCube();
     }
 
     public boolean isEditing() { return editing; }
