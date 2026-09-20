@@ -64,6 +64,9 @@ public final class CreateScreen extends Screen {
     private boolean componentPlaneConstraint;
     private boolean componentKeyboardTransformArmed;
     private boolean componentNumericEntry;
+    private boolean topologyPathPickArmed;
+    private boolean topologyPathSecondPick;
+
     private StringBuilder componentNumericBuffer = new StringBuilder();
     private boolean componentNumericNegative;
     private boolean proportionalEditing;
@@ -243,7 +246,22 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             return true;
         }
 
-        // Topology traversal: U = loop, K = ring.
+        // Topology path selection: V = arm a second vertex pick, B = boundary.
+if (keyCode == GLFW.GLFW_KEY_V && viewport.transform().mode() == TransformMode.GEOMETRY
+        && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX
+        && viewport.meshComponentSelection().size() > 0) {
+    topologyPathPickArmed = true;
+    topologyPathSecondPick = true;
+    return true;
+}
+if (keyCode == GLFW.GLFW_KEY_B && viewport.transform().mode() == TransformMode.GEOMETRY
+        && viewport.meshComponentSelection().size() > 0) {
+    var selected = viewport.selection().first(core.editorContext().model());
+    if (selected != null) viewport.meshComponentSelection().selectBoundaryLoop(selected);
+    return true;
+}
+
+// Topology traversal: U = loop, K = ring.
 if (keyCode == GLFW.GLFW_KEY_U && viewport.transform().mode() == TransformMode.GEOMETRY
         && viewport.meshComponentSelection().size() > 0) {
     var selection = viewport.meshComponentSelection();
@@ -646,6 +664,26 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     private void viewportContextHistoryRedo() { core.editorContext().history().redo(); }
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0 && topologyPathPickArmed && topologyPathSecondPick) {
+            ViewportContext viewport = core.editorContext().viewport();
+            ModelNode node = viewport.selection().first(core.editorContext().model());
+            if (node != null && viewport.transform().mode() == TransformMode.GEOMETRY
+                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
+                MeshGeometry mesh = node.ensureMeshGeometry();
+                if (mesh != null) {
+                    int hit = hitTestMeshVertex(node, mesh, viewport, mouseX, mouseY);
+                    if (hit >= 0) {
+                        viewport.meshComponentSelection().selectShortestVertexPath(
+                                node, viewport.meshComponentSelection().activeVertex(), hit);
+                        topologyPathPickArmed = false;
+                        topologyPathSecondPick = false;
+                        return true;
+                    }
+                }
+            }
+        }
+
+
         if (viewportInput.mouseClicked(mouseX, mouseY, button)) return true;
         if (button == 0) {
             ViewportContext viewport = core.editorContext().viewport();
@@ -1380,6 +1418,28 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
 
     private boolean pointInsideBox(double x,double y,int left,int top,int right,int bottom) {
         return x>=left && x<=right && y>=top && y<=bottom;
+    }
+
+
+    private int hitTestMeshVertex(ModelNode node, MeshGeometry mesh, ViewportContext viewport,
+                                   double mouseX, double mouseY) {
+        ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
+        int cx = width / 2, cy = height / 2;
+        int best = -1;
+        double bestDistance = 10.0;
+        for (int i = 0; i < mesh.vertices().size(); i++) {
+            var v = mesh.vertices().get(i);
+            var world = whitevoid.create.model.TransformMath.applyHierarchy(
+                    new whitevoid.create.model.TransformMath.Point(v.x(), v.y(), v.z()), node);
+            var p = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+            if (p == null) continue;
+            double distance = Math.hypot(p.x() - mouseX, p.y() - mouseY);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = i;
+            }
+        }
+        return best;
     }
 
     @Override public boolean shouldPause() { return false; }
