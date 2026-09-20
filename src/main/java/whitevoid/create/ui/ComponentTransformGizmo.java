@@ -34,6 +34,24 @@ public final class ComponentTransformGizmo {
         return new TransformMath.Point(x/count,y/count,z/count);
     }
 
+    public TransformMath.Point localPivot(ModelNode node, MeshSelectionMode mode,
+                                          java.util.List<Integer> vertices,
+                                          java.util.List<int[]> edges,
+                                          java.util.List<Integer> faces) {
+        if(node==null) return new TransformMath.Point(0,0,0);
+        MeshGeometry mesh=node.ensureMeshGeometry();
+        if(mesh==null) return new TransformMath.Point(0,0,0);
+        java.util.LinkedHashSet<Integer> ids=new java.util.LinkedHashSet<>();
+        if(mode==MeshSelectionMode.VERTEX) ids.addAll(vertices);
+        else if(mode==MeshSelectionMode.EDGE) for(int[] e:edges){ids.add(e[0]);ids.add(e[1]);}
+        else for(int fi:faces) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
+        double x=0,y=0,z=0; int n=0;
+        for(int id:ids) if(id>=0&&id<mesh.vertices().size()){
+            var v=mesh.vertices().get(id); x+=v.x(); y+=v.y(); z+=v.z(); n++;
+        }
+        return n==0?new TransformMath.Point(0,0,0):new TransformMath.Point(x/n,y/n,z/n);
+    }
+
     public Axis hit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
                     java.util.List<int[]> edges, java.util.List<Integer> faces,
                     ViewportProjector projector, double mouseX,double mouseY,int cx,int cy) {
