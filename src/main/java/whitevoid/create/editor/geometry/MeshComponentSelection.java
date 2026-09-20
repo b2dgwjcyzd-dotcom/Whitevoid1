@@ -23,6 +23,59 @@ public final class MeshComponentSelection {
     public void toggleEdge(ModelNode node, int a, int b) { toggle(node, MeshSelectionMode.EDGE, a, b); }
     public void toggleFace(ModelNode node, int index) { toggle(node, MeshSelectionMode.FACE, index, -1); }
 
+    /** Adds a component without removing or toggling existing selection. */
+    public void addVertex(ModelNode node, int index) {
+        prepareForMultiSelect(node, MeshSelectionMode.VERTEX);
+        vertices.add(index);
+    }
+
+    /** Adds an edge without removing or toggling existing selection. */
+    public void addEdge(ModelNode node, int a, int b) {
+        prepareForMultiSelect(node, MeshSelectionMode.EDGE);
+        edges.add(edgeKey(a, b));
+    }
+
+    /** Adds a face without removing or toggling existing selection. */
+    public void addFace(ModelNode node, int index) {
+        prepareForMultiSelect(node, MeshSelectionMode.FACE);
+        faces.add(index);
+    }
+
+    public void removeVertex(ModelNode node, int index) {
+        if (!matchesMode(node, MeshSelectionMode.VERTEX)) return;
+        vertices.remove(index);
+        clearIfEmpty();
+    }
+
+    public void removeEdge(ModelNode node, int a, int b) {
+        if (!matchesMode(node, MeshSelectionMode.EDGE)) return;
+        edges.remove(edgeKey(a, b));
+        clearIfEmpty();
+    }
+
+    public void removeFace(ModelNode node, int index) {
+        if (!matchesMode(node, MeshSelectionMode.FACE)) return;
+        faces.remove(index);
+        clearIfEmpty();
+    }
+
+    private void prepareForMultiSelect(ModelNode node, MeshSelectionMode newMode) {
+        if (node == null) return;
+        if (nodeId == null || !nodeId.equals(node.id()) || mode != newMode) {
+            clearSelectionOnly();
+            nodeId = node.id();
+            mode = newMode;
+        }
+    }
+
+    private boolean matchesMode(ModelNode node, MeshSelectionMode expected) {
+        return node != null && nodeId != null && nodeId.equals(node.id()) && mode == expected;
+    }
+
+    private void clearIfEmpty() {
+        if (isEmpty()) nodeId = null;
+    }
+
     private void setSingle(ModelNode node, MeshSelectionMode newMode) {
         clearSelectionOnly();
         if (node == null) return;
@@ -32,11 +85,7 @@ public final class MeshComponentSelection {
 
     private void toggle(ModelNode node, MeshSelectionMode newMode, int a, int b) {
         if (node == null) { clear(); return; }
-        if (nodeId == null || !nodeId.equals(node.id()) || mode != newMode) {
-            clearSelectionOnly();
-            nodeId = node.id();
-            mode = newMode;
-        }
+        prepareForMultiSelect(node, newMode);
         if (newMode == MeshSelectionMode.VERTEX) {
             if (vertices.contains(a)) vertices.remove(a); else vertices.add(a);
         } else if (newMode == MeshSelectionMode.EDGE) {
