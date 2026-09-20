@@ -262,7 +262,7 @@ public final class ViewportRenderer {
         if(!selection.matches(node) || selection.size()==0) return;
         ComponentTransformGizmo gizmo=new ComponentTransformGizmo();
         TransformMath.Point localPivot=gizmo.localPivot(node,selection.mode(),selection.vertexIndices(),
-                selection.edgeIndices(),selection.faceIndices(),pivotMode);
+                selection.edgeIndices(),selection.faceIndices(),pivotMode,selection);
         TransformMath.Point p3=TransformMath.applyHierarchy(localPivot,node);
         Point o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null)return;
