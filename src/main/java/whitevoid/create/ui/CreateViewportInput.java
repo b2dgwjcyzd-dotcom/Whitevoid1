@@ -14,9 +14,14 @@ public final class CreateViewportInput {
     private static final double ORBIT_SENSITIVITY = 0.35;
     private static final double PAN_SENSITIVITY = 0.02;
 
+    private final ViewportCamera camera;
     private boolean middleDragging;
     private double lastMouseX;
     private double lastMouseY;
+
+    public CreateViewportInput(ViewportCamera camera) {
+        this.camera = camera;
+    }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 2) {
@@ -48,7 +53,6 @@ public final class CreateViewportInput {
         lastMouseX = mouseX;
         lastMouseY = mouseY;
 
-        ViewportCamera camera = camera();
         if (shiftDown) {
             camera.pan(-deltaX * PAN_SENSITIVITY, deltaY * PAN_SENSITIVITY);
         } else {
@@ -63,15 +67,11 @@ public final class CreateViewportInput {
             return false;
         }
 
-        camera().zoom(verticalAmount);
+        camera.zoom(verticalAmount);
         return true;
     }
 
     public void cancelDrag() {
         middleDragging = false;
-    }
-
-    private ViewportCamera camera() {
-        throw new IllegalStateException("CreateViewportInput must be bound to a camera before use");
     }
 }
