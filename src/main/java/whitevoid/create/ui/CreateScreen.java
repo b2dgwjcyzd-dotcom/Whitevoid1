@@ -316,13 +316,33 @@ public final class CreateScreen extends Screen {
                 ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
                 activeAxis = gizmo.geometryHit(selected, projector, mouseX, mouseY, cx, cy);
                 if (activeAxis == ViewportGizmo.Axis.NONE) {
-                    int clickedMeshFace = gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy);
-                    if (clickedMeshFace >= 0) {
-                        viewport.meshFaceSelection().select(selected, clickedMeshFace);
-                        viewport.geometryFaceSelection().clear();
-                        hoveredMeshFace = clickedMeshFace;
-                        hoveredFace = GeometryFace.NONE;
-                        return true;
+                    var meshMode = viewport.meshComponentSelection().mode();
+                    if (meshMode == MeshSelectionMode.VERTEX) {
+                        int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
+                        if (vertex >= 0) {
+                            viewport.meshComponentSelection().selectVertex(selected, vertex);
+                            viewport.meshFaceSelection().clear();
+                            viewport.geometryFaceSelection().clear();
+                            return true;
+                        }
+                    } else if (meshMode == MeshSelectionMode.EDGE) {
+                        int[] edge = gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy);
+                        if (edge != null) {
+                            viewport.meshComponentSelection().selectEdge(selected, edge[0], edge[1]);
+                            viewport.meshFaceSelection().clear();
+                            viewport.geometryFaceSelection().clear();
+                            return true;
+                        }
+                    } else {
+                        int clickedMeshFace = gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy);
+                        if (clickedMeshFace >= 0) {
+                            viewport.meshComponentSelection().selectFace(selected, clickedMeshFace);
+                            viewport.meshFaceSelection().select(selected, clickedMeshFace);
+                            viewport.geometryFaceSelection().clear();
+                            hoveredMeshFace = clickedMeshFace;
+                            hoveredFace = GeometryFace.NONE;
+                            return true;
+                        }
                     }
                     viewport.meshFaceSelection().clear();
                     GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
