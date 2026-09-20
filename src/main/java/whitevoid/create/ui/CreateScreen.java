@@ -485,11 +485,16 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
             selection.clear();
+            java.util.Set<Integer> affectedVertices = new java.util.LinkedHashSet<>();
+            for (long key : selected) {
+                affectedVertices.add((int) (key >>> 32));
+                affectedVertices.add((int) key);
+            }
             for (long key : selected) {
                 int a = (int) (key >>> 32);
                 int b = (int) key;
-                int newA = findExtrudedVertex(oldMesh, newMesh, a);
-                int newB = findExtrudedVertex(oldMesh, newMesh, b);
+                int newA = findExtrudedVertex(oldMesh, newMesh, a, affectedVertices);
+                int newB = findExtrudedVertex(oldMesh, newMesh, b, affectedVertices);
                 if (newA < 0 || newB < 0) continue;
                 if (selection.size() == 0) selection.selectEdge(node, newA, newB);
                 else selection.addEdge(node, newA, newB);
@@ -510,11 +515,17 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     }
 
     private int findExtrudedVertex(whitevoid.create.model.MeshGeometry oldMesh,
-                                   whitevoid.create.model.MeshGeometry newMesh, int oldIndex) {
-        int offset = oldMesh.vertices().size();
-        // Multi-edge extrusion appends exactly one duplicate per affected vertex.
+                                   whitevoid.create.model.MeshGeometry newMesh, int oldIndex,
+                                   java.util.Set<Integer> affectedVertices) {
         if (oldIndex < 0 || oldIndex >= oldMesh.vertices().size()) return -1;
-        int candidate = offset + oldIndex;
+        if (affectedVertices == null || !affectedVertices.contains(oldIndex)) return -1;
+
+        java.util.List<Integer> ordered = new java.util.ArrayList<>(affectedVertices);
+        java.util.Collections.sort(ordered);
+        int rank = ordered.indexOf(oldIndex);
+        if (rank < 0) return -1;
+
+        int candidate = oldMesh.vertices().size() + rank;
         return candidate < newMesh.vertices().size() ? candidate : -1;
     }
 
