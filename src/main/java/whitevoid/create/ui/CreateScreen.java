@@ -61,6 +61,7 @@ public final class CreateScreen extends Screen {
     private TransformMath.Point componentDragPivot;
     private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
     private ComponentTransformGizmo.Axis componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
+    private boolean componentKeyboardTransformArmed;
     private boolean mirrorArmed;
     private static final double MOVE_SNAP_INCREMENT = 0.25;
     private static final double ROTATE_SNAP_INCREMENT = 5.0;
@@ -94,9 +95,9 @@ public final class CreateScreen extends Screen {
             }
             return true;
         }
-        if (keyCode == 71) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
-        if (keyCode == 82) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
-        if (keyCode == 83) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == 71) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
+        if (keyCode == 82) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
+        if (keyCode == 83) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
 
         if (viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
             ComponentTransformGizmo.Axis requested = switch (keyCode) {
@@ -247,7 +248,7 @@ public final class CreateScreen extends Screen {
             }
         }
 
-        if (keyCode == 27) viewport.transform().setMode(TransformMode.SELECT);
+        if (keyCode == 27) { componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -554,6 +555,25 @@ public final class CreateScreen extends Screen {
                 ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
                 var meshMode = viewport.meshComponentSelection().mode();
 
+                if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0
+                        && componentKeyboardTransformArmed
+                        && componentConstraintAxis != ComponentTransformGizmo.Axis.NONE) {
+                    componentAxis = componentConstraintAxis;
+                    componentDragging = true;
+                    componentKeyboardTransformArmed = false;
+                    componentDragStartX = mouseX;
+                    componentDragStartY = mouseY;
+                    componentDragLastX = mouseX;
+                    componentDragLastY = mouseY;
+                    componentDragOldMesh = selected.ensureMeshGeometry();
+                    if (componentDragOldMesh != null) componentDragOldMesh = componentDragOldMesh.copy();
+                    componentDragPivot = componentGizmo.localPivot(selected, meshMode,
+                            viewport.meshComponentSelection().vertexIndices(),
+                            viewport.meshComponentSelection().edgeIndices(),
+                            viewport.meshComponentSelection().faceIndices(), componentPivotMode,
+                            viewport.meshComponentSelection());
+                    return true;
+                }
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
                     componentAxis = componentGizmo.hover(selected, meshMode,
                             viewport.meshComponentSelection().vertexIndices(),
@@ -704,6 +724,8 @@ public final class CreateScreen extends Screen {
                     core.editorContext().history().recordExecuted(new SetMeshGeometryCommand(node,componentDragOldMesh,current.copy()));
             }
             componentDragging=false;
+            componentKeyboardTransformArmed=false;
+            componentConstraintAxis=ComponentTransformGizmo.Axis.NONE;
             componentAxis=ComponentTransformGizmo.Axis.NONE;
             hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
             componentDragOldMesh=null;
