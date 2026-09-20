@@ -3,6 +3,7 @@ package whitevoid.create.editor.geometry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import whitevoid.create.model.MeshGeometry;
 
@@ -13,12 +14,16 @@ public final class MeshOperations {
             MeshGeometry mesh,
             Set<Integer> createdVertices,
             Set<Integer> createdFaces,
-            Set<Long> createdEdges) {
+            Set<Long> createdEdges,
+            Map<Integer, Integer> vertexMapping,
+            Map<Integer, Integer> faceMapping) {
         public OperationResult {
             if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
             createdVertices = Collections.unmodifiableSet(new LinkedHashSet<>(createdVertices));
             createdFaces = Collections.unmodifiableSet(new LinkedHashSet<>(createdFaces));
             createdEdges = Collections.unmodifiableSet(new LinkedHashSet<>(createdEdges));
+            vertexMapping = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(vertexMapping));
+            faceMapping = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(faceMapping));
         }
     }
 
@@ -26,7 +31,7 @@ public final class MeshOperations {
             MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (selectedEdges == null || selectedEdges.isEmpty() || amount == 0.0) {
-            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of(), Map.of(), Map.of());
         }
 
         java.util.Set<Long> valid = new java.util.LinkedHashSet<>();
@@ -92,7 +97,7 @@ public final class MeshOperations {
         }
 
         return new OperationResult(new MeshGeometry(vertices, faces),
-                createdVertices, createdFaces, createdEdges);
+                createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
     }
 
 
@@ -216,6 +221,11 @@ public final class MeshOperations {
         }
 
         MeshGeometry result = bevelEdges(mesh, selectedEdges, amount);
+        java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.vertices().size(); i++) vertexMapping.put(i, i);
+        java.util.Map<Integer, Integer> faceMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.faces().size(); i++) faceMapping.put(i, i);
+
         java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
         for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) {
             createdVertices.add(i);
@@ -234,7 +244,7 @@ public final class MeshOperations {
             }
         }
 
-        return new OperationResult(result, createdVertices, createdFaces, createdEdges);
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
     }
 
     public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
@@ -391,6 +401,14 @@ public final class MeshOperations {
         if (valid.isEmpty()) return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
 
         MeshGeometry result = extrudeFaces(mesh, valid, amount);
+        java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.vertices().size(); i++) vertexMapping.put(i, i);
+        java.util.Map<Integer, Integer> faceMapping = new java.util.LinkedHashMap<>();
+        int newFace = 0;
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            if (!valid.contains(i)) faceMapping.put(i, newFace++);
+        }
+
         java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
         for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) createdVertices.add(i);
 
@@ -405,7 +423,7 @@ public final class MeshOperations {
                 createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
-        return new OperationResult(result, createdVertices, createdFaces, createdEdges);
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
     }
 
     public static OperationResult insetFacesResult(
@@ -421,6 +439,14 @@ public final class MeshOperations {
         if (valid.isEmpty()) return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
 
         MeshGeometry result = insetFaces(mesh, valid, amount);
+        java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.vertices().size(); i++) vertexMapping.put(i, i);
+        java.util.Map<Integer, Integer> faceMapping = new java.util.LinkedHashMap<>();
+        int newFace = 0;
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            if (!valid.contains(i)) faceMapping.put(i, newFace++);
+        }
+
         java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
         for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) createdVertices.add(i);
 
@@ -435,7 +461,7 @@ public final class MeshOperations {
                 createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
-        return new OperationResult(result, createdVertices, createdFaces, createdEdges);
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
     }
 
     public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
