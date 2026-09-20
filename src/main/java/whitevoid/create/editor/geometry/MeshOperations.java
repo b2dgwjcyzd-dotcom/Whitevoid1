@@ -106,6 +106,94 @@ public final class MeshOperations {
         return new MeshGeometry(vertices, faces);
     }
 
+    /**
+     * Bevels a selected manifold edge region in one operation.
+     * Each selected edge must have exactly two adjacent faces.
+     */
+    public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedEdges == null || selectedEdges.isEmpty() || amount <= 0.0) return mesh.copy();
+
+        java.util.Set<Long> valid = new java.util.LinkedHashSet<>();
+        for (long key : selectedEdges) {
+            int a = (int) (key >>> 32);
+            int b = (int) key;
+            validateEdge(mesh, a, b);
+            if (adjacentFaces(mesh, a, b).size() != 2) {
+                throw new IllegalArgumentException("Bevel requires exactly two adjacent faces for every selected edge");
+            }
+            valid.add(key);
+        }
+        if (valid.isEmpty()) return mesh.copy();
+
+        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
+        java.util.Map<Long, int[]> faceCopies = new java.util.LinkedHashMap<>();
+
+        // Create one offset pair for each edge on each adjacent face.
+        for (long key : valid) {
+            int a = (int) (key >>> 32);
+            int b = (int) key;
+            List<Integer> adjacent = adjacentFaces(mesh, a, b);
+            int[] copies = new int[4];
+
+            for (int side = 0; side < 2; side++) {
+                MeshGeometry.Face face = mesh.faces().get(adjacent.get(side));
+                double[] center = centroid(mesh, face);
+                double edgeLength = distance(mesh.vertices().get(a), mesh.vertices().get(b));
+                double offset = Math.min(amount, edgeLength * 0.49);
+
+                copies[side * 2] = vertices.size();
+                vertices.add(toward(mesh.vertices().get(a), center, offset));
+                copies[side * 2 + 1] = vertices.size();
+                vertices.add(toward(mesh.vertices().get(b), center, offset));
+            }
+            faceCopies.put(key, copies);
+        }
+
+        List<MeshGeometry.Face> faces = new ArrayList<>();
+        for (int faceIndex = 0; faceIndex < mesh.faces().size(); faceIndex++) {
+            int[] original = mesh.faces().get(faceIndex).vertices();
+            int[] replaced = original.clone();
+
+            for (int i = 0; i < original.length; i++) {
+                int a = original[i];
+                int b = original[(i + 1) % original.length];
+                long key = edgeKey(a, b);
+                int[] copies = faceCopies.get(key);
+                if (copies == null) continue;
+
+                List<Integer> adjacent = adjacentFaces(mesh, a, b);
+                int side = adjacent.indexOf(faceIndex);
+                if (side < 0) continue;
+
+                // Preserve the winding of the face edge.
+                int na = copies[side * 2];
+                int nb = copies[side * 2 + 1];
+                if (a > b) {
+                    int tmp = na; na = nb; nb = tmp;
+                }
+                replaced[i] = na;
+                replaced[(i + 1) % original.length] = nb;
+            }
+
+            faces.add(new MeshGeometry.Face(replaced));
+        }
+
+        // The new bevel surface bridges the two offset copies of each edge.
+        for (long key : valid) {
+            int[] copies = faceCopies.get(key);
+            faces.add(new MeshGeometry.Face(copies[0], copies[1], copies[3], copies[2]));
+        }
+
+        return new MeshGeometry(vertices, faces);
+    }
+
+    private static long edgeKey(int a, int b) {
+        int lo = Math.min(a, b);
+        int hi = Math.max(a, b);
+        return ((long) lo << 32) | (hi & 0xffffffffL);
+    }
+
     private static void validateEdge(MeshGeometry mesh, int a, int b) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (a < 0 || b < 0 || a >= mesh.vertices().size() || b >= mesh.vertices().size() || a == b) {
