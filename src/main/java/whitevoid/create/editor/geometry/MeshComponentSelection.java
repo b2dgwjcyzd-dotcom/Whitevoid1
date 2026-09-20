@@ -229,6 +229,60 @@ public final class MeshComponentSelection {
         remap(node, result);
     }
 
+    /**
+     * Applies the operation-defined focus selection. The hint is intentionally
+     * separate from topology remapping: an operation can preserve old
+     * selection state and then explicitly focus its newly created region.
+     */
+    public void applySelectionHint(ModelNode node, MeshOperations.OperationResult result) {
+        if (node == null || result == null || result.selectionHint() == null) {
+            clear();
+            return;
+        }
+
+        MeshOperations.SelectionHint hint = result.selectionHint();
+        clear();
+        nodeId = node.id();
+
+        if (!hint.vertices().isEmpty()) {
+            mode = MeshSelectionMode.VERTEX;
+            for (int index : hint.vertices()) {
+                if (index >= 0 && index < result.mesh().vertices().size()) {
+                    addVertex(node, index);
+                }
+            }
+            if (hint.activeVertex() >= 0 && vertices.contains(hint.activeVertex())) {
+                activeVertex = hint.activeVertex();
+            }
+        } else if (!hint.edges().isEmpty()) {
+            mode = MeshSelectionMode.EDGE;
+            for (long key : hint.edges()) {
+                int a = MeshTopology.edgeA(key);
+                int b = MeshTopology.edgeB(key);
+                if (a >= 0 && b >= 0
+                        && a < result.mesh().vertices().size()
+                        && b < result.mesh().vertices().size()) {
+                    addEdge(node, a, b);
+                }
+            }
+            if (hint.activeEdge() >= 0 && edges.contains(hint.activeEdge())) {
+                activeEdge = hint.activeEdge();
+            }
+        } else if (!hint.faces().isEmpty()) {
+            mode = MeshSelectionMode.FACE;
+            for (int index : hint.faces()) {
+                if (index >= 0 && index < result.mesh().faces().size()) {
+                    addFace(node, index);
+                }
+            }
+            if (hint.activeFace() >= 0 && faces.contains(hint.activeFace())) {
+                activeFace = hint.activeFace();
+            }
+        } else {
+            clear();
+        }
+    }
+
     public void setMode(MeshSelectionMode mode) {
         if (mode != null) this.mode = mode;
         clearSelectionOnly();
