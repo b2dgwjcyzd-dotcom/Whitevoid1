@@ -133,7 +133,7 @@ public final class CreateScreen extends Screen {
         if (gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
-                double amount = (deltaX - deltaY) * 0.025;
+                double amount = gizmo.dragAmount(activeAxis, new ViewportProjector(core.editorContext().viewport().viewport().camera()), deltaX, deltaY);
                 var t=node.transform();
                 if (core.editorContext().viewport().transform().mode() == TransformMode.MOVE) {
                     double dx=activeAxis==ViewportGizmo.Axis.X?amount:0;
