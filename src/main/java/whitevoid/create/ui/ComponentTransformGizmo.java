@@ -7,6 +7,7 @@ import whitevoid.create.model.TransformMath;
 
 public final class ComponentTransformGizmo {
     public enum Axis { NONE, X, Y, Z }
+    public enum Operation { MOVE, ROTATE, SCALE }
 
     public TransformMath.Point pivot(ModelNode node, MeshSelectionMode mode,
                                      java.util.List<Integer> vertices,
@@ -61,6 +62,17 @@ public final class ComponentTransformGizmo {
         else {sx=-Math.sin(yaw);sy=-Math.cos(yaw)*Math.sin(pitch);}
         double len=Math.hypot(sx,sy); if(len<0.05)return 0;
         return (dx*(sx/len)+dy*(sy/len))/35.0;
+    }
+
+    public double rotationAmount(Axis axis, double dx, double dy) {
+        if (axis == Axis.NONE) return 0;
+        double sensitivity = 1.2;
+        return (dx - dy) * sensitivity;
+    }
+
+    public double scaleFactor(Axis axis, ViewportProjector projector, double dx, double dy) {
+        double amount = amount(axis, projector, dx, dy);
+        return Math.max(0.01, 1.0 + amount * 0.5);
     }
 
     private double distance(double px,double py,double x1,double y1,double x2,double y2){
