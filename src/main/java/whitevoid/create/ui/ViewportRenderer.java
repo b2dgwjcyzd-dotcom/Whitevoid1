@@ -15,7 +15,7 @@ import whitevoid.create.ui.ViewportProjector.Point;
 public final class ViewportRenderer {
     private final ModelRenderer modelRenderer = new ModelRenderer();
 
-    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace) {
+    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace, int hoveredMeshFace) {
         int left = 16, top = 16, right = width - 16, bottom = height - 16;
         int centerX = (left + right) / 2, centerY = (top + bottom) / 2;
         context.fill(left, top, right, bottom, 0xFF111216);
@@ -38,11 +38,13 @@ public final class ViewportRenderer {
         if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
             int selectedMeshFace = viewport.meshFaceSelection().matches(selected)
                     ? viewport.meshFaceSelection().faceIndex() : -1;
-            int hoveredMeshFace = viewport.meshFaceSelection().matches(selected)
-                    ? -1 : -1;
             drawMeshFaceHighlight(context, projector, selected,
                     selectedMeshFace, centerX, centerY, left, top, right, bottom);
-            if (selectedMeshFace < 0) {
+            if (selectedMeshFace < 0 && hoveredMeshFace >= 0) {
+                drawMeshFaceHighlight(context, projector, selected, hoveredMeshFace,
+                        centerX, centerY, left, top, right, bottom);
+            }
+            if (selectedMeshFace < 0 && hoveredMeshFace < 0) {
                 GeometryFace faceToDraw = viewport.geometryFaceSelection().matches(selected)
                         ? selectedFace : hoveredFace;
                 drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
