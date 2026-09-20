@@ -721,26 +721,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     }
 
 
-    private int nextThroughIndex(MeshSelectionMode mode, double mouseX, double mouseY, int count) {
-        if (!selectThrough || count <= 1) return 0;
-        boolean sameSpot = throughLastMode == mode
-                && !Double.isNaN(throughLastX)
-                && Math.hypot(mouseX - throughLastX, mouseY - throughLastY) <= 8.0;
-        if (!sameSpot) throughLastIndex = 0;
-        else throughLastIndex = (throughLastIndex + 1) % count;
-        throughLastMode = mode;
-        throughLastX = mouseX;
-        throughLastY = mouseY;
-        return throughLastIndex;
-    }
-
-    private void resetThroughCycle() {
-        throughLastIndex = -1;
-        throughLastX = Double.NaN;
-        throughLastY = Double.NaN;
-        meshEditor.resetThroughCycle();
-    }
-
     private void viewportContextHistoryUndo() { core.editorContext().history().undo(); }
     private void viewportContextHistoryRedo() { core.editorContext().history().redo(); }
 
