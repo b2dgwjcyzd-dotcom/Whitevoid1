@@ -485,20 +485,49 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     private void bevelSelectedEdge(double amount) {
         var viewport = core.editorContext().viewport();
         var model = core.editorContext().model();
-        var node = viewport.meshComponentSelection().node(model);
-        int a = viewport.meshComponentSelection().indexA();
-        int b = viewport.meshComponentSelection().indexB();
-        if (node == null || a < 0 || b < 0) return;
+        var selection = viewport.meshComponentSelection();
+        var node = selection.node(model);
+        if (node == null || selection.size() == 0) return;
 
         var oldMesh = node.ensureMeshGeometry();
         if (oldMesh == null) return;
+
         try {
-            var newMesh = MeshOperations.bevelEdge(oldMesh, a, b, amount);
-            core.editorContext().history().execute(
-                    new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-            viewport.meshComponentSelection().clear();
+            if (selection.size() > 1) {
+                var selected = new java.util.LinkedHashSet<Long>();
+                for (int[] edge : selection.edgeIndices()) {
+                    selected.add(MeshTopologySelection.edgeKey(edge[0], edge[1]));
+                }
+
+                var newMesh = MeshOperations.bevelEdges(oldMesh, selected, amount);
+                int bevelFaceStart = oldMesh.faces().size();
+
+                core.editorContext().history().execute(
+                        new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+
+                // Keep the generated bevel strips easy to continue editing.
+                selection.clear();
+                int bevelFaceCount = newMesh.faces().size() - bevelFaceStart;
+                for (int i = 0; i < bevelFaceCount; i++) {
+                    int faceIndex = bevelFaceStart + i;
+                    if (faceIndex < 0 || faceIndex >= newMesh.faces().size()) continue;
+                    int[] face = newMesh.faces().get(faceIndex).vertices();
+                    if (face.length < 2) continue;
+                    if (i == 0) selection.selectEdge(node, face[0], face[1]);
+                    else selection.addEdge(node, face[0], face[1]);
+                }
+            } else {
+                int a = selection.indexA();
+                int b = selection.indexB();
+                if (a < 0 || b < 0) return;
+
+                var newMesh = MeshOperations.bevelEdge(oldMesh, a, b, amount);
+                core.editorContext().history().execute(
+                        new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+                selection.clear();
+            }
         } catch (IllegalArgumentException ignored) {
-            // Bevel currently requires a manifold edge with exactly two adjacent faces.
+            // Bevel requires manifold selected edges with exactly two adjacent faces.
         }
     }
 
