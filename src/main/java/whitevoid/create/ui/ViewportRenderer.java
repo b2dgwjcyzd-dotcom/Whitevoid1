@@ -87,7 +87,34 @@ public final class ViewportRenderer {
             drawLine(context, a, b, left, top, right, bottom, color);
         }
 
-        if (selected) {
+        if (selected && viewport.transform().mode() == whitevoid.create.editor.transform.TransformMode.GEOMETRY) {
+            var components = viewport.meshComponentSelection();
+            if (components.matches(node)) {
+                if (components.mode() == whitevoid.create.editor.geometry.MeshSelectionMode.VERTEX) {
+                    for (int index : components.vertexIndices()) {
+                        if (index < 0 || index >= points.length || points[index] == null) continue;
+                        Point point = points[index];
+                        int x=(int)Math.round(point.x()), y=(int)Math.round(point.y());
+                        context.fill(x-3,y-3,x+4,y+4,0xFFFFFFFF);
+                    }
+                } else if (components.mode() == whitevoid.create.editor.geometry.MeshSelectionMode.EDGE) {
+                    for (int[] edge : components.edgeIndices()) {
+                        if (edge[0] < 0 || edge[1] < 0 || edge[0] >= points.length || edge[1] >= points.length) continue;
+                        Point a=points[edge[0]], b=points[edge[1]];
+                        if(a==null||b==null) continue;
+                        drawLine(context,a,b,left,top,right,bottom,0xFFFFFFFF);
+                        drawLine(context,new Point(a.x()+1,a.y(),a.depth()),new Point(b.x()+1,b.y(),b.depth()),
+                                left,top,right,bottom,0xFFE7E9EF);
+                    }
+                }
+            } else if (selected) {
+                for (Point point : points) {
+                    if (point == null) continue;
+                    int x=(int)Math.round(point.x()), y=(int)Math.round(point.y());
+                    context.fill(x-2,y-2,x+3,y+3,0xFFFFFFFF);
+                }
+            }
+        } else if (selected) {
             for (Point point : points) {
                 if (point == null) continue;
                 int x = (int) Math.round(point.x());
