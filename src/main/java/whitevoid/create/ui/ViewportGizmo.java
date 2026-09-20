@@ -8,7 +8,7 @@ public final class ViewportGizmo {
     public Axis hoveredAxis(ModelNode node, TransformMode mode, ViewportProjector projector, double mouseX, double mouseY, int cx, int cy) {
         return hit(node, mode, projector, mouseX, mouseY, cx, cy);
     }
-    public enum Axis { NONE, X, Y, Z }
+    public enum Axis { NONE, X, Y, Z, NEG_X, NEG_Y, NEG_Z }
 
     public Axis hit(ModelNode node, TransformMode mode, ViewportProjector projector,
                     double mouseX, double mouseY, int cx, int cy) {
@@ -34,30 +34,42 @@ public final class ViewportGizmo {
                              double mouseX, double mouseY, int cx, int cy) {
         if (node == null || node.geometry() == null) return Axis.NONE;
 
-        TransformMath.Point origin3 = TransformMath.applyHierarchy(new TransformMath.Point(0, 0, 0), node);
-        ViewportProjector.Point origin = projector.project(origin3.x(), origin3.y(), origin3.z(), cx, cy, 300);
-        if (origin == null) return Axis.NONE;
+        TransformMath.Point center3 = TransformMath.applyHierarchy(
+                new TransformMath.Point(0, 0, 0), node);
 
-        double[] lengths = {
-                node.geometry().width() * 0.5 + 0.45,
-                node.geometry().height() * 0.5 + 0.45,
-                node.geometry().depth() * 0.5 + 0.45
+        double[] half = {
+                node.geometry().width() * 0.5,
+                node.geometry().height() * 0.5,
+                node.geometry().depth() * 0.5
         };
         double[][] dirs = {{1,0,0},{0,1,0},{0,0,1}};
-        Axis[] axes = {Axis.X, Axis.Y, Axis.Z};
+        Axis[] positive = {Axis.X, Axis.Y, Axis.Z};
+        Axis[] negative = {Axis.NEG_X, Axis.NEG_Y, Axis.NEG_Z};
 
-        double best = 12.0;
+        double best = 13.0;
         Axis result = Axis.NONE;
+
         for (int i = 0; i < 3; i++) {
-            TransformMath.Point p3 = TransformMath.applyHierarchy(
-                    new TransformMath.Point(dirs[i][0] * lengths[i], dirs[i][1] * lengths[i], dirs[i][2] * lengths[i]),
-                    node);
-            ViewportProjector.Point p = projector.project(p3.x(), p3.y(), p3.z(), cx, cy, 300);
-            if (p == null) continue;
-            double d = distanceToSegment(mouseX, mouseY, origin.x(), origin.y(), p.x(), p.y());
-            if (d < best) {
-                best = d;
-                result = axes[i];
+            for (int sign : new int[]{1, -1}) {
+                TransformMath.Point local = new TransformMath.Point(
+                        dirs[i][0] * half[i] * sign,
+                        dirs[i][1] * half[i] * sign,
+                        dirs[i][2] * half[i] * sign);
+                TransformMath.Point world = TransformMath.applyHierarchy(local, node);
+                ViewportProjector.Point p = projector.project(
+                        world.x(), world.y(), world.z(), cx, cy, 300);
+                if (p == null) continue;
+
+                ViewportProjector.Point center = projector.project(
+                        center3.x(), center3.y(), center3.z(), cx, cy, 300);
+                if (center == null) continue;
+
+                double d = distanceToSegment(mouseX, mouseY,
+                        center.x(), center.y(), p.x(), p.y());
+                if (d < best) {
+                    best = d;
+                    result = sign > 0 ? positive[i] : negative[i];
+                }
             }
         }
         return result;
@@ -68,8 +80,13 @@ public final class ViewportGizmo {
         double yaw=Math.toRadians(projector.cameraYaw());
         double pitch=Math.toRadians(projector.cameraPitch());
         double sx, sy;
-        if(axis==Axis.X) { sx=Math.cos(yaw); sy=-Math.sin(yaw)*Math.sin(pitch); }
-        else if(axis==Axis.Y) { sx=0; sy=-Math.cos(pitch); }
+        Axis base = axis;
+        if (axis == Axis.NEG_X) base = Axis.X;
+        else if (axis == Axis.NEG_Y) base = Axis.Y;
+        else if (axis == Axis.NEG_Z) base = Axis.Z;
+
+        if(base==Axis.X) { sx=Math.cos(yaw); sy=-Math.sin(yaw)*Math.sin(pitch); }
+        else if(base==Axis.Y) { sx=0; sy=-Math.cos(pitch); }
         else { sx=-Math.sin(yaw); sy=-Math.cos(yaw)*Math.sin(pitch); }
         double len=Math.hypot(sx,sy);
         if(len<0.05) return 0;
