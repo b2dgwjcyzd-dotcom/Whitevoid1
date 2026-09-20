@@ -34,5 +34,8 @@ public final class ViewportProjector {
         return new Point(screenX, screenY, depth);
     }
 
+    public double cameraYaw() { return camera.yaw(); }
+    public double cameraPitch() { return camera.pitch(); }
+
     public record Point(double x, double y, double depth) {}
 }
