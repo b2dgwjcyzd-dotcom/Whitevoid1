@@ -52,6 +52,34 @@ public final class ComponentTransformGizmo {
         return n==0?new TransformMath.Point(0,0,0):new TransformMath.Point(x/n,y/n,z/n);
     }
 
+    public Axis hover(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
+                       java.util.List<int[]> edges, java.util.List<Integer> faces,
+                       ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
+                       Operation operation) {
+        if (operation == Operation.ROTATE) return rotationHit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy);
+        return hit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy);
+    }
+
+    private Axis rotationHit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
+                              java.util.List<int[]> edges, java.util.List<Integer> faces,
+                              ViewportProjector projector, double mouseX, double mouseY, int cx, int cy) {
+        TransformMath.Point p=pivot(node,mode,vertices,edges,faces);
+        var o=projector.project(p.x(),p.y(),p.z(),cx,cy,300);
+        if(o==null)return Axis.NONE;
+        double best=9; Axis result=Axis.NONE;
+        double[][] dirs={{2,0,0},{0,2,0},{0,0,2}};
+        Axis[] axes={Axis.X,Axis.Y,Axis.Z};
+        for(int i=0;i<3;i++){
+            var q3=new TransformMath.Point(p.x()+dirs[i][0],p.y()+dirs[i][1],p.z()+dirs[i][2]);
+            var q=projector.project(q3.x(),q3.y(),q3.z(),cx,cy,300);
+            if(q==null)continue;
+            double radius=Math.hypot(q.x()-o.x(),q.y()-o.y());
+            double d=Math.abs(Math.hypot(mouseX-o.x(),mouseY-o.y())-radius);
+            if(d<best){best=d;result=axes[i];}
+        }
+        return result;
+    }
+
     public Axis hit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
                     java.util.List<int[]> edges, java.util.List<Integer> faces,
                     ViewportProjector projector, double mouseX,double mouseY,int cx,int cy) {
