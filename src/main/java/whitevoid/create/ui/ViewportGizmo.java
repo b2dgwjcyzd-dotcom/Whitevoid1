@@ -30,6 +30,39 @@ public final class ViewportGizmo {
         return result;
     }
 
+    public Axis geometryHit(ModelNode node, ViewportProjector projector,
+                             double mouseX, double mouseY, int cx, int cy) {
+        if (node == null || node.geometry() == null) return Axis.NONE;
+
+        TransformMath.Point origin3 = TransformMath.applyHierarchy(new TransformMath.Point(0, 0, 0), node);
+        ViewportProjector.Point origin = projector.project(origin3.x(), origin3.y(), origin3.z(), cx, cy, 300);
+        if (origin == null) return Axis.NONE;
+
+        double[] lengths = {
+                node.geometry().width() * 0.5 + 0.45,
+                node.geometry().height() * 0.5 + 0.45,
+                node.geometry().depth() * 0.5 + 0.45
+        };
+        double[][] dirs = {{1,0,0},{0,1,0},{0,0,1}};
+        Axis[] axes = {Axis.X, Axis.Y, Axis.Z};
+
+        double best = 12.0;
+        Axis result = Axis.NONE;
+        for (int i = 0; i < 3; i++) {
+            TransformMath.Point p3 = TransformMath.applyHierarchy(
+                    new TransformMath.Point(dirs[i][0] * lengths[i], dirs[i][1] * lengths[i], dirs[i][2] * lengths[i]),
+                    node);
+            ViewportProjector.Point p = projector.project(p3.x(), p3.y(), p3.z(), cx, cy, 300);
+            if (p == null) continue;
+            double d = distanceToSegment(mouseX, mouseY, origin.x(), origin.y(), p.x(), p.y());
+            if (d < best) {
+                best = d;
+                result = axes[i];
+            }
+        }
+        return result;
+    }
+
     public double dragAmount(Axis axis, ViewportProjector projector, double deltaX, double deltaY) {
         if(axis==Axis.NONE) return 0;
         double yaw=Math.toRadians(projector.cameraYaw());
