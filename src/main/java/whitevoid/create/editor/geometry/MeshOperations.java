@@ -349,6 +349,66 @@ public final class MeshOperations {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
+    public static OperationResult extrudeFacesResult(
+            MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedFaces == null || selectedFaces.isEmpty() || amount == 0.0) {
+            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+        }
+        java.util.Set<Integer> valid = new java.util.LinkedHashSet<>();
+        for (int face : selectedFaces) {
+            if (face >= 0 && face < mesh.faces().size()) valid.add(face);
+        }
+        if (valid.isEmpty()) return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+
+        MeshGeometry result = extrudeFaces(mesh, valid, amount);
+        java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
+        for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) createdVertices.add(i);
+
+        int baseFaceCount = mesh.faces().size() - valid.size();
+        java.util.Set<Integer> createdFaces = new java.util.LinkedHashSet<>();
+        for (int i = baseFaceCount; i < result.faces().size(); i++) createdFaces.add(i);
+
+        java.util.Set<Long> createdEdges = new java.util.LinkedHashSet<>();
+        for (int faceIndex : createdFaces) {
+            int[] ids = result.faces().get(faceIndex).vertices();
+            for (int i = 0; i < ids.length; i++) {
+                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+            }
+        }
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges);
+    }
+
+    public static OperationResult insetFacesResult(
+            MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedFaces == null || selectedFaces.isEmpty() || amount <= 0.0) {
+            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+        }
+        java.util.Set<Integer> valid = new java.util.LinkedHashSet<>();
+        for (int face : selectedFaces) {
+            if (face >= 0 && face < mesh.faces().size()) valid.add(face);
+        }
+        if (valid.isEmpty()) return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+
+        MeshGeometry result = insetFaces(mesh, valid, amount);
+        java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
+        for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) createdVertices.add(i);
+
+        int baseFaceCount = mesh.faces().size() - valid.size();
+        java.util.Set<Integer> createdFaces = new java.util.LinkedHashSet<>();
+        for (int i = baseFaceCount; i < result.faces().size(); i++) createdFaces.add(i);
+
+        java.util.Set<Long> createdEdges = new java.util.LinkedHashSet<>();
+        for (int faceIndex : createdFaces) {
+            int[] ids = result.faces().get(faceIndex).vertices();
+            for (int i = 0; i < ids.length; i++) {
+                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+            }
+        }
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges);
+    }
+
     public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
