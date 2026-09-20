@@ -903,7 +903,7 @@ public final class CreateScreen extends Screen {
         GeometryFace selectedFace = core.editorContext().viewport().geometryFaceSelection().face();
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
                 core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace,
-                hoveredComponentAxis, componentOperation);
+                hoveredComponentAxis, componentOperation, componentPivotMode);
         if (componentBoxSelecting) {
             int left = (int) Math.round(Math.min(boxStartX, boxCurrentX));
             int top = (int) Math.round(Math.min(boxStartY, boxCurrentY));
