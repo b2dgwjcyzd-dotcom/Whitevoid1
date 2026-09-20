@@ -107,6 +107,72 @@ public final class MeshOperations {
     }
 
     /**
+     * Extrudes multiple selected edges as one connected strip.
+     * Shared vertices are duplicated once and every selected edge receives
+     * a connecting quad, so edge loops/rings can be extruded together.
+     */
+    public static MeshGeometry extrudeEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedEdges == null || selectedEdges.isEmpty() || amount == 0.0) return mesh.copy();
+
+        java.util.Set<Long> valid = new java.util.LinkedHashSet<>();
+        java.util.Set<Integer> affected = new java.util.LinkedHashSet<>();
+        java.util.Map<Integer, double[]> normals = new java.util.LinkedHashMap<>();
+
+        for (long key : selectedEdges) {
+            int a = (int) (key >>> 32);
+            int b = (int) key;
+            validateEdge(mesh, a, b);
+            if (adjacentFaces(mesh, a, b).isEmpty()) {
+                throw new IllegalArgumentException("Selected edge is not connected to a face");
+            }
+            valid.add(key);
+            affected.add(a);
+            affected.add(b);
+
+            for (int faceIndex : adjacentFaces(mesh, a, b)) {
+                double[] n = faceNormal(mesh, mesh.faces().get(faceIndex));
+                for (int vertex : new int[]{a, b}) {
+                    double[] sum = normals.computeIfAbsent(vertex, ignored -> new double[3]);
+                    sum[0] += n[0];
+                    sum[1] += n[1];
+                    sum[2] += n[2];
+                }
+            }
+        }
+
+        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
+        java.util.Map<Integer, Integer> duplicate = new java.util.LinkedHashMap<>();
+
+        for (int id : affected) {
+            double[] n = normals.get(id);
+            double len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+            if (len < 1e-9) {
+                n[0] = 0; n[1] = 1; n[2] = 0;
+            } else {
+                n[0] /= len; n[1] /= len; n[2] /= len;
+            }
+
+            MeshGeometry.Vertex v = mesh.vertices().get(id);
+            int copy = vertices.size();
+            vertices.add(new MeshGeometry.Vertex(
+                    v.x() + n[0] * amount,
+                    v.y() + n[1] * amount,
+                    v.z() + n[2] * amount));
+            duplicate.put(id, copy);
+        }
+
+        List<MeshGeometry.Face> faces = new ArrayList<>(mesh.faces());
+        for (long key : valid) {
+            int a = (int) (key >>> 32);
+            int b = (int) key;
+            faces.add(new MeshGeometry.Face(a, b, duplicate.get(b), duplicate.get(a)));
+        }
+
+        return new MeshGeometry(vertices, faces);
+    }
+
+    /**
      * Bevels a selected manifold edge region in one operation.
      * Each selected edge must have exactly two adjacent faces.
      */
