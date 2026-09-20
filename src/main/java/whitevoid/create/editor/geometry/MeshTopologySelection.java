@@ -29,22 +29,19 @@ public final class MeshTopologySelection {
         return result;
     }
 
+    /** Returns all faces connected to the seed region through shared edges. */
     public static Set<Integer> linkedFaces(MeshGeometry mesh, Set<Integer> seeds) {
-        Set<Integer> result = new LinkedHashSet<>(seeds);
-        boolean changed;
-        do {
-            changed = false;
-            for (int i = 0; i < mesh.faces().size(); i++) {
-                if (result.contains(i)) continue;
-                int[] a = mesh.faces().get(i).vertices();
-                for (int j : result) {
-                    if (shareVertex(a, mesh.faces().get(j).vertices())) {
-                        if (result.add(i)) changed = true;
-                        break;
-                    }
-                }
+        Set<Integer> result = new LinkedHashSet<>();
+        Queue<Integer> queue = new ArrayDeque<>();
+        for (int seed : seeds) {
+            if (seed >= 0 && seed < mesh.faces().size() && result.add(seed)) queue.add(seed);
+        }
+        while (!queue.isEmpty()) {
+            int face = queue.remove();
+            for (int neighbor : faceNeighbors(mesh, face)) {
+                if (result.add(neighbor)) queue.add(neighbor);
             }
-        } while (changed);
+        }
         return result;
     }
 
@@ -281,6 +278,61 @@ public final class MeshTopologySelection {
 
     private static boolean containsEdge(MeshGeometry mesh, int a, int b) {
         return !adjacentFaces(mesh, a, b).isEmpty();
+    }
+
+    /** Faces directly adjacent through a shared edge. */
+    public static Set<Integer> faceNeighbors(MeshGeometry mesh, int faceIndex) {
+        Set<Integer> result = new LinkedHashSet<>();
+        if (faceIndex < 0 || faceIndex >= mesh.faces().size()) return result;
+        int[] face = mesh.faces().get(faceIndex).vertices();
+        for (int other = 0; other < mesh.faces().size(); other++) {
+            if (other == faceIndex) continue;
+            if (sharesEdge(face, mesh.faces().get(other).vertices())) result.add(other);
+        }
+        return result;
+    }
+
+    /** Edges directly adjacent to a seed edge through a shared vertex. */
+    public static Set<Long> edgeNeighbors(MeshGeometry mesh, long edge) {
+        Set<Long> result = new LinkedHashSet<>();
+        int a = edgeA(edge), b = edgeB(edge);
+        for (int[] candidate : ModelRenderer.meshEdges(mesh)) {
+            long key = edgeKey(candidate[0], candidate[1]);
+            if (key == edge) continue;
+            if (candidate[0] == a || candidate[0] == b || candidate[1] == a || candidate[1] == b) {
+                result.add(key);
+            }
+        }
+        return result;
+    }
+
+    /** All one-ring neighbors of a selected component region. */
+    public static Set<Integer> growVertices(MeshGeometry mesh, Set<Integer> selected) {
+        Set<Integer> result = new LinkedHashSet<>(selected);
+        for (int vertex : selected) result.addAll(vertexNeighbors(mesh, vertex));
+        return result;
+    }
+
+    public static Set<Long> growEdges(MeshGeometry mesh, Set<Long> selected) {
+        Set<Long> result = new LinkedHashSet<>(selected);
+        for (long edge : selected) result.addAll(edgeNeighbors(mesh, edge));
+        return result;
+    }
+
+    public static Set<Integer> growFaces(MeshGeometry mesh, Set<Integer> selected) {
+        Set<Integer> result = new LinkedHashSet<>(selected);
+        for (int face : selected) result.addAll(faceNeighbors(mesh, face));
+        return result;
+    }
+
+    private static boolean sharesEdge(int[] a, int[] b) {
+        for (int i = 0; i < a.length; i++) {
+            long edgeA = edgeKey(a[i], a[(i + 1) % a.length]);
+            for (int j = 0; j < b.length; j++) {
+                if (edgeA == edgeKey(b[j], b[(j + 1) % b.length])) return true;
+            }
+        }
+        return false;
     }
 
     /** Returns the shortest topological vertex path between two vertices. */
