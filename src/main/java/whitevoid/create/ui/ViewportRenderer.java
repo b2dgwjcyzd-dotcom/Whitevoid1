@@ -37,8 +37,9 @@ public final class ViewportRenderer {
                     hoveredAxis);
         }
         if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            int selectedMeshFace = viewport.meshFaceSelection().matches(selected)
-                    ? viewport.meshFaceSelection().faceIndex() : -1;
+            int selectedMeshFace = viewport.meshComponentSelection().matches(selected)
+                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE
+                    ? viewport.meshComponentSelection().indexA() : -1;
             drawMeshFaceHighlight(context, projector, selected,
                     selectedMeshFace, centerX, centerY, left, top, right, bottom);
             if (selectedMeshFace < 0 && hoveredMeshFace >= 0) {
