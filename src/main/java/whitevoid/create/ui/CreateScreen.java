@@ -27,6 +27,7 @@ public final class CreateScreen extends Screen {
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
+    private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
     private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
     private boolean gizmoDragging;
     private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
@@ -45,6 +46,9 @@ public final class CreateScreen extends Screen {
     private MeshGeometry edgeDragOldMesh;
     private boolean componentBoxSelecting;
     private double boxStartX, boxStartY, boxCurrentX, boxCurrentY;
+    private boolean componentDragging;
+    private ComponentTransformGizmo.Axis componentAxis = ComponentTransformGizmo.Axis.NONE;
+    private MeshGeometry componentDragOldMesh;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -462,6 +466,20 @@ public final class CreateScreen extends Screen {
                 int cx=width/2, cy=height/2;
                 ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
                 var meshMode = viewport.meshComponentSelection().mode();
+
+                if (!hasShiftDown() && viewport.meshComponentSelection().size() > 0) {
+                    componentAxis = componentGizmo.hit(selected, meshMode,
+                            viewport.meshComponentSelection().vertexIndices(),
+                            viewport.meshComponentSelection().edgeIndices(),
+                            viewport.meshComponentSelection().faceIndices(),
+                            projector, mouseX, mouseY, cx, cy);
+                    if (componentAxis != ComponentTransformGizmo.Axis.NONE) {
+                        componentDragging = true;
+                        componentDragOldMesh = selected.ensureMeshGeometry();
+                        if (componentDragOldMesh != null) componentDragOldMesh = componentDragOldMesh.copy();
+                        return true;
+                    }
+                }
                 if (meshMode == MeshSelectionMode.VERTEX) {
                     int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (vertex >= 0) {
@@ -579,6 +597,18 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (componentDragging && button == 0) {
+            ModelNode node=core.editorContext().viewport().selection().first(core.editorContext().model());
+            if(node!=null && componentDragOldMesh!=null){
+                var current=node.ensureMeshGeometry();
+                if(current!=null && !componentDragOldMesh.equals(current))
+                    core.editorContext().history().recordExecuted(new SetMeshGeometryCommand(node,componentDragOldMesh,current.copy()));
+            }
+            componentDragging=false;
+            componentAxis=ComponentTransformGizmo.Axis.NONE;
+            componentDragOldMesh=null;
+            return true;
+        }
         if (componentBoxSelecting && button == 0) {
             boxCurrentX = mouseX;
             boxCurrentY = mouseY;
@@ -674,6 +704,28 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (componentDragging && button == 0) {
+            ModelNode node=core.editorContext().viewport().meshComponentSelection().node(core.editorContext().model());
+            if(node!=null){
+                var mesh=node.ensureMeshGeometry();
+                if(mesh!=null){
+                    var selection=core.editorContext().viewport().meshComponentSelection();
+                    java.util.LinkedHashSet<Integer> ids=new java.util.LinkedHashSet<>();
+                    if(selection.mode()==MeshSelectionMode.VERTEX) ids.addAll(selection.vertexIndices());
+                    else if(selection.mode()==MeshSelectionMode.EDGE) for(int[] e:selection.edgeIndices()){ids.add(e[0]);ids.add(e[1]);}
+                    else for(int fi:selection.faceIndices()) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
+                    double amount=componentGizmo.amount(componentAxis,
+                            new ViewportProjector(core.editorContext().viewport().viewport().camera()),deltaX,deltaY);
+                    var updated=mesh.copy();
+                    double dx=componentAxis==ComponentTransformGizmo.Axis.X?amount:0;
+                    double dy=componentAxis==ComponentTransformGizmo.Axis.Y?amount:0;
+                    double dz=componentAxis==ComponentTransformGizmo.Axis.Z?amount:0;
+                    for(int id:ids) updated=MeshOperations.moveVertex(updated,id,dx,dy,dz);
+                    node.setMeshGeometry(updated);
+                }
+            }
+            return true;
+        }
         if (componentBoxSelecting && button == 0) {
             boxCurrentX = mouseX;
             boxCurrentY = mouseY;
