@@ -1443,6 +1443,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 for (int[] edge : hits) selection.addEdge(node, edge[0], edge[1]);
             }
         } else {
+            java.util.Set<Integer> hits = new java.util.LinkedHashSet<>();
             for (int i=0;i<mesh.faces().size();i++) {
                 int[] ids=mesh.faces().get(i).vertices();
                 double sx=0,sy=0; int count=0;
@@ -1453,19 +1454,16 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
                     if(p!=null){sx+=p.x();sy+=p.y();count++;}
                 }
-                if(count>0 && pointInsideBox(sx/count,sy/count,left,top,right,bottom)) {
-                    if (hasAltDown()) selection.removeFace(node, i);
-                    else {
-                        if (!hasShiftDown()) selection.clear();
-                        selection.addFace(node, i);
-                    }
-                }
+                if(count>0 && pointInsideBox(sx/count,sy/count,left,top,right,bottom)) hits.add(i);
             }
-            if (!hasAltDown() && hasShiftDown()) {
-                // Shift preserves existing selection; the loop above only adds hits.
+            if (hasAltDown()) {
+                for (int i : hits) selection.removeFace(node, i);
+            } else {
+                if (!hasShiftDown()) selection.clear();
+                for (int i : hits) selection.addFace(node, i);
             }
+        }
     }
-
     private boolean pointInsideBox(double x,double y,int left,int top,int right,int bottom) {
         return x>=left && x<=right && y>=top && y<=bottom;
     }
