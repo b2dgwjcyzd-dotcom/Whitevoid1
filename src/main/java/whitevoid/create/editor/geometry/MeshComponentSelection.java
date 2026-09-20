@@ -126,6 +126,49 @@ public final class MeshComponentSelection {
         return mode == MeshSelectionMode.VERTEX ? vertices.size()
                 : mode == MeshSelectionMode.EDGE ? edges.size() : faces.size();
     }
+
+    /** Selects every component of the current mode on the given mesh. */
+    public void selectAll(ModelNode node) {
+        if (node == null) return;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        clearSelectionOnly();
+        nodeId = node.id();
+        if (mode == MeshSelectionMode.VERTEX) {
+            for (int i = 0; i < mesh.vertices().size(); i++) vertices.add(i);
+        } else if (mode == MeshSelectionMode.EDGE) {
+            for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
+                edges.add(edgeKey(edge[0], edge[1]));
+            }
+        } else {
+            for (int i = 0; i < mesh.faces().size(); i++) faces.add(i);
+        }
+    }
+
+    /** Inverts the current component selection against the node's topology. */
+    public void invert(ModelNode node) {
+        if (node == null) return;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        nodeId = node.id();
+        if (mode == MeshSelectionMode.VERTEX) {
+            Set<Integer> next = new LinkedHashSet<>();
+            for (int i = 0; i < mesh.vertices().size(); i++) if (!vertices.contains(i)) next.add(i);
+            vertices.clear(); vertices.addAll(next);
+        } else if (mode == MeshSelectionMode.EDGE) {
+            Set<Long> next = new LinkedHashSet<>();
+            for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
+                long key = edgeKey(edge[0], edge[1]);
+                if (!edges.contains(key)) next.add(key);
+            }
+            edges.clear(); edges.addAll(next);
+        } else {
+            Set<Integer> next = new LinkedHashSet<>();
+            for (int i = 0; i < mesh.faces().size(); i++) if (!faces.contains(i)) next.add(i);
+            faces.clear(); faces.addAll(next);
+        }
+        if (isEmpty()) nodeId = null;
+    }
     public boolean containsVertex(int i) { return vertices.contains(i); }
     public boolean containsEdge(int a,int b) { return edges.contains(edgeKey(a,b)); }
     public boolean containsFace(int i) { return faces.contains(i); }
