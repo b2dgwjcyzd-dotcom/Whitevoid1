@@ -17,6 +17,7 @@ public final class CreateScreen extends Screen {
     private final ViewportGizmo gizmo = new ViewportGizmo();
     private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
     private boolean gizmoDragging;
+    private double dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -109,7 +110,13 @@ public final class CreateScreen extends Screen {
                 activeAxis = gizmo.hit(selected, viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
                 gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
-                if (gizmoDragging) return true;
+                if (gizmoDragging) {
+                    var t=selected.transform();
+                    dragOldX=t.x(); dragOldY=t.y(); dragOldZ=t.z();
+                    dragOldRx=t.rotationX(); dragOldRy=t.rotationY(); dragOldRz=t.rotationZ();
+                    dragOldSx=t.scaleX(); dragOldSy=t.scaleY(); dragOldSz=t.scaleZ();
+                    return true;
+                }
             }
             ModelNode hit = new ViewportPicker().pick(core.editorContext().model(), core.editorContext().viewport(), mouseX, mouseY, width, height);
             if (hit != null) core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
@@ -121,6 +128,24 @@ public final class CreateScreen extends Screen {
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (gizmoDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (node != null) {
+                var t=node.transform();
+                boolean changed = dragOldX!=t.x() || dragOldY!=t.y() || dragOldZ!=t.z() ||
+                        dragOldRx!=t.rotationX() || dragOldRy!=t.rotationY() || dragOldRz!=t.rotationZ() ||
+                        dragOldSx!=t.scaleX() || dragOldSy!=t.scaleY() || dragOldSz!=t.scaleZ();
+                if (changed) {
+                    core.editorContext().history().execute(new SetTransformCommand(node,
+                            dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz,
+                            t.x(),t.y(),t.z(),t.rotationX(),t.rotationY(),t.rotationZ(),t.scaleX(),t.scaleY(),t.scaleZ(),true));
+                    core.editorContext().history().undo();
+                    // Re-apply final state without adding a second history entry.
+                    t.position(dragOldX,dragOldY,dragOldZ);
+                    t.rotation(dragOldRx,dragOldRy,dragOldRz);
+                    t.scale(dragOldSx,dragOldSy,dragOldSz);
+                    core.editorContext().history().redo();
+                }
+            }
             gizmoDragging=false;
             activeAxis=ViewportGizmo.Axis.NONE;
             return true;
