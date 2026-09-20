@@ -523,7 +523,7 @@ public final class CreateScreen extends Screen {
                 ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
                 var meshMode = viewport.meshComponentSelection().mode();
 
-                if (!hasShiftDown() && viewport.meshComponentSelection().size() > 0) {
+                if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
                     componentAxis = componentGizmo.hover(selected, meshMode,
                             viewport.meshComponentSelection().vertexIndices(),
                             viewport.meshComponentSelection().edgeIndices(),
@@ -539,7 +539,8 @@ public final class CreateScreen extends Screen {
                 if (meshMode == MeshSelectionMode.VERTEX) {
                     int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (vertex >= 0) {
-                        if (hasShiftDown()) viewport.meshComponentSelection().toggleVertex(selected, vertex);
+                        if (hasAltDown()) viewport.meshComponentSelection().removeVertex(selected, vertex);
+                        else if (hasShiftDown()) viewport.meshComponentSelection().toggleVertex(selected, vertex);
                         else viewport.meshComponentSelection().selectVertex(selected, vertex);
                         viewport.meshFaceSelection().clear();
                         viewport.geometryFaceSelection().clear();
@@ -567,7 +568,8 @@ public final class CreateScreen extends Screen {
                     } else if (meshMode == MeshSelectionMode.EDGE) {
                         int[] edge = gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy);
                         if (edge != null) {
-                            if (hasShiftDown()) viewport.meshComponentSelection().toggleEdge(selected, edge[0], edge[1]);
+                            if (hasAltDown()) viewport.meshComponentSelection().removeEdge(selected, edge[0], edge[1]);
+                            else if (hasShiftDown()) viewport.meshComponentSelection().toggleEdge(selected, edge[0], edge[1]);
                             else viewport.meshComponentSelection().selectEdge(selected, edge[0], edge[1]);
                             viewport.meshFaceSelection().clear();
                             viewport.geometryFaceSelection().clear();
@@ -584,7 +586,8 @@ public final class CreateScreen extends Screen {
                     } else {
                         int clickedMeshFace = gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy);
                         if (clickedMeshFace >= 0) {
-                            if (hasShiftDown()) viewport.meshComponentSelection().toggleFace(selected, clickedMeshFace);
+                            if (hasAltDown()) viewport.meshComponentSelection().removeFace(selected, clickedMeshFace);
+                            else if (hasShiftDown()) viewport.meshComponentSelection().toggleFace(selected, clickedMeshFace);
                             else viewport.meshComponentSelection().selectFace(selected, clickedMeshFace);
                             viewport.meshFaceSelection().select(selected, clickedMeshFace);
                             viewport.geometryFaceSelection().clear();
@@ -634,7 +637,7 @@ public final class CreateScreen extends Screen {
                 componentBoxSelecting = true;
                 boxStartX = boxCurrentX = mouseX;
                 boxStartY = boxCurrentY = mouseY;
-                if (!hasShiftDown()) viewport.meshComponentSelection().clear();
+                if (!hasShiftDown() && !hasAltDown()) viewport.meshComponentSelection().clear();
                 return true;
             }
 
@@ -990,8 +993,11 @@ public final class CreateScreen extends Screen {
                 var w=whitevoid.create.model.TransformMath.applyHierarchy(
                         new whitevoid.create.model.TransformMath.Point(v.x(),v.y(),v.z()),node);
                 var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
-                if (p!=null && p.x()>=left && p.x()<=right && p.y()>=top && p.y()<=bottom)
-                    selection.toggleVertex(node,i);
+                if(p!=null && p.x()>=left && p.x()<=right && p.y()>=top && p.y()<=bottom) {
+                    if (hasAltDown()) selection.removeVertex(node,i);
+                    else if (hasShiftDown()) selection.addVertex(node,i);
+                    else selection.addVertex(node,i);
+                }
             }
         } else if (selection.mode() == MeshSelectionMode.EDGE) {
             for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
@@ -1004,7 +1010,8 @@ public final class CreateScreen extends Screen {
                 var pb=projector.project(wb.x(),wb.y(),wb.z(),cx,cy,300);
                 if(pa!=null && pb!=null && pointInsideBox(pa.x(),pa.y(),left,top,right,bottom)
                         && pointInsideBox(pb.x(),pb.y(),left,top,right,bottom))
-                    selection.toggleEdge(node,edge[0],edge[1]);
+                    if (hasAltDown()) selection.removeEdge(node, edge[0], edge[1]);
+                    else selection.addEdge(node, edge[0], edge[1]);
             }
         } else {
             for (int i=0;i<mesh.faces().size();i++) {
@@ -1018,7 +1025,8 @@ public final class CreateScreen extends Screen {
                     if(p!=null){sx+=p.x();sy+=p.y();count++;}
                 }
                 if(count>0 && pointInsideBox(sx/count,sy/count,left,top,right,bottom))
-                    selection.toggleFace(node,i);
+                    if (hasAltDown()) selection.removeFace(node, i);
+                    else selection.addFace(node, i);
             }
         }
     }
