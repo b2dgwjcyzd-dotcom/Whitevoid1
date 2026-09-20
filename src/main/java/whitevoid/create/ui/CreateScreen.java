@@ -60,6 +60,7 @@ public final class CreateScreen extends Screen {
     private double componentDragStartX, componentDragStartY;
     private TransformMath.Point componentDragPivot;
     private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
+    private ComponentTransformGizmo.Axis componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
     private boolean mirrorArmed;
     private static final double MOVE_SNAP_INCREMENT = 0.25;
     private static final double ROTATE_SNAP_INCREMENT = 5.0;
@@ -93,9 +94,23 @@ public final class CreateScreen extends Screen {
             }
             return true;
         }
-        if (keyCode == 71) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
-        if (keyCode == 82) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
-        if (keyCode == 83) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == 71) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
+        if (keyCode == 82) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
+        if (keyCode == 83) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
+
+        if (viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
+            ComponentTransformGizmo.Axis requested = switch (keyCode) {
+                case GLFW.GLFW_KEY_X -> ComponentTransformGizmo.Axis.X;
+                case GLFW.GLFW_KEY_Y -> ComponentTransformGizmo.Axis.Y;
+                case GLFW.GLFW_KEY_Z -> ComponentTransformGizmo.Axis.Z;
+                default -> ComponentTransformGizmo.Axis.NONE;
+            };
+            if (requested != ComponentTransformGizmo.Axis.NONE) {
+                componentConstraintAxis = componentConstraintAxis == requested
+                        ? ComponentTransformGizmo.Axis.NONE : requested;
+                return true;
+            }
+        }
         if (keyCode == 80 && viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
             componentPivotMode = componentPivotMode.next();
             return true;
@@ -805,25 +820,27 @@ public final class CreateScreen extends Screen {
                     var projector=new ViewportProjector(core.editorContext().viewport().viewport().camera());
                     var updated=componentDragOldMesh.copy();
                     var pivot=componentDragPivot;
-                    int axis=componentAxis==ComponentTransformGizmo.Axis.X?0
-                            :componentAxis==ComponentTransformGizmo.Axis.Y?1:2;
+                    ComponentTransformGizmo.Axis constrainedAxis = componentConstraintAxis != ComponentTransformGizmo.Axis.NONE
+                            ? componentConstraintAxis : componentAxis;
+                    int axis=constrainedAxis==ComponentTransformGizmo.Axis.X?0
+                            :constrainedAxis==ComponentTransformGizmo.Axis.Y?1:2;
                     double totalDx = mouseX - componentDragStartX;
                     double totalDy = mouseY - componentDragStartY;
 
                     if(componentOperation==ComponentTransformGizmo.Operation.MOVE){
-                        double amount=componentGizmo.amount(componentAxis,projector,node,pivot,
+                        double amount=componentGizmo.amount(constrainedAxis,projector,node,pivot,
                                 width / 2,height / 2,totalDx,totalDy);
                         if (hasControlDown()) amount = snapScalar(amount, MOVE_SNAP_INCREMENT);
                         double dx=axis==0?amount:0, dy=axis==1?amount:0, dz=axis==2?amount:0;
                         updated=MeshComponentTransforms.translate(updated,ids,dx,dy,dz);
                     } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
-                        double degrees=componentGizmo.rotationAmount(componentAxis, node, pivot,
+                        double degrees=componentGizmo.rotationAmount(constrainedAxis, node, pivot,
                                 componentDragStartX, componentDragStartY, mouseX, mouseY,
                                 projector, width / 2, height / 2);
                         if (hasControlDown()) degrees = snapScalar(degrees, ROTATE_SNAP_INCREMENT);
                         updated=MeshComponentTransforms.rotate(updated,ids,pivot,axis,degrees);
                     } else {
-                        double factor=componentGizmo.scaleFactor(componentAxis,projector,node,pivot,
+                        double factor=componentGizmo.scaleFactor(constrainedAxis,projector,node,pivot,
                                 width / 2,height / 2,totalDx,totalDy);
                         if (hasControlDown()) factor = snapScaleFactor(factor, SCALE_SNAP_INCREMENT);
                         updated=MeshComponentTransforms.scale(updated,ids,pivot,axis,factor);
@@ -1010,9 +1027,10 @@ public final class CreateScreen extends Screen {
                 case null -> "";
                 case String value -> " • Active " + value;
             };
+            String constraint = componentConstraintAxis == ComponentTransformGizmo.Axis.NONE ? "" : " • " + componentConstraintAxis.name();
             String snap = hasControlDown() ? " • SNAP" : "";
             context.drawTextWithShadow(textRenderer,
-                    operation + axis + " • " + mode + " • Pivot " + pivot + active + snap,
+                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap,
                     26, height - 30, 0xFFE8E8E8);
         }
         if (componentBoxSelecting) {
