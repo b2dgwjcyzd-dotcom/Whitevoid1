@@ -3,6 +3,7 @@ package whitevoid.create.ui;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.TransformMath;
+import whitevoid.create.editor.geometry.GeometryFace;
 
 public final class ViewportGizmo {
     public Axis hoveredAxis(ModelNode node, TransformMode mode, ViewportProjector projector, double mouseX, double mouseY, int cx, int cy) {
@@ -73,6 +74,100 @@ public final class ViewportGizmo {
             }
         }
         return result;
+    }
+
+    public GeometryFace faceHit(ModelNode node, ViewportProjector projector,
+                                   double mouseX, double mouseY, int cx, int cy) {
+        if (node == null || node.geometry() == null) return GeometryFace.NONE;
+
+        GeometryFace bestFace = GeometryFace.NONE;
+        double bestDepth = Double.POSITIVE_INFINITY;
+        double bestDistance = 8.0;
+
+        double hx = node.geometry().width() * 0.5;
+        double hy = node.geometry().height() * 0.5;
+        double hz = node.geometry().depth() * 0.5;
+
+        double[][] faces = {
+                { hx, 0, 0}, {-hx, 0, 0},
+                { 0, hy, 0}, { 0,-hy, 0},
+                { 0, 0, hz}, { 0, 0,-hz}
+        };
+        GeometryFace[] faceTypes = {
+                GeometryFace.POS_X, GeometryFace.NEG_X,
+                GeometryFace.POS_Y, GeometryFace.NEG_Y,
+                GeometryFace.POS_Z, GeometryFace.NEG_Z
+        };
+
+        TransformMath.Point[][] corners = {
+                {
+                        new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(hx,hy,-hz),
+                        new TransformMath.Point(hx,hy,hz), new TransformMath.Point(hx,-hy,hz)
+                },
+                {
+                        new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(-hx,hy,hz),
+                        new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(-hx,-hy,-hz)
+                },
+                {
+                        new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(-hx,hy,hz),
+                        new TransformMath.Point(hx,hy,hz), new TransformMath.Point(hx,hy,-hz)
+                },
+                {
+                        new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(-hx,-hy,-hz),
+                        new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(hx,-hy,hz)
+                },
+                {
+                        new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(hx,-hy,hz),
+                        new TransformMath.Point(hx,hy,hz), new TransformMath.Point(-hx,hy,hz)
+                },
+                {
+                        new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(-hx,-hy,-hz),
+                        new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(hx,hy,-hz)
+                }
+        };
+
+        for (int i = 0; i < 6; i++) {
+            ViewportProjector.Point[] p = new ViewportProjector.Point[4];
+            boolean valid = true;
+            for (int j = 0; j < 4; j++) {
+                TransformMath.Point world = TransformMath.applyHierarchy(corners[i][j], node);
+                p[j] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+                if (p[j] == null) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (!valid) continue;
+
+            double d = pointToQuad(mouseX, mouseY, p);
+            if (d <= bestDistance) {
+                double depth = (p[0].depth() + p[1].depth() + p[2].depth() + p[3].depth()) / 4.0;
+                if (depth < bestDepth) {
+                    bestDepth = depth;
+                    bestFace = faceTypes[i];
+                }
+            }
+        }
+
+        return bestFace;
+    }
+
+    private double pointToQuad(double px, double py, ViewportProjector.Point[] q) {
+        double d = 0;
+        boolean inside = true;
+        for (int i = 0; i < 4; i++) {
+            ViewportProjector.Point a = q[i];
+            ViewportProjector.Point b = q[(i + 1) % 4];
+            double cross = (b.x() - a.x()) * (py - a.y()) - (b.y() - a.y()) * (px - a.x());
+            if (i == 0) {
+                inside = cross >= 0;
+            } else if ((cross >= 0) != inside) {
+                inside = false;
+            }
+            d = Math.max(d, distanceToSegment(px, py, a.x(), a.y(), b.x(), b.y()));
+        }
+        if (inside) return 0;
+        return d;
     }
 
     public double dragAmount(Axis axis, ViewportProjector projector, double deltaX, double deltaY) {
