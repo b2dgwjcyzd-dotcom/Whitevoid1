@@ -11,6 +11,7 @@ import whitevoid.create.model.TransformMath;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.editor.geometry.MeshSelectionMode;
+import whitevoid.create.ui.ComponentTransformGizmo.Operation;
 import whitevoid.create.ui.ViewportProjector.Point;
 
 public final class ViewportRenderer {
@@ -55,7 +56,7 @@ public final class ViewportRenderer {
             drawMeshComponentSelection(context, projector, selected, viewport,
                     centerX, centerY, left, top, right, bottom);
             drawComponentGizmo(context, projector, selected, viewport,
-                    centerX, centerY, left, top, right, bottom);
+                    centerX, centerY, left, top, right, bottom, ComponentTransformGizmo.Axis.NONE, Operation.MOVE);
             if (selected.meshGeometry() == null) {
                 drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
             }
@@ -239,7 +240,8 @@ public final class ViewportRenderer {
 
     private void drawComponentGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
                                         ViewportContext viewport, int cx, int cy,
-                                        int left, int top, int right, int bottom) {
+                                        int left, int top, int right, int bottom,
+                                        ComponentTransformGizmo.Axis hoveredAxis, Operation operation) {
         var selection=viewport.meshComponentSelection();
         if(!selection.matches(node) || selection.size()==0) return;
         ComponentTransformGizmo gizmo=new ComponentTransformGizmo();
@@ -247,17 +249,45 @@ public final class ViewportRenderer {
                 selection.edgeIndices(),selection.faceIndices());
         Point o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null)return;
-        double[][] dirs={{2,0,0},{0,2,0},{0,0,2}};
+        double[][] dirs={{2.4,0,0},{0,2.4,0},{0,0,2.4}};
         int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
-        for(int i=0;i<3;i++){
-            Point p=projector.project(p3.x()+dirs[i][0],p3.y()+dirs[i][1],p3.z()+dirs[i][2],cx,cy,300);
-            if(p==null)continue;
-            drawLine(context,o,p,left,top,right,bottom,colors[i]);
-            int x=(int)Math.round(p.x()),y=(int)Math.round(p.y());
-            context.fill(x-4,y-4,x+5,y+5,colors[i]);
+        if(operation==Operation.ROTATE){
+            drawComponentRotationRings(context,projector,p3,o,cx,cy,left,top,right,bottom,colors,hoveredAxis);
+        } else {
+            for(int i=0;i<3;i++){
+                Point p=projector.project(p3.x()+dirs[i][0],p3.y()+dirs[i][1],p3.z()+dirs[i][2],cx,cy,300);
+                if(p==null)continue;
+                int color=(hoveredAxis==new ComponentTransformGizmo.Axis[]{ComponentTransformGizmo.Axis.X,ComponentTransformGizmo.Axis.Y,ComponentTransformGizmo.Axis.Z}[i])?0xFFFFFFFF:colors[i];
+                drawLine(context,o,p,left,top,right,bottom,color);
+                int x=(int)Math.round(p.x()),y=(int)Math.round(p.y());
+                if(operation==Operation.SCALE) drawHandle(context,p,color,left,top,right,bottom);
+                else drawArrowHead(context,p,o,color,left,top,right,bottom);
+            }
         }
         int ox=(int)Math.round(o.x()),oy=(int)Math.round(o.y());
         context.fill(ox-4,oy-4,ox+5,oy+5,0xFFFFFFFF);
+    }
+
+    private void drawComponentRotationRings(DrawContext context, ViewportProjector projector,
+                                             TransformMath.Point p3, Point o, int cx, int cy,
+                                             int left, int top, int right, int bottom,
+                                             int[] colors, ComponentTransformGizmo.Axis hoveredAxis) {
+        double[][] basis={{2.0,0,0},{0,2.0,0},{0,0,2.0}};
+        ComponentTransformGizmo.Axis[] axes={ComponentTransformGizmo.Axis.X,ComponentTransformGizmo.Axis.Y,ComponentTransformGizmo.Axis.Z};
+        for(int axis=0;axis<3;axis++){
+            Point q=projector.project(p3.x()+basis[axis][0],p3.y()+basis[axis][1],p3.z()+basis[axis][2],cx,cy,300);
+            if(q==null)continue;
+            double radius=Math.hypot(q.x()-o.x(),q.y()-o.y());
+            if(radius<8)continue;
+            int color=hoveredAxis==axes[axis]?0xFFFFFFFF:colors[axis];
+            double px=o.x()+radius, py=o.y();
+            for(int i=1;i<=64;i++){
+                double a=Math.PI*2*i/64.0;
+                double x=o.x()+Math.cos(a)*radius,y=o.y()+Math.sin(a)*radius;
+                drawLine(context,new Point(px,py,0),new Point(x,y,0),left,top,right,bottom,color);
+                px=x;py=y;
+            }
+        }
     }
 
     private void drawMeshComponentSelection(DrawContext context, ViewportProjector projector,
