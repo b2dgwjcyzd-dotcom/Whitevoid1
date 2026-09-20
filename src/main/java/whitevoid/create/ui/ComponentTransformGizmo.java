@@ -63,6 +63,15 @@ public final class ComponentTransformGizmo {
                                           java.util.List<int[]> edges,
                                           java.util.List<Integer> faces,
                                           PivotMode pivotMode) {
+        return localPivot(node, mode, vertices, edges, faces, pivotMode, null);
+    }
+
+    public TransformMath.Point localPivot(ModelNode node, MeshSelectionMode mode,
+                                          java.util.List<Integer> vertices,
+                                          java.util.List<int[]> edges,
+                                          java.util.List<Integer> faces,
+                                          PivotMode pivotMode,
+                                          whitevoid.create.editor.geometry.MeshComponentSelection selection) {
         if(node==null) return new TransformMath.Point(0,0,0);
         MeshGeometry mesh=node.ensureMeshGeometry();
         if(mesh==null) return new TransformMath.Point(0,0,0);
@@ -73,7 +82,29 @@ public final class ComponentTransformGizmo {
         if(ids.isEmpty()) return new TransformMath.Point(0,0,0);
 
         if(pivotMode == PivotMode.ACTIVE) {
-            int id=ids.iterator().next();
+            int id = -1;
+            if (selection != null) {
+                if (mode == MeshSelectionMode.VERTEX) id = selection.activeVertex();
+                else if (mode == MeshSelectionMode.EDGE) {
+                    int a = selection.activeEdgeA();
+                    int b = selection.activeEdgeB();
+                    if (a >= 0 && b >= 0 && a < mesh.vertices().size() && b < mesh.vertices().size()) {
+                        var va = mesh.vertices().get(a);
+                        var vb = mesh.vertices().get(b);
+                        return new TransformMath.Point((va.x()+vb.x())*0.5, (va.y()+vb.y())*0.5, (va.z()+vb.z())*0.5);
+                    }
+                } else id = selection.activeFace();
+            }
+            if (id < 0 || (mode == MeshSelectionMode.VERTEX && id >= mesh.vertices().size())
+                    || (mode == MeshSelectionMode.FACE && id >= mesh.faces().size())) {
+                id = ids.iterator().next();
+            }
+            if (mode == MeshSelectionMode.FACE) {
+                int[] face = mesh.faces().get(id).vertices();
+                double x=0,y=0,z=0;
+                for (int vertex : face) { var v=mesh.vertices().get(vertex); x+=v.x(); y+=v.y(); z+=v.z(); }
+                return new TransformMath.Point(x/face.length,y/face.length,z/face.length);
+            }
             var v=mesh.vertices().get(id);
             return new TransformMath.Point(v.x(),v.y(),v.z());
         }
@@ -101,24 +132,40 @@ public final class ComponentTransformGizmo {
                        ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
                        Operation operation) {
         return hover(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy,
-                operation, PivotMode.MEDIAN);
+                operation, PivotMode.MEDIAN, null);
     }
 
     public Axis hover(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
                        java.util.List<int[]> edges, java.util.List<Integer> faces,
                        ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
                        Operation operation, PivotMode pivotMode) {
+        return hover(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy,
+                operation, pivotMode, null);
+    }
+
+    public Axis hover(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
+                       java.util.List<int[]> edges, java.util.List<Integer> faces,
+                       ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
+                       Operation operation, PivotMode pivotMode,
+                       whitevoid.create.editor.geometry.MeshComponentSelection selection) {
         if (operation == Operation.ROTATE) {
-            return rotationHit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode);
+            return rotationHit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode, selection);
         }
-        return hit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode);
+        return hit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode, selection);
     }
 
     private Axis rotationHit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
                               java.util.List<int[]> edges, java.util.List<Integer> faces,
                               ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
                               PivotMode pivotMode) {
-        TransformMath.Point localPivot = localPivot(node, mode, vertices, edges, faces, pivotMode);
+        return rotationHit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode, null);
+    }
+
+    private Axis rotationHit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
+                              java.util.List<int[]> edges, java.util.List<Integer> faces,
+                              ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
+                              PivotMode pivotMode, whitevoid.create.editor.geometry.MeshComponentSelection selection) {
+        TransformMath.Point localPivot = localPivot(node, mode, vertices, edges, faces, pivotMode, selection);
         TransformMath.Point worldPivot = TransformMath.applyHierarchy(localPivot, node);
         double best = 8.0;
         Axis result = Axis.NONE;
@@ -168,8 +215,15 @@ public final class ComponentTransformGizmo {
                     java.util.List<int[]> edges, java.util.List<Integer> faces,
                     ViewportProjector projector, double mouseX,double mouseY,int cx,int cy,
                     PivotMode pivotMode) {
+        return hit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode, null);
+    }
+
+    private Axis hit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
+                    java.util.List<int[]> edges, java.util.List<Integer> faces,
+                    ViewportProjector projector, double mouseX,double mouseY,int cx,int cy,
+                    PivotMode pivotMode, whitevoid.create.editor.geometry.MeshComponentSelection selection) {
         TransformMath.Point p3=TransformMath.applyHierarchy(
-                localPivot(node, mode, vertices, edges, faces, pivotMode), node);
+                localPivot(node, mode, vertices, edges, faces, pivotMode, selection), node);
         var o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null) return Axis.NONE;
         double best=12; Axis result=Axis.NONE;
@@ -177,9 +231,9 @@ public final class ComponentTransformGizmo {
         Axis[] axes={Axis.X,Axis.Y,Axis.Z};
         for(int i=0;i<3;i++){
             TransformMath.Point localAxisEnd = new TransformMath.Point(
-                    localPivot(node, mode, vertices, edges, faces, pivotMode).x() + dirs[i][0],
-                    localPivot(node, mode, vertices, edges, faces, pivotMode).y() + dirs[i][1],
-                    localPivot(node, mode, vertices, edges, faces, pivotMode).z() + dirs[i][2]);
+                    localPivot(node, mode, vertices, edges, faces, pivotMode, selection).x() + dirs[i][0],
+                    localPivot(node, mode, vertices, edges, faces, pivotMode, selection).y() + dirs[i][1],
+                    localPivot(node, mode, vertices, edges, faces, pivotMode, selection).z() + dirs[i][2]);
             TransformMath.Point q3=TransformMath.applyHierarchy(localAxisEnd,node);
             var q=projector.project(q3.x(),q3.y(),q3.z(),cx,cy,300);
             if(q==null) continue;
