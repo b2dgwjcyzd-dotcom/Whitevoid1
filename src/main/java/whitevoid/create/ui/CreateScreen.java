@@ -738,6 +738,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         throughLastIndex = -1;
         throughLastX = Double.NaN;
         throughLastY = Double.NaN;
+        meshEditor.resetThroughCycle();
     }
 
     private void viewportContextHistoryUndo() { core.editorContext().history().undo(); }
