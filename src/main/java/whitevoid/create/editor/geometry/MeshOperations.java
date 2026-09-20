@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.LinkedHashSet;
 import whitevoid.create.model.MeshGeometry;
 
 public final class MeshOperations {
@@ -16,7 +17,18 @@ public final class MeshOperations {
             Set<Integer> createdFaces,
             Set<Long> createdEdges,
             Map<Integer, Integer> vertexMapping,
-            Map<Integer, Integer> faceMapping) {
+            Map<Integer, Integer> faceMapping,
+            SelectionHint selectionHint) {
+        public OperationResult(
+                MeshGeometry mesh,
+                Set<Integer> createdVertices,
+                Set<Integer> createdFaces,
+                Set<Long> createdEdges,
+                Map<Integer, Integer> vertexMapping,
+                Map<Integer, Integer> faceMapping) {
+            this(mesh, createdVertices, createdFaces, createdEdges,
+                    vertexMapping, faceMapping, SelectionHint.preserve());
+        }
         public OperationResult {
             if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
             createdVertices = Collections.unmodifiableSet(new LinkedHashSet<>(createdVertices));
@@ -24,7 +36,39 @@ public final class MeshOperations {
             createdEdges = Collections.unmodifiableSet(new LinkedHashSet<>(createdEdges));
             vertexMapping = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(vertexMapping));
             faceMapping = Collections.unmodifiableMap(new java.util.LinkedHashMap<>(faceMapping));
+            if (selectionHint == null) selectionHint = SelectionHint.preserve();
         }
+    }
+
+    public record SelectionHint(
+            Set<Integer> vertices,
+            Set<Long> edges,
+            Set<Integer> faces,
+            int activeVertex,
+            long activeEdge,
+            int activeFace) {
+        public SelectionHint {
+            vertices = Collections.unmodifiableSet(new LinkedHashSet<>(vertices));
+            edges = Collections.unmodifiableSet(new LinkedHashSet<>(edges));
+            faces = Collections.unmodifiableSet(new LinkedHashSet<>(faces));
+        }
+
+        public static SelectionHint preserve() {
+            return new SelectionHint(Set.of(), Set.of(), Set.of(), -1, -1L, -1);
+        }
+
+        public static SelectionHint vertices(Set<Integer> values, int active) {
+            return new SelectionHint(values, Set.of(), Set.of(), active, -1L, -1);
+        }
+
+        public static SelectionHint edges(Set<Long> values, long active) {
+            return new SelectionHint(Set.of(), values, Set.of(), -1, active, -1);
+        }
+
+        public static SelectionHint faces(Set<Integer> values, int active) {
+            return new SelectionHint(Set.of(), Set.of(), values, -1, -1L, active);
+        }
+    }
     }
 
     public static OperationResult extrudeEdgesResult(
@@ -102,7 +146,8 @@ public final class MeshOperations {
         for (int i = 0; i < mesh.faces().size(); i++) faceMapping.put(i, i);
 
         return new OperationResult(new MeshGeometry(vertices, faces),
-                createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
+                createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
+                SelectionHint.edges(createdEdges, createdEdges.isEmpty() ? -1L : createdEdges.iterator().next()));
     }
 
 
@@ -249,7 +294,8 @@ public final class MeshOperations {
             }
         }
 
-        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
+                SelectionHint.faces(createdFaces, createdFaces.isEmpty() ? -1 : createdFaces.iterator().next()));
     }
 
     public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
