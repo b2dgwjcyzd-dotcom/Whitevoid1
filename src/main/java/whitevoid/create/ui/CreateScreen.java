@@ -23,6 +23,7 @@ import whitevoid.create.editor.viewport.ViewportContext;
 import whitevoid.create.model.CubeGeometry;
 import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.MeshGeometry;
+import whitevoid.create.model.TransformMath;
 
 public final class CreateScreen extends Screen {
     private final CreateCore core;
@@ -54,6 +55,8 @@ public final class CreateScreen extends Screen {
     private ComponentTransformGizmo.PivotMode componentPivotMode = ComponentTransformGizmo.PivotMode.MEDIAN;
     private ComponentTransformGizmo.Axis hoveredComponentAxis = ComponentTransformGizmo.Axis.NONE;
     private MeshGeometry componentDragOldMesh;
+    private double componentDragLastX, componentDragLastY;
+    private TransformMath.Point componentDragPivot;
     private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
     private boolean mirrorArmed;
     private static final double SNAP_INCREMENT = 0.25;
@@ -540,8 +543,14 @@ public final class CreateScreen extends Screen {
                             projector, mouseX, mouseY, cx, cy, componentOperation);
                     if (componentAxis != ComponentTransformGizmo.Axis.NONE) {
                         componentDragging = true;
+                        componentDragLastX = mouseX;
+                        componentDragLastY = mouseY;
                         componentDragOldMesh = selected.ensureMeshGeometry();
                         if (componentDragOldMesh != null) componentDragOldMesh = componentDragOldMesh.copy();
+                        componentDragPivot = componentGizmo.localPivot(selected, meshMode,
+                                viewport.meshComponentSelection().vertexIndices(),
+                                viewport.meshComponentSelection().edgeIndices(),
+                                viewport.meshComponentSelection().faceIndices(), componentPivotMode);
                         return true;
                     }
                 }
@@ -676,6 +685,7 @@ public final class CreateScreen extends Screen {
             componentAxis=ComponentTransformGizmo.Axis.NONE;
             hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
             componentDragOldMesh=null;
+            componentDragPivot=null;
             return true;
         }
         if (componentBoxSelecting && button == 0) {
@@ -792,8 +802,12 @@ public final class CreateScreen extends Screen {
                         double dx=axis==0?amount:0, dy=axis==1?amount:0, dz=axis==2?amount:0;
                         updated=MeshComponentTransforms.translate(updated,ids,dx,dy,dz);
                     } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
-                        double degrees=componentGizmo.rotationAmount(componentAxis,deltaX,deltaY);
+                        double degrees=componentGizmo.rotationAmount(componentAxis,
+                                componentDragLastX, componentDragLastY, mouseX, mouseY,
+                                projector, width / 2, height / 2, componentDragPivot);
                         updated=MeshComponentTransforms.rotate(updated,ids,pivot,axis,degrees);
+                        componentDragLastX = mouseX;
+                        componentDragLastY = mouseY;
                     } else {
                         double factor=componentGizmo.scaleFactor(componentAxis,projector,deltaX,deltaY);
                         updated=MeshComponentTransforms.scale(updated,ids,pivot,axis,factor);
