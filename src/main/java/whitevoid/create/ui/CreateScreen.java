@@ -135,15 +135,9 @@ public final class CreateScreen extends Screen {
                         dragOldRx!=t.rotationX() || dragOldRy!=t.rotationY() || dragOldRz!=t.rotationZ() ||
                         dragOldSx!=t.scaleX() || dragOldSy!=t.scaleY() || dragOldSz!=t.scaleZ();
                 if (changed) {
-                    core.editorContext().history().execute(new SetTransformCommand(node,
+                    core.editorContext().history().recordExecuted(new SetTransformCommand(node,
                             dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz,
                             t.x(),t.y(),t.z(),t.rotationX(),t.rotationY(),t.rotationZ(),t.scaleX(),t.scaleY(),t.scaleZ(),true));
-                    core.editorContext().history().undo();
-                    // Re-apply final state without adding a second history entry.
-                    t.position(dragOldX,dragOldY,dragOldZ);
-                    t.rotation(dragOldRx,dragOldRy,dragOldRz);
-                    t.scale(dragOldSx,dragOldSy,dragOldSz);
-                    core.editorContext().history().redo();
                 }
             }
             gizmoDragging=false;
