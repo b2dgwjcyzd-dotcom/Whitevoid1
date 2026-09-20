@@ -7,6 +7,7 @@ import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.ModelRenderer;
 import whitevoid.create.model.TransformMath;
+import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.ui.ViewportProjector.Point;
 
 public final class ViewportRenderer {
@@ -28,7 +29,8 @@ public final class ViewportRenderer {
 
         ModelNode selected = viewport.selection().first(model);
         if (selected != null && viewport.transform().mode() != whitevoid.create.editor.transform.TransformMode.SELECT) {
-            drawGizmo(context, projector, selected, viewport.transform().mode(), centerX, centerY, left, top, right, bottom);
+            drawGizmo(context, projector, selected, viewport.transform().mode(), centerX, centerY, left, top, right, bottom,
+                    ViewportGizmo.Axis.NONE);
         }
 
         var textRenderer = MinecraftClient.getInstance().textRenderer;
@@ -56,13 +58,18 @@ public final class ViewportRenderer {
     }
 
     private void drawGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
-                           whitevoid.create.editor.transform.TransformMode mode,
-                           int cx, int cy, int left, int top, int right, int bottom) {
+                           TransformMode mode,
+                           int cx, int cy, int left, int top, int right, int bottom,
+                           ViewportGizmo.Axis hoveredAxis) {
         TransformMath.Point o3 = TransformMath.applyHierarchy(new TransformMath.Point(0,0,0), node);
         Point o = projector.project(o3.x(),o3.y(),o3.z(),cx,cy,300);
         if(o==null) return;
         double[][] dirs={{2.2,0,0},{0,2.2,0},{0,0,2.2}};
         int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
+        if(hoveredAxis!=ViewportGizmo.Axis.NONE) {
+            int hi=hoveredAxis==ViewportGizmo.Axis.X?0:hoveredAxis==ViewportGizmo.Axis.Y?1:2;
+            colors[hi]=0xFFFFFFFF;
+        }
         for(int i=0;i<3;i++){
             TransformMath.Point p3=TransformMath.applyHierarchy(new TransformMath.Point(dirs[i][0],dirs[i][1],dirs[i][2]),node);
             Point p=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
