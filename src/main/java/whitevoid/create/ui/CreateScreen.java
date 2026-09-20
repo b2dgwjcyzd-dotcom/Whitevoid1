@@ -77,6 +77,15 @@ public final class CreateScreen extends Screen {
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         ViewportContext viewport = core.editorContext().viewport();
 
+        if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            var node = viewport.selection().first(core.editorContext().model());
+            if (node != null) {
+                if (hasAltDown()) viewport.meshComponentSelection().clear();
+                else if (hasControlDown()) viewport.meshComponentSelection().invert(node);
+                else viewport.meshComponentSelection().selectAll(node);
+            }
+            return true;
+        }
         if (keyCode == 71) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
         if (keyCode == 82) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
         if (keyCode == 83) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
