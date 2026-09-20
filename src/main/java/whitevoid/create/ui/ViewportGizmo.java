@@ -128,6 +128,46 @@ public final class ViewportGizmo {
         return bestFace;
     }
 
+    public int meshFaceHit(ModelNode node, ViewportProjector projector,
+                              double mouseX, double mouseY, int cx, int cy) {
+        if (node == null) return -1;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return -1;
+
+        int bestFace = -1;
+        double bestDepth = Double.POSITIVE_INFINITY;
+        double bestDistance = 8.0;
+
+        for (int faceIndex = 0; faceIndex < mesh.faces().size(); faceIndex++) {
+            int[] indices = mesh.faces().get(faceIndex).vertices();
+            ViewportProjector.Point[] projected = new ViewportProjector.Point[indices.length];
+            boolean valid = true;
+            for (int i = 0; i < indices.length; i++) {
+                var v = mesh.vertices().get(indices[i]);
+                TransformMath.Point world = TransformMath.applyHierarchy(
+                        new TransformMath.Point(v.x(), v.y(), v.z()), node);
+                projected[i] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+                if (projected[i] == null) {
+                    valid = false;
+                    break;
+                }
+            }
+            if (!valid) continue;
+
+            double distance = pointToPolygon(mouseX, mouseY, projected);
+            if (distance <= bestDistance) {
+                double depth = 0.0;
+                for (var point : projected) depth += point.depth();
+                depth /= projected.length;
+                if (depth < bestDepth) {
+                    bestDepth = depth;
+                    bestFace = faceIndex;
+                }
+            }
+        }
+        return bestFace;
+    }
+
     private double pointToPolygon(double px, double py, ViewportProjector.Point[] polygon) {
         if (polygon.length == 0) return Double.POSITIVE_INFINITY;
 
