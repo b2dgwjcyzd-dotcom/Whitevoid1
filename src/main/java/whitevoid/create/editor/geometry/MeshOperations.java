@@ -96,6 +96,11 @@ public final class MeshOperations {
             createdEdges.add(MeshTopology.edgeKey(b, db));
         }
 
+        java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.vertices().size(); i++) vertexMapping.put(i, i);
+        java.util.Map<Integer, Integer> faceMapping = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < mesh.faces().size(); i++) faceMapping.put(i, i);
+
         return new OperationResult(new MeshGeometry(vertices, faces),
                 createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping);
     }
