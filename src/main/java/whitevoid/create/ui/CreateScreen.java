@@ -14,6 +14,9 @@ public final class CreateScreen extends Screen {
     private final CreateCore core;
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
+    private final ViewportGizmo gizmo = new ViewportGizmo();
+    private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
+    private boolean gizmoDragging;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -99,6 +102,15 @@ public final class CreateScreen extends Screen {
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (viewportInput.mouseClicked(mouseX, mouseY, button)) return true;
         if (button == 0) {
+            ViewportContext viewport = core.editorContext().viewport();
+            ModelNode selected = viewport.selection().first(core.editorContext().model());
+            if (selected != null && viewport.transform().mode() != TransformMode.SELECT) {
+                int cx=width/2, cy=height/2;
+                activeAxis = gizmo.hit(selected, viewport.transform().mode(),
+                        new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
+                gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
+                if (gizmoDragging) return true;
+            }
             ModelNode hit = new ViewportPicker().pick(core.editorContext().model(), core.editorContext().viewport(), mouseX, mouseY, width, height);
             if (hit != null) core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
             else core.editorContext().viewport().selection().clear();
@@ -108,11 +120,41 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (gizmoDragging && button == 0) {
+            gizmoDragging=false;
+            activeAxis=ViewportGizmo.Axis.NONE;
+            return true;
+        }
         if (viewportInput.mouseReleased(mouseX, mouseY, button)) return true;
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (gizmoDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (node != null) {
+                double amount = (deltaX - deltaY) * 0.025;
+                var t=node.transform();
+                if (core.editorContext().viewport().transform().mode() == TransformMode.MOVE) {
+                    double dx=activeAxis==ViewportGizmo.Axis.X?amount:0;
+                    double dy=activeAxis==ViewportGizmo.Axis.Y?amount:0;
+                    double dz=activeAxis==ViewportGizmo.Axis.Z?amount:0;
+                    core.editorContext().viewport().transform().translate(node,dx,dy,dz);
+                } else if (core.editorContext().viewport().transform().mode() == TransformMode.ROTATE) {
+                    double rx=activeAxis==ViewportGizmo.Axis.X?amount*10:0;
+                    double ry=activeAxis==ViewportGizmo.Axis.Y?amount*10:0;
+                    double rz=activeAxis==ViewportGizmo.Axis.Z?amount*10:0;
+                    core.editorContext().viewport().transform().rotateBy(node,rx,ry,rz);
+                } else if (core.editorContext().viewport().transform().mode() == TransformMode.SCALE) {
+                    double s=amount*0.1;
+                    core.editorContext().viewport().transform().scaleBy(node,
+                            activeAxis==ViewportGizmo.Axis.X?s:0,
+                            activeAxis==ViewportGizmo.Axis.Y?s:0,
+                            activeAxis==ViewportGizmo.Axis.Z?s:0);
+                }
+            }
+            return true;
+        }
         if (viewportInput.mouseDragged(mouseX, mouseY, button, hasShiftDown())) return true;
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
