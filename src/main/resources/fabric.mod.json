@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "whitevoid",
+  "version": "${version}",
+  "name": "WhiteVoid",
+  "description": "A modular Minecraft client with an in-game creation ecosystem.",
+  "authors": ["WhiteVoid Team"],
+  "license": "All Rights Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "whitevoid.WhiteVoidClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "minecraft": "1.21.4",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
