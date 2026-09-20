@@ -570,25 +570,23 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         var oldMesh = node.ensureMeshGeometry();
         if (oldMesh == null) return;
 
-        var newMesh = MeshOperations.insetFaces(oldMesh, selected, amount);
-        if (newMesh.faces().size() == oldMesh.faces().size()) return;
+        MeshOperations.OperationResult result =
+                MeshOperations.insetFacesResult(oldMesh, selected, amount);
+        var newMesh = result.mesh();
+        if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
-        int insetStart = oldMesh.faces().size() - selected.size();
-        int insetCount = selected.size();
-
         selection.clear();
-        for (int i = 0; i < insetCount; i++) {
-            int faceIndex = insetStart + i;
-            if (faceIndex < 0 || faceIndex >= newMesh.faces().size()) continue;
-            if (i == 0) selection.selectFace(node, faceIndex);
-            else selection.toggleFace(node, faceIndex);
+        for (int faceIndex : result.createdFaces()) {
+            if (selection.size() == 0) selection.selectFace(node, faceIndex);
+            else selection.addFace(node, faceIndex);
         }
 
-        if (insetCount > 0) {
-            viewport.meshFaceSelection().select(node, insetStart + insetCount - 1);
+        if (!result.createdFaces().isEmpty()) {
+            int activeFace = result.createdFaces().stream().reduce((a, b) -> b).orElse(-1);
+            viewport.meshFaceSelection().select(node, activeFace);
         }
         viewport.geometryFaceSelection().clear();
     }
@@ -604,27 +602,29 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         var oldMesh = node.ensureMeshGeometry();
         if (oldMesh == null) return;
 
-        var newMesh = MeshOperations.extrudeFaces(oldMesh, selected, amount);
-        if (newMesh.faces().size() == oldMesh.faces().size()) return;
+        MeshOperations.OperationResult result =
+                MeshOperations.extrudeFacesResult(oldMesh, selected, amount);
+        var newMesh = result.mesh();
+        if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
-        // MeshOperations removes the selected region, appends the extruded
-        // caps first, then appends only the boundary side walls.
-        int capStart = oldMesh.faces().size() - selected.size();
-        int capCount = selected.size();
-
+        // The operation result owns the topology metadata; no index guessing.
         selection.clear();
-        for (int i = 0; i < capCount; i++) {
-            int faceIndex = capStart + i;
-            if (faceIndex < 0 || faceIndex >= newMesh.faces().size()) continue;
-            if (i == 0) selection.selectFace(node, faceIndex);
-            else selection.toggleFace(node, faceIndex);
+        int capCount = selected.size();
+        int firstCreated = -1;
+        int capsSeen = 0;
+        for (int faceIndex : result.createdFaces()) {
+            if (capsSeen >= capCount) break;
+            if (firstCreated < 0) firstCreated = faceIndex;
+            if (selection.size() == 0) selection.selectFace(node, faceIndex);
+            else selection.addFace(node, faceIndex);
+            capsSeen++;
         }
 
-        if (capCount > 0) {
-            viewport.meshFaceSelection().select(node, capStart + capCount - 1);
+        if (firstCreated >= 0) {
+            viewport.meshFaceSelection().select(node, firstCreated + capCount - 1);
         }
         viewport.geometryFaceSelection().clear();
     }
