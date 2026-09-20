@@ -36,6 +36,10 @@ public final class ViewportProjector {
 
     public double cameraYaw() { return camera.yaw(); }
     public double cameraPitch() { return camera.pitch(); }
+    public double cameraDistance() { return camera.distance(); }
+    public double cameraPanX() { return camera.panX() * 18.0; }
+    public double cameraPanY() { return camera.panY() * 18.0; }
+    public double cameraPitch() { return camera.pitch(); }
 
     public record Point(double x, double y, double depth) {}
 }
