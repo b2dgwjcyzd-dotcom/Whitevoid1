@@ -50,7 +50,9 @@ public final class ViewportRenderer {
                 drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
                         centerX, centerY, left, top, right, bottom);
             }
-            drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
+            if (selected.meshGeometry() == null) {
+                drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
+            }
         }
 
         var textRenderer = MinecraftClient.getInstance().textRenderer;
