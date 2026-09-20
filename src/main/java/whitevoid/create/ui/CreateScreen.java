@@ -531,7 +531,8 @@ public final class CreateScreen extends Screen {
     @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
         GeometryFace selectedFace = core.editorContext().viewport().geometryFaceSelection().face();
-        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace);
+        viewportRenderer.render(context, width, height, core.editorContext().viewport(),
+                core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace);
         super.render(context, mouseX, mouseY, delta);
     }
 
