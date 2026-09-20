@@ -17,6 +17,7 @@ public final class CreateScreen extends Screen {
     private final ViewportGizmo gizmo = new ViewportGizmo();
     private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
     private boolean gizmoDragging;
+    private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
     private double dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz;
 
     public CreateScreen(CreateCore core) {
@@ -110,6 +111,7 @@ public final class CreateScreen extends Screen {
                 activeAxis = gizmo.hit(selected, viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
                 gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
+                hoveredAxis = activeAxis;
                 if (gizmoDragging) {
                     var t=selected.transform();
                     dragOldX=t.x(); dragOldY=t.y(); dragOldZ=t.z();
@@ -181,6 +183,18 @@ public final class CreateScreen extends Screen {
     @Override public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         if (viewportInput.mouseScrolled(verticalAmount)) return true;
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    @Override public void mouseMoved(double mouseX, double mouseY) {
+        if (!gizmoDragging) {
+            ViewportContext viewport=core.editorContext().viewport();
+            ModelNode selected=viewport.selection().first(core.editorContext().model());
+            if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
+                hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
+                        new ViewportProjector(viewport.viewport().camera()),mouseX,mouseY,width/2,height/2);
+            } else hoveredAxis=ViewportGizmo.Axis.NONE;
+        }
+        super.mouseMoved(mouseX, mouseY);
     }
 
     @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
