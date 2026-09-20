@@ -312,7 +312,13 @@ public final class MeshComponentSelection {
         MeshGeometry mesh = node.ensureMeshGeometry();
         if (mesh == null) return;
         if (mode == MeshSelectionMode.VERTEX) {
-            vertices.addAll(MeshTopologySelection.vertexNeighbors(mesh, first(vertices)));
+            Set<Integer> seeds = new LinkedHashSet<>(vertices);
+            Set<Integer> expanded = new LinkedHashSet<>(vertices);
+            for (int seed : seeds) {
+                expanded.addAll(MeshTopologySelection.vertexNeighbors(mesh, seed));
+            }
+            vertices.clear();
+            vertices.addAll(expanded);
             activeVertex = first(vertices);
         } else if (mode == MeshSelectionMode.EDGE) {
             Set<Long> next = new LinkedHashSet<>(edges);
