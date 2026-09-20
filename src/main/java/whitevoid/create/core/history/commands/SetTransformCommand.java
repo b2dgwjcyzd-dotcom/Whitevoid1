@@ -23,6 +23,23 @@ public final class SetTransformCommand implements Command {
         this.newSx=newSx; this.newSy=newSy; this.newSz=newSz;
     }
 
+    public SetTransformCommand(ModelNode node,
+                               double oldX, double oldY, double oldZ,
+                               double oldRx, double oldRy, double oldRz,
+                               double oldSx, double oldSy, double oldSz,
+                               double newX, double newY, double newZ,
+                               double newRx, double newRy, double newRz,
+                               double newSx, double newSy, double newSz,
+                               boolean explicitSnapshot) {
+        this.node = node;
+        this.oldX=oldX; this.oldY=oldY; this.oldZ=oldZ;
+        this.oldRx=oldRx; this.oldRy=oldRy; this.oldRz=oldRz;
+        this.oldSx=oldSx; this.oldSy=oldSy; this.oldSz=oldSz;
+        this.newX=newX; this.newY=newY; this.newZ=newZ;
+        this.newRx=newRx; this.newRy=newRy; this.newRz=newRz;
+        this.newSx=newSx; this.newSy=newSy; this.newSz=newSz;
+    }
+
     @Override public void execute() { apply(newX,newY,newZ,newRx,newRy,newRz,newSx,newSy,newSz); }
     @Override public void undo() { apply(oldX,oldY,oldZ,oldRx,oldRy,oldRz,oldSx,oldSy,oldSz); }
     @Override public String name() { return "Set Transform"; }
