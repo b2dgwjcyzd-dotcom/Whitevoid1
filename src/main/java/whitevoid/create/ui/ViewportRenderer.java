@@ -56,7 +56,7 @@ public final class ViewportRenderer {
             drawMeshComponentSelection(context, projector, selected, viewport,
                     centerX, centerY, left, top, right, bottom);
             drawComponentGizmo(context, projector, selected, viewport,
-                    centerX, centerY, left, top, right, bottom, hoveredComponentAxis, componentOperation);
+                    centerX, centerY, left, top, right, bottom, hoveredComponentAxis, componentOperation, componentPivotMode);
             if (selected.meshGeometry() == null) {
                 drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
             }
@@ -241,12 +241,13 @@ public final class ViewportRenderer {
     private void drawComponentGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
                                         ViewportContext viewport, int cx, int cy,
                                         int left, int top, int right, int bottom,
-                                        ComponentTransformGizmo.Axis hoveredAxis, Operation operation) {
+                                        ComponentTransformGizmo.Axis hoveredAxis, Operation operation,
+                                        ComponentTransformGizmo.PivotMode pivotMode) {
         var selection=viewport.meshComponentSelection();
         if(!selection.matches(node) || selection.size()==0) return;
         ComponentTransformGizmo gizmo=new ComponentTransformGizmo();
         TransformMath.Point p3=gizmo.pivot(node,selection.mode(),selection.vertexIndices(),
-                selection.edgeIndices(),selection.faceIndices());
+                selection.edgeIndices(),selection.faceIndices(),pivotMode);
         Point o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null)return;
         double[][] dirs={{2.4,0,0},{0,2.4,0},{0,0,2.4}};
