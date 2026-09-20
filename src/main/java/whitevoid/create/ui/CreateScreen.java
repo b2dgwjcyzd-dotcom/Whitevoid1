@@ -15,6 +15,7 @@ import whitevoid.create.core.history.commands.SetMeshGeometryCommand;
 import whitevoid.create.editor.geometry.MeshOperations;
 import whitevoid.create.editor.geometry.MeshComponentTransforms;
 import whitevoid.create.editor.geometry.MeshSelectionMode;
+import whitevoid.create.editor.geometry.MeshComponentTransforms;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.editor.transform.TransformMode;
@@ -50,6 +51,7 @@ public final class CreateScreen extends Screen {
     private boolean componentDragging;
     private ComponentTransformGizmo.Axis componentAxis = ComponentTransformGizmo.Axis.NONE;
     private ComponentTransformGizmo.Operation componentOperation = ComponentTransformGizmo.Operation.MOVE;
+    private ComponentTransformGizmo.PivotMode componentPivotMode = ComponentTransformGizmo.PivotMode.MEDIAN;
     private ComponentTransformGizmo.Axis hoveredComponentAxis = ComponentTransformGizmo.Axis.NONE;
     private MeshGeometry componentDragOldMesh;
 
@@ -75,6 +77,10 @@ public final class CreateScreen extends Screen {
         if (keyCode == 71) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
         if (keyCode == 82) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
         if (keyCode == 83) { if (viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == 80 && viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
+            componentPivotMode = componentPivotMode.next();
+            return true;
+        }
         if (keyCode == GLFW.GLFW_KEY_1 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             setMeshSelectionMode(MeshSelectionMode.VERTEX);
             return true;
@@ -714,14 +720,12 @@ public final class CreateScreen extends Screen {
                 var mesh=node.ensureMeshGeometry();
                 if(mesh!=null){
                     var selection=core.editorContext().viewport().meshComponentSelection();
-                    java.util.LinkedHashSet<Integer> ids=new java.util.LinkedHashSet<>();
-                    if(selection.mode()==MeshSelectionMode.VERTEX) ids.addAll(selection.vertexIndices());
-                    else if(selection.mode()==MeshSelectionMode.EDGE) for(int[] e:selection.edgeIndices()){ids.add(e[0]);ids.add(e[1]);}
-                    else for(int fi:selection.faceIndices()) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
+                    java.util.Set<Integer> ids=MeshComponentTransforms.affectedVertices(mesh,selection.mode(),
+                            selection.vertexIndices(),selection.edgeIndices(),selection.faceIndices());
                     var projector=new ViewportProjector(core.editorContext().viewport().viewport().camera());
                     var updated=mesh.copy();
                     var pivot=componentGizmo.localPivot(node,selection.mode(),selection.vertexIndices(),
-                            selection.edgeIndices(),selection.faceIndices());
+                            selection.edgeIndices(),selection.faceIndices(), componentPivotMode);
                     int axis=componentAxis==ComponentTransformGizmo.Axis.X?0
                             :componentAxis==ComponentTransformGizmo.Axis.Y?1:2;
                     if(componentOperation==ComponentTransformGizmo.Operation.MOVE){
