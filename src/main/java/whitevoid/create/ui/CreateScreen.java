@@ -3,11 +3,16 @@ package whitevoid.create.ui;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 import whitevoid.create.core.CreateCore;
+import whitevoid.create.core.history.commands.AddCubeCommand;
+import whitevoid.create.core.history.commands.DeleteNodeCommand;
+import whitevoid.create.core.history.commands.DuplicateNodeCommand;
 import whitevoid.create.core.history.commands.SetTransformCommand;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
+import whitevoid.create.model.CubeGeometry;
 import whitevoid.create.model.ModelNode;
 
 public final class CreateScreen extends Screen {
@@ -53,6 +58,21 @@ public final class CreateScreen extends Screen {
             return true;
         }
 
+        if (keyCode == GLFW.GLFW_KEY_N) {
+            addCube();
+            return true;
+        }
+
+        if (keyCode == GLFW.GLFW_KEY_DELETE || keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+            deleteSelectedNode();
+            return true;
+        }
+
+        if (keyCode == GLFW.GLFW_KEY_D && hasControlDown()) {
+            duplicateSelectedNode();
+            return true;
+        }
+
         ModelNode node = viewport.selection().first(core.editorContext().model());
         if (node != null) {
             double step = hasShiftDown() ? 0.1 : 1.0;
@@ -77,6 +97,57 @@ public final class CreateScreen extends Screen {
 
         if (keyCode == 27) viewport.transform().setMode(TransformMode.SELECT);
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void addCube() {
+        var model = core.editorContext().model();
+        var selected = core.editorContext().viewport().selection().first(model);
+
+        double x = 0.0;
+        double y = 0.0;
+        double z = 0.0;
+        if (selected != null) {
+            x = selected.transform().x() + 3.0;
+            y = selected.transform().y();
+            z = selected.transform().z();
+        }
+
+        var command = new AddCubeCommand(
+                model,
+                model.root(),
+                "Cube",
+                new CubeGeometry(2.0, 2.0, 2.0),
+                x, y, z
+        );
+        core.editorContext().history().execute(command);
+        core.editorContext().viewport().selection().select(
+                command.createdNode(),
+                SelectionMode.SINGLE
+        );
+        core.editorContext().viewport().transform().setMode(TransformMode.SELECT);
+    }
+
+    private void deleteSelectedNode() {
+        var model = core.editorContext().model();
+        var node = core.editorContext().viewport().selection().first(model);
+        if (node == null || node == model.root()) return;
+
+        core.editorContext().history().execute(new DeleteNodeCommand(model, node));
+        core.editorContext().viewport().selection().clear();
+        core.editorContext().viewport().transform().setMode(TransformMode.SELECT);
+    }
+
+    private void duplicateSelectedNode() {
+        var model = core.editorContext().model();
+        var node = core.editorContext().viewport().selection().first(model);
+        if (node == null || node == model.root()) return;
+
+        var command = new DuplicateNodeCommand(model, node);
+        core.editorContext().history().execute(command);
+        core.editorContext().viewport().selection().select(
+                command.duplicatedNode(),
+                SelectionMode.SINGLE
+        );
     }
 
     private void transformMove(ModelNode node, double dx, double dy, double dz) {
