@@ -181,7 +181,8 @@ public final class ViewportRenderer {
             colors[hi]=0xFFFFFFFF;
         }
         for(int i=0;i<3;i++){
-            TransformMath.Point p3=TransformMath.applyHierarchy(new TransformMath.Point(dirs[i][0],dirs[i][1],dirs[i][2]),node);
+            TransformMath.Point p3=TransformMath.applyHierarchy(
+                    new TransformMath.Point(dirs[i][0],dirs[i][1],dirs[i][2]),node);
             Point p=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
             if(p==null) continue;
             drawLine(context,o,p,left,top,right,bottom,colors[i]);
@@ -221,30 +222,36 @@ public final class ViewportRenderer {
 
     private void drawRotationRings(DrawContext context, ViewportProjector projector, ModelNode node,
                                    int cx, int cy, int left, int top, int right, int bottom) {
-        TransformMath.Point origin3=TransformMath.applyHierarchy(new TransformMath.Point(0,0,0),node);
-        Point origin=projector.project(origin3.x(),origin3.y(),origin3.z(),cx,cy,300);
-        if(origin==null) return;
+        TransformMath.Point localPivot = new TransformMath.Point(0, 0, 0);
+        int[][] planes = {{1, 2}, {0, 2}, {0, 1}};
+        int[] colors = {0xFFE06B6B, 0xFF70C878, 0xFF6B8EDC};
 
-        double[][] basis={{2.0,0,0},{0,2.0,0},{0,0,2.0}};
-        int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
-        for(int axis=0;axis<3;axis++){
-            TransformMath.Point a3=TransformMath.applyHierarchy(
-                    new TransformMath.Point(basis[axis][0],basis[axis][1],basis[axis][2]),node);
-            Point a=projector.project(a3.x(),a3.y(),a3.z(),cx,cy,300);
-            if(a==null) continue;
-            double radius=Math.hypot(a.x()-origin.x(),a.y()-origin.y());
-            if(radius<8) continue;
-            double prevX=origin.x()+radius, prevY=origin.y();
-            for(int i=1;i<=48;i++){
-                double angle=(Math.PI*2*i)/48.0;
-                double x=origin.x()+Math.cos(angle)*radius;
-                double y=origin.y()+Math.sin(angle)*radius;
-                drawLine(context,new Point(prevX,prevY,0),new Point(x,y,0),
-                        left,top,right,bottom,colors[axis]);
-                prevX=x; prevY=y;
+        for (int axis = 0; axis < 3; axis++) {
+            Point previous = null;
+            for (int i = 0; i <= 64; i++) {
+                double angle = Math.PI * 2.0 * i / 64.0;
+                double[] offset = {0.0, 0.0, 0.0};
+                offset[planes[axis][0]] = Math.cos(angle) * 2.0;
+                offset[planes[axis][1]] = Math.sin(angle) * 2.0;
+
+                TransformMath.Point local = new TransformMath.Point(
+                        localPivot.x() + offset[0],
+                        localPivot.y() + offset[1],
+                        localPivot.z() + offset[2]);
+                TransformMath.Point world = TransformMath.applyHierarchy(local, node);
+                Point current = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+                if (current == null) {
+                    previous = null;
+                    continue;
+                }
+                if (previous != null) {
+                    drawLine(context, previous, current, left, top, right, bottom, colors[axis]);
+                }
+                previous = current;
             }
         }
     }
+
 
     private void drawComponentGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
                                         ViewportContext viewport, int cx, int cy,
