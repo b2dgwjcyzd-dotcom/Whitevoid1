@@ -486,15 +486,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             core.editorContext().history().execute(
                     new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
-            selection.clear();
-            for (long edge : result.createdEdges()) {
-                int a = MeshTopology.edgeA(edge);
-                int b = MeshTopology.edgeB(edge);
-                if (a >= oldMesh.vertices().size() && b >= oldMesh.vertices().size()) {
-                    if (selection.size() == 0) selection.selectEdge(node, a, b);
-                    else selection.addEdge(node, a, b);
-                }
-            }
+            selection.applySelectionHint(node, result);
             return;
         }
 
@@ -535,16 +527,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 core.editorContext().history().execute(
                         new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
-                // Select the actual newly-created bevel faces' edges.
-                selection.clear();
-                for (int faceIndex : result.createdFaces()) {
-                    int[] face = newMesh.faces().get(faceIndex).vertices();
-                    if (face.length < 2) continue;
-                    int a = face[0];
-                    int b = face[1];
-                    if (selection.size() == 0) selection.selectEdge(node, a, b);
-                    else selection.addEdge(node, a, b);
-                }
+                selection.applySelectionHint(node, result);
             } else {
                 int a = selection.indexA();
                 int b = selection.indexB();
@@ -579,19 +562,9 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         core.editorContext().history().execute(
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
-        selection.clear();
-        int selectedInsetFaces = selected.size();
-        int seen = 0;
-        int activeFace = -1;
-        for (int faceIndex : result.createdFaces()) {
-            if (seen++ >= selectedInsetFaces) break;
-            if (selection.size() == 0) selection.selectFace(node, faceIndex);
-            else selection.addFace(node, faceIndex);
-            activeFace = faceIndex;
-        }
-
-        if (activeFace >= 0) {
-            viewport.meshFaceSelection().select(node, activeFace);
+        selection.applySelectionHint(node, result);
+        if (selection.activeFace() >= 0) {
+            viewport.meshFaceSelection().select(node, selection.activeFace());
         }
         viewport.geometryFaceSelection().clear();
     }
@@ -615,21 +588,9 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         core.editorContext().history().execute(
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
-        // The operation result owns the topology metadata; no index guessing.
-        selection.clear();
-        int capCount = selected.size();
-        int firstCreated = -1;
-        int capsSeen = 0;
-        for (int faceIndex : result.createdFaces()) {
-            if (capsSeen >= capCount) break;
-            if (firstCreated < 0) firstCreated = faceIndex;
-            if (selection.size() == 0) selection.selectFace(node, faceIndex);
-            else selection.addFace(node, faceIndex);
-            capsSeen++;
-        }
-
-        if (firstCreated >= 0) {
-            viewport.meshFaceSelection().select(node, firstCreated + capCount - 1);
+        selection.applySelectionHint(node, result);
+        if (selection.activeFace() >= 0) {
+            viewport.meshFaceSelection().select(node, selection.activeFace());
         }
         viewport.geometryFaceSelection().clear();
     }
