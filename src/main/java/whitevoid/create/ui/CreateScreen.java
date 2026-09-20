@@ -57,6 +57,10 @@ public final class CreateScreen extends Screen {
             viewport.geometryFaceSelection().clear();
             return true;
         }
+        if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
+            return true;
+        }
 
         if (keyCode == 90 && hasControlDown()) {
             if (hasShiftDown()) viewportContextHistoryRedo();
@@ -112,6 +116,57 @@ public final class CreateScreen extends Screen {
 
         if (keyCode == 27) viewport.transform().setMode(TransformMode.SELECT);
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void extrudeSelectedFace(double amount) {
+        var viewport = core.editorContext().viewport();
+        var model = core.editorContext().model();
+        var node = viewport.geometryFaceSelection().node(model);
+        var face = viewport.geometryFaceSelection().face();
+        if (node == null || node.geometry() == null || face == GeometryFace.NONE) return;
+
+        var oldGeometry = node.geometry();
+        var t = node.transform();
+        double x = t.x(), y = t.y(), z = t.z();
+        double width = oldGeometry.width();
+        double height = oldGeometry.height();
+        double depth = oldGeometry.depth();
+
+        switch (face) {
+            case POS_X -> {
+                width += amount;
+                x += amount * 0.5;
+            }
+            case NEG_X -> {
+                width += amount;
+                x -= amount * 0.5;
+            }
+            case POS_Y -> {
+                height += amount;
+                y += amount * 0.5;
+            }
+            case NEG_Y -> {
+                height += amount;
+                y -= amount * 0.5;
+            }
+            case POS_Z -> {
+                depth += amount;
+                z += amount * 0.5;
+            }
+            case NEG_Z -> {
+                depth += amount;
+                z -= amount * 0.5;
+            }
+            case NONE -> {
+                return;
+            }
+        }
+
+        var newGeometry = new CubeGeometry(width, height, depth);
+        core.editorContext().history().execute(
+                new ResizeCubeFaceCommand(node, oldGeometry, newGeometry,
+                        t.x(), t.y(), t.z(), x, y, z)
+        );
     }
 
     private void addCube() {
