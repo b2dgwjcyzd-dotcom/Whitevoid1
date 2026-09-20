@@ -273,7 +273,6 @@ public final class CreateScreen extends Screen {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
                 double amount = gizmo.dragAmount(activeAxis, new ViewportProjector(core.editorContext().viewport().viewport().camera()), deltaX, deltaY);
-                var t=node.transform();
                 if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY) {
                     var g = node.geometry();
                     if (g != null) {
@@ -283,9 +282,16 @@ public final class CreateScreen extends Screen {
                         double width = g.width();
                         double height = g.height();
                         double depth = g.depth();
-                        if (activeAxis == ViewportGizmo.Axis.X) width = Math.max(0.1, width + amount * 2.0);
-                        if (activeAxis == ViewportGizmo.Axis.Y) height = Math.max(0.1, height - amount * 2.0);
-                        if (activeAxis == ViewportGizmo.Axis.Z) depth = Math.max(0.1, depth + amount * 2.0);
+                        double move = amount * 2.0;
+
+                        if (activeAxis == ViewportGizmo.Axis.X || activeAxis == ViewportGizmo.Axis.NEG_X) {
+                            width = Math.max(0.1, width + move);
+                        } else if (activeAxis == ViewportGizmo.Axis.Y || activeAxis == ViewportGizmo.Axis.NEG_Y) {
+                            height = Math.max(0.1, height + move);
+                        } else if (activeAxis == ViewportGizmo.Axis.Z || activeAxis == ViewportGizmo.Axis.NEG_Z) {
+                            depth = Math.max(0.1, depth + move);
+                        }
+
                         node.setGeometry(new CubeGeometry(width, height, depth));
                     }
                     return true;
