@@ -30,14 +30,30 @@ public final class ModelNode {
     }
 
     public void addChild(ModelNode child) {
+        addChild(children.size(), child);
+    }
+
+    public void addChild(int index, ModelNode child) {
+        if (child == null) {
+            throw new NullPointerException("child");
+        }
         if (child == this) {
             throw new IllegalArgumentException("A node cannot parent itself");
         }
+        if (index < 0 || index > children.size()) {
+            throw new IndexOutOfBoundsException("index=" + index);
+        }
+
         if (child.parent != null) {
             child.parent.children.remove(child);
         }
+
         child.parent = this;
-        children.add(child);
+        children.add(index, child);
+    }
+
+    public int indexOfChild(ModelNode child) {
+        return children.indexOf(child);
     }
 
     public void removeChild(ModelNode child) {
