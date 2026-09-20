@@ -274,47 +274,26 @@ public final class MeshTopologySelection {
     }
 
     private static List<Integer> adjacentFaces(MeshGeometry mesh, int a, int b) {
-        List<Integer> result = new ArrayList<>();
-        long key = edgeKey(a, b);
-        for (int i = 0; i < mesh.faces().size(); i++) {
-            int[] face = mesh.faces().get(i).vertices();
-            for (int j = 0; j < face.length; j++) {
-                if (edgeKey(face[j], face[(j + 1) % face.length]) == key) {
-                    result.add(i);
-                    break;
-                }
-            }
-        }
-        return result;
+        return MeshTopology.of(mesh).adjacentFaces(edgeKey(a, b));
     }
 
     private static boolean containsEdge(MeshGeometry mesh, int a, int b) {
-        return !adjacentFaces(mesh, a, b).isEmpty();
+        return MeshTopology.of(mesh).containsEdge(a, b);
     }
 
     /** Faces directly adjacent through a shared edge. */
     public static Set<Integer> faceNeighbors(MeshGeometry mesh, int faceIndex) {
-        Set<Integer> result = new LinkedHashSet<>();
-        if (faceIndex < 0 || faceIndex >= mesh.faces().size()) return result;
-        int[] face = mesh.faces().get(faceIndex).vertices();
-        for (int other = 0; other < mesh.faces().size(); other++) {
-            if (other == faceIndex) continue;
-            if (sharesEdge(face, mesh.faces().get(other).vertices())) result.add(other);
-        }
-        return result;
+        return new LinkedHashSet<>(MeshTopology.of(mesh).neighborsOfFace(faceIndex));
     }
 
     /** Edges directly adjacent to a seed edge through a shared vertex. */
     public static Set<Long> edgeNeighbors(MeshGeometry mesh, long edge) {
         Set<Long> result = new LinkedHashSet<>();
+        MeshTopology topology = MeshTopology.of(mesh);
         int a = edgeA(edge), b = edgeB(edge);
-        for (int[] candidate : ModelRenderer.meshEdges(mesh)) {
-            long key = edgeKey(candidate[0], candidate[1]);
-            if (key == edge) continue;
-            if (candidate[0] == a || candidate[0] == b || candidate[1] == a || candidate[1] == b) {
-                result.add(key);
-            }
-        }
+        result.addAll(topology.edgesOfVertex(a));
+        result.addAll(topology.edgesOfVertex(b));
+        result.remove(edge);
         return result;
     }
 
@@ -391,19 +370,7 @@ public final class MeshTopologySelection {
 
     /** Boundary edges are edges used by exactly one face. */
     public static Set<Long> boundaryEdges(MeshGeometry mesh) {
-        Map<Long, Integer> counts = new LinkedHashMap<>();
-        for (MeshGeometry.Face face : mesh.faces()) {
-            int[] v = face.vertices();
-            for (int i = 0; i < v.length; i++) {
-                long key = edgeKey(v[i], v[(i + 1) % v.length]);
-                counts.put(key, counts.getOrDefault(key, 0) + 1);
-            }
-        }
-        Set<Long> result = new LinkedHashSet<>();
-        for (Map.Entry<Long, Integer> entry : counts.entrySet()) {
-            if (entry.getValue() == 1) result.add(entry.getKey());
-        }
-        return result;
+        return new LinkedHashSet<>(MeshTopology.of(mesh).boundaryEdges());
     }
 
     public static Set<Integer> boundaryVertices(MeshGeometry mesh) {
@@ -417,16 +384,7 @@ public final class MeshTopologySelection {
 
     /** Returns vertices directly connected to a vertex by a mesh edge. */
     public static Set<Integer> vertexNeighbors(MeshGeometry mesh, int vertex) {
-        Set<Integer> result = new LinkedHashSet<>();
-        for (MeshGeometry.Face face : mesh.faces()) {
-            int[] v = face.vertices();
-            for (int i = 0; i < v.length; i++) {
-                if (v[i] != vertex) continue;
-                result.add(v[(i + v.length - 1) % v.length]);
-                result.add(v[(i + 1) % v.length]);
-            }
-        }
-        return result;
+        return new LinkedHashSet<>(MeshTopology.of(mesh).neighborsOfVertex(vertex));
     }
 
     public static Set<Integer> selectedFacesForVertices(MeshGeometry mesh, Set<Integer> vertices) {
