@@ -91,14 +91,26 @@ public final class ComponentTransformGizmo {
                        java.util.List<int[]> edges, java.util.List<Integer> faces,
                        ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
                        Operation operation) {
-        if (operation == Operation.ROTATE) return rotationHit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy);
-        return hit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy);
+        return hover(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy,
+                operation, PivotMode.MEDIAN);
+    }
+
+    public Axis hover(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
+                       java.util.List<int[]> edges, java.util.List<Integer> faces,
+                       ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
+                       Operation operation, PivotMode pivotMode) {
+        if (operation == Operation.ROTATE) {
+            return rotationHit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode);
+        }
+        return hit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, pivotMode);
     }
 
     private Axis rotationHit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
                               java.util.List<int[]> edges, java.util.List<Integer> faces,
-                              ViewportProjector projector, double mouseX, double mouseY, int cx, int cy) {
-        TransformMath.Point p=pivot(node,mode,vertices,edges,faces);
+                              ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
+                              PivotMode pivotMode) {
+        TransformMath.Point p=TransformMath.applyHierarchy(
+                localPivot(node, mode, vertices, edges, faces, pivotMode), node);
         var o=projector.project(p.x(),p.y(),p.z(),cx,cy,300);
         if(o==null)return Axis.NONE;
         double best=9; Axis result=Axis.NONE;
@@ -118,7 +130,15 @@ public final class ComponentTransformGizmo {
     public Axis hit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
                     java.util.List<int[]> edges, java.util.List<Integer> faces,
                     ViewportProjector projector, double mouseX,double mouseY,int cx,int cy) {
-        TransformMath.Point p3=pivot(node,mode,vertices,edges,faces);
+        return hit(node, mode, vertices, edges, faces, projector, mouseX, mouseY, cx, cy, PivotMode.MEDIAN);
+    }
+
+    public Axis hit(ModelNode node, MeshSelectionMode mode, java.util.List<Integer> vertices,
+                    java.util.List<int[]> edges, java.util.List<Integer> faces,
+                    ViewportProjector projector, double mouseX,double mouseY,int cx,int cy,
+                    PivotMode pivotMode) {
+        TransformMath.Point p3=TransformMath.applyHierarchy(
+                localPivot(node, mode, vertices, edges, faces, pivotMode), node);
         var o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null) return Axis.NONE;
         double best=12; Axis result=Axis.NONE;
