@@ -106,16 +106,24 @@ public final class ViewportRenderer {
                         if (index < 0 || index >= points.length || points[index] == null) continue;
                         Point point = points[index];
                         int x=(int)Math.round(point.x()), y=(int)Math.round(point.y());
-                        context.fill(x-3,y-3,x+4,y+4,0xFFFFFFFF);
+                        int marker = index == components.activeVertex() ? 0xFFFFFFFF : 0xFFD6D9E2;
+                        context.fill(x-3,y-3,x+4,y+4,marker);
+                        if (index == components.activeVertex()) {
+                            context.fill(x-5,y-1,x+6,y+1,0xFFFFFFFF);
+                            context.fill(x-1,y-5,x+1,y+6,0xFFFFFFFF);
+                        }
                     }
                 } else if (components.mode() == whitevoid.create.editor.geometry.MeshSelectionMode.EDGE) {
                     for (int[] edge : components.edgeIndices()) {
                         if (edge[0] < 0 || edge[1] < 0 || edge[0] >= points.length || edge[1] >= points.length) continue;
                         Point a=points[edge[0]], b=points[edge[1]];
                         if(a==null||b==null) continue;
-                        drawLine(context,a,b,left,top,right,bottom,0xFFFFFFFF);
+                        boolean active = edge[0] == components.activeEdgeA() && edge[1] == components.activeEdgeB()
+                                || edge[0] == components.activeEdgeB() && edge[1] == components.activeEdgeA();
+                        int edgeColor = active ? 0xFFFFFFFF : 0xFFD6D9E2;
+                        drawLine(context,a,b,left,top,right,bottom,edgeColor);
                         drawLine(context,new Point(a.x()+1,a.y(),a.depth()),new Point(b.x()+1,b.y(),b.depth()),
-                                left,top,right,bottom,0xFFE7E9EF);
+                                left,top,right,bottom,active ? 0xFFFFFFFF : 0xFFE7E9EF);
                     }
                 }
             } else if (selected) {
