@@ -5,6 +5,7 @@ import net.minecraft.client.gui.DrawContext;
 import whitevoid.create.editor.viewport.ViewportContext;
 import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
+import whitevoid.create.model.MeshGeometry;
 import whitevoid.create.model.ModelRenderer;
 import whitevoid.create.model.TransformMath;
 import whitevoid.create.editor.transform.TransformMode;
@@ -25,8 +26,9 @@ public final class ViewportRenderer {
         }
         drawAxes(context, projector, centerX, centerY, left, top, right, bottom);
 
-        modelRenderer.render(model, (node, corners) ->
-                drawModelNode(context, projector, node, corners, viewport, centerX, centerY, left, top, right, bottom));
+        modelRenderer.renderMesh(model, (node, mesh) ->
+                drawModelMesh(context, projector, node, mesh, viewport,
+                        centerX, centerY, left, top, right, bottom));
 
         ModelNode selected = viewport.selection().first(model);
         if (selected != null && viewport.transform().mode() != whitevoid.create.editor.transform.TransformMode.SELECT) {
@@ -48,6 +50,36 @@ public final class ViewportRenderer {
                 viewport.viewport().camera().mode().name() + " | Zoom " +
                         String.format("%.2f", viewport.viewport().camera().distance()),
                 left + 10, top + 25, 0xFFAAAAAA);
+    }
+
+    private void drawModelMesh(DrawContext context, ViewportProjector projector, ModelNode node,
+                               MeshGeometry mesh, ViewportContext viewport,
+                               int cx, int cy, int left, int top, int right, int bottom) {
+        Point[] points = new Point[mesh.vertices().size()];
+        for (int i = 0; i < points.length; i++) {
+            MeshGeometry.Vertex v = mesh.vertices().get(i);
+            TransformMath.Point world = TransformMath.applyHierarchy(
+                    new TransformMath.Point(v.x(), v.y(), v.z()), node);
+            points[i] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300.0);
+        }
+
+        boolean selected = viewport.selection().selection().contains(node.id());
+        int color = selected ? 0xFFFFFFFF : 0xFFBFC3CC;
+
+        for (int[] edge : ModelRenderer.meshEdges(mesh)) {
+            Point a = points[edge[0]], b = points[edge[1]];
+            if (a == null || b == null) continue;
+            drawLine(context, a, b, left, top, right, bottom, color);
+        }
+
+        if (selected) {
+            for (Point point : points) {
+                if (point == null) continue;
+                int x = (int) Math.round(point.x());
+                int y = (int) Math.round(point.y());
+                context.fill(x - 2, y - 2, x + 3, y + 3, 0xFFFFFFFF);
+            }
+        }
     }
 
     private void drawModelNode(DrawContext context, ViewportProjector projector, ModelNode node,
