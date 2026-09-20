@@ -262,7 +262,7 @@ public final class ViewportRenderer {
         double[][] dirs={{2.4,0,0},{0,2.4,0},{0,0,2.4}};
         int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
         if(operation==Operation.ROTATE){
-            drawComponentRotationRings(context,projector,p3,o,cx,cy,left,top,right,bottom,colors,hoveredAxis);
+            drawComponentRotationRings(context,projector,localPivot,o,node,cx,cy,left,top,right,bottom,colors,hoveredAxis);
         } else {
             for(int i=0;i<3;i++){
                 Point p=projector.project(p3.x()+dirs[i][0],p3.y()+dirs[i][1],p3.z()+dirs[i][2],cx,cy,300);
@@ -279,23 +279,41 @@ public final class ViewportRenderer {
     }
 
     private void drawComponentRotationRings(DrawContext context, ViewportProjector projector,
-                                             TransformMath.Point p3, Point o, int cx, int cy,
+                                             TransformMath.Point localPivot, Point projectedPivot,
+                                             ModelNode node, int cx, int cy,
                                              int left, int top, int right, int bottom,
                                              int[] colors, ComponentTransformGizmo.Axis hoveredAxis) {
-        double[][] basis={{2.0,0,0},{0,2.0,0},{0,0,2.0}};
-        ComponentTransformGizmo.Axis[] axes={ComponentTransformGizmo.Axis.X,ComponentTransformGizmo.Axis.Y,ComponentTransformGizmo.Axis.Z};
-        for(int axis=0;axis<3;axis++){
-            Point q=projector.project(p3.x()+basis[axis][0],p3.y()+basis[axis][1],p3.z()+basis[axis][2],cx,cy,300);
-            if(q==null)continue;
-            double radius=Math.hypot(q.x()-o.x(),q.y()-o.y());
-            if(radius<8)continue;
-            int color=hoveredAxis==axes[axis]?0xFFFFFFFF:colors[axis];
-            double px=o.x()+radius, py=o.y();
-            for(int i=1;i<=64;i++){
-                double a=Math.PI*2*i/64.0;
-                double x=o.x()+Math.cos(a)*radius,y=o.y()+Math.sin(a)*radius;
-                drawLine(context,new Point(px,py,0),new Point(x,y,0),left,top,right,bottom,color);
-                px=x;py=y;
+        int[][] planes = {{1, 2}, {0, 2}, {0, 1}};
+        ComponentTransformGizmo.Axis[] axes = {
+                ComponentTransformGizmo.Axis.X,
+                ComponentTransformGizmo.Axis.Y,
+                ComponentTransformGizmo.Axis.Z
+        };
+
+        for (int axis = 0; axis < 3; axis++) {
+            Point previous = null;
+            int color = hoveredAxis == axes[axis] ? 0xFFFFFFFF : colors[axis];
+
+            for (int i = 0; i <= 64; i++) {
+                double angle = Math.PI * 2.0 * i / 64.0;
+                double[] offset = {0.0, 0.0, 0.0};
+                offset[planes[axis][0]] = Math.cos(angle) * 2.0;
+                offset[planes[axis][1]] = Math.sin(angle) * 2.0;
+
+                TransformMath.Point local = new TransformMath.Point(
+                        localPivot.x() + offset[0],
+                        localPivot.y() + offset[1],
+                        localPivot.z() + offset[2]);
+                TransformMath.Point world = TransformMath.applyHierarchy(local, node);
+                Point current = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+                if (current == null) {
+                    previous = null;
+                    continue;
+                }
+                if (previous != null) {
+                    drawLine(context, previous, current, left, top, right, bottom, color);
+                }
+                previous = current;
             }
         }
     }
