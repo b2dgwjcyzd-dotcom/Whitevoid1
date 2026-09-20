@@ -150,52 +150,23 @@ public final class CreateScreen extends Screen {
     private void extrudeSelectedFace(double amount) {
         var viewport = core.editorContext().viewport();
         var model = core.editorContext().model();
-        var node = viewport.geometryFaceSelection().node(model);
-        var face = viewport.geometryFaceSelection().face();
-        if (node == null || node.geometry() == null || face == GeometryFace.NONE) return;
+        var node = viewport.meshFaceSelection().node(model);
+        int faceIndex = viewport.meshFaceSelection().faceIndex();
 
-        var oldGeometry = node.geometry();
-        var t = node.transform();
-        double x = t.x(), y = t.y(), z = t.z();
-        double width = oldGeometry.width();
-        double height = oldGeometry.height();
-        double depth = oldGeometry.depth();
+        if (node == null || faceIndex < 0) return;
 
-        switch (face) {
-            case POS_X -> {
-                width += amount;
-                x += amount * 0.5;
-            }
-            case NEG_X -> {
-                width += amount;
-                x -= amount * 0.5;
-            }
-            case POS_Y -> {
-                height += amount;
-                y += amount * 0.5;
-            }
-            case NEG_Y -> {
-                height += amount;
-                y -= amount * 0.5;
-            }
-            case POS_Z -> {
-                depth += amount;
-                z += amount * 0.5;
-            }
-            case NEG_Z -> {
-                depth += amount;
-                z -= amount * 0.5;
-            }
-            case NONE -> {
-                return;
-            }
-        }
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null || faceIndex >= oldMesh.faces().size()) return;
 
-        var newGeometry = new CubeGeometry(width, height, depth);
+        var newMesh = MeshOperations.extrudeFace(oldMesh, faceIndex, amount);
+        int newFaceIndex = newMesh.faces().size() - 1;
+
         core.editorContext().history().execute(
-                new ResizeCubeFaceCommand(node, oldGeometry, newGeometry,
-                        t.x(), t.y(), t.z(), x, y, z)
+                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh)
         );
+
+        viewport.meshFaceSelection().select(node, newFaceIndex);
+        viewport.geometryFaceSelection().clear();
     }
 
     private void addCube() {
