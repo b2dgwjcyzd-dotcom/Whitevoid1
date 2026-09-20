@@ -718,7 +718,7 @@ public final class CreateScreen extends Screen {
                     else for(int fi:selection.faceIndices()) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
                     var projector=new ViewportProjector(core.editorContext().viewport().viewport().camera());
                     var updated=mesh.copy();
-                    var pivot=componentGizmo.pivot(node,selection.mode(),selection.vertexIndices(),
+                    var pivot=componentGizmo.localPivot(node,selection.mode(),selection.vertexIndices(),
                             selection.edgeIndices(),selection.faceIndices());
                     int axis=componentAxis==ComponentTransformGizmo.Axis.X?0
                             :componentAxis==ComponentTransformGizmo.Axis.Y?1:2;
