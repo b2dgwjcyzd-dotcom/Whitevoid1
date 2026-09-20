@@ -43,6 +43,8 @@ public final class CreateScreen extends Screen {
     private int activeEdgeA = -1;
     private int activeEdgeB = -1;
     private MeshGeometry edgeDragOldMesh;
+    private boolean componentBoxSelecting;
+    private double boxStartX, boxStartY, boxCurrentX, boxCurrentY;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -491,6 +493,15 @@ public final class CreateScreen extends Screen {
                     return true;
                 }
             }
+            // Empty-space drag in geometry mode starts component box selection.
+            if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
+                componentBoxSelecting = true;
+                boxStartX = boxCurrentX = mouseX;
+                boxStartY = boxCurrentY = mouseY;
+                if (!hasShiftDown()) viewport.meshComponentSelection().clear();
+                return true;
+            }
+
             ModelNode hit = new ViewportPicker().pick(core.editorContext().model(), core.editorContext().viewport(), mouseX, mouseY, width, height);
             if (hit != null) {
                 core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
@@ -506,6 +517,13 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (componentBoxSelecting && button == 0) {
+            boxCurrentX = mouseX;
+            boxCurrentY = mouseY;
+            selectComponentsInBox();
+            componentBoxSelecting = false;
+            return true;
+        }
         if (vertexDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null && vertexDragOldMesh != null) {
@@ -594,6 +612,11 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (componentBoxSelecting && button == 0) {
+            boxCurrentX = mouseX;
+            boxCurrentY = mouseY;
+            return true;
+        }
         if (vertexDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null && activeVertex >= 0) {
@@ -739,7 +762,77 @@ public final class CreateScreen extends Screen {
         GeometryFace selectedFace = core.editorContext().viewport().geometryFaceSelection().face();
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
                 core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace);
+        if (componentBoxSelecting) {
+            int left = (int) Math.round(Math.min(boxStartX, boxCurrentX));
+            int top = (int) Math.round(Math.min(boxStartY, boxCurrentY));
+            int right = (int) Math.round(Math.max(boxStartX, boxCurrentX));
+            int bottom = (int) Math.round(Math.max(boxStartY, boxCurrentY));
+            context.fill(left, top, right, top + 1, 0xFFFFFFFF);
+            context.fill(left, bottom, right, bottom + 1, 0xFFFFFFFF);
+            context.fill(left, top, left + 1, bottom, 0xFFFFFFFF);
+            context.fill(right, top, right + 1, bottom, 0xFFFFFFFF);
+        }
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    private void selectComponentsInBox() {
+        ViewportContext viewport = core.editorContext().viewport();
+        ModelNode node = viewport.selection().first(core.editorContext().model());
+        if (node == null || viewport.transform().mode() != TransformMode.GEOMETRY) return;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+
+        int left=(int)Math.round(Math.min(boxStartX,boxCurrentX));
+        int right=(int)Math.round(Math.max(boxStartX,boxCurrentX));
+        int top=(int)Math.round(Math.min(boxStartY,boxCurrentY));
+        int bottom=(int)Math.round(Math.max(boxStartY,boxCurrentY));
+        if (right-left < 3 && bottom-top < 3) return;
+
+        ViewportProjector projector=new ViewportProjector(viewport.viewport().camera());
+        int cx=width/2, cy=height/2;
+        var selection=viewport.meshComponentSelection();
+
+        if (selection.mode() == MeshSelectionMode.VERTEX) {
+            for (int i=0;i<mesh.vertices().size();i++) {
+                var v=mesh.vertices().get(i);
+                var w=whitevoid.create.model.TransformMath.applyHierarchy(
+                        new whitevoid.create.model.TransformMath.Point(v.x(),v.y(),v.z()),node);
+                var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
+                if (p!=null && p.x()>=left && p.x()<=right && p.y()>=top && p.y()<=bottom)
+                    selection.toggleVertex(node,i);
+            }
+        } else if (selection.mode() == MeshSelectionMode.EDGE) {
+            for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
+                var a=mesh.vertices().get(edge[0]); var b=mesh.vertices().get(edge[1]);
+                var wa=whitevoid.create.model.TransformMath.applyHierarchy(
+                        new whitevoid.create.model.TransformMath.Point(a.x(),a.y(),a.z()),node);
+                var wb=whitevoid.create.model.TransformMath.applyHierarchy(
+                        new whitevoid.create.model.TransformMath.Point(b.x(),b.y(),b.z()),node);
+                var pa=projector.project(wa.x(),wa.y(),wa.z(),cx,cy,300);
+                var pb=projector.project(wb.x(),wb.y(),wb.z(),cx,cy,300);
+                if(pa!=null && pb!=null && pointInsideBox(pa.x(),pa.y(),left,top,right,bottom)
+                        && pointInsideBox(pb.x(),pb.y(),left,top,right,bottom))
+                    selection.toggleEdge(node,edge[0],edge[1]);
+            }
+        } else {
+            for (int i=0;i<mesh.faces().size();i++) {
+                int[] ids=mesh.faces().get(i).vertices();
+                double sx=0,sy=0; int count=0;
+                for(int id:ids) {
+                    var v=mesh.vertices().get(id);
+                    var w=whitevoid.create.model.TransformMath.applyHierarchy(
+                            new whitevoid.create.model.TransformMath.Point(v.x(),v.y(),v.z()),node);
+                    var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
+                    if(p!=null){sx+=p.x();sy+=p.y();count++;}
+                }
+                if(count>0 && pointInsideBox(sx/count,sy/count,left,top,right,bottom))
+                    selection.toggleFace(node,i);
+            }
+        }
+    }
+
+    private boolean pointInsideBox(double x,double y,int left,int top,int right,int bottom) {
+        return x>=left && x<=right && y>=top && y<=bottom;
     }
 
     @Override public boolean shouldPause() { return false; }
