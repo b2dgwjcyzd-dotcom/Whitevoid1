@@ -250,6 +250,63 @@ public final class MeshComponentSelection {
         activeFace = faceIndex;
     }
 
+    /** Selects the shortest vertex path between two vertices. */
+    public void selectShortestVertexPath(ModelNode node, int start, int goal) {
+        if (node == null) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        prepareForMultiSelect(node, MeshSelectionMode.VERTEX);
+        vertices.clear();
+        vertices.addAll(MeshTopologySelection.shortestVertexPath(mesh, start, goal));
+        activeVertex = goal;
+        if (vertices.isEmpty()) nodeId = null;
+    }
+
+    /** Selects the shortest edge path between two vertices. */
+    public void selectShortestEdgePath(ModelNode node, int start, int goal) {
+        if (node == null) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        prepareForMultiSelect(node, MeshSelectionMode.EDGE);
+        edges.clear();
+        edges.addAll(MeshTopologySelection.shortestEdgePath(mesh, start, goal));
+        activeEdge = MeshTopologySelection.edgeKey(start, goal);
+        if (edges.isEmpty()) {
+            List<Integer> path = MeshTopologySelection.shortestVertexPath(mesh, start, goal);
+            if (path.size() >= 2) activeEdge = MeshTopologySelection.edgeKey(path.get(path.size() - 2), goal);
+            else activeEdge = -1L;
+            if (activeEdge < 0) nodeId = null;
+        }
+    }
+
+    public void selectBoundary(ModelNode node) {
+        if (node == null) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        prepareForMultiSelect(node, mode);
+        clearSelectionOnly();
+        nodeId = node.id();
+        if (mode == MeshSelectionMode.VERTEX) {
+            vertices.addAll(MeshTopologySelection.boundaryVertices(mesh));
+            activeVertex = first(vertices);
+        } else if (mode == MeshSelectionMode.EDGE) {
+            edges.addAll(MeshTopologySelection.boundaryEdges(mesh));
+            activeEdge = firstLong(edges);
+        } else {
+            for (long edge : MeshTopologySelection.boundaryEdges(mesh)) {
+                int a = (int)(edge >>> 32), b = (int)edge;
+                for (int i = 0; i < mesh.faces().size(); i++) {
+                    int[] f = mesh.faces().get(i).vertices();
+                    for (int j = 0; j < f.length; j++) {
+                        if (MeshTopologySelection.edgeKey(f[j], f[(j + 1) % f.length]) == edge) faces.add(i);
+                    }
+                }
+            }
+            activeFace = first(faces);
+        }
+        if (isEmpty()) nodeId = null;
+    }
+
     public void selectLinked(ModelNode node) {
         if (node == null || !matches(node)) return;
         var mesh = node.ensureMeshGeometry();
