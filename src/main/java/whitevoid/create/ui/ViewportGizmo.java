@@ -2,6 +2,7 @@ package whitevoid.create.ui;
 
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.model.ModelNode;
+import whitevoid.create.model.ModelRenderer;
 import whitevoid.create.model.TransformMath;
 import whitevoid.create.editor.geometry.GeometryFace;
 
@@ -126,6 +127,51 @@ public final class ViewportGizmo {
             }
         }
         return bestFace;
+    }
+
+    public int meshVertexHit(ModelNode node, ViewportProjector projector,
+                                double mouseX, double mouseY, int cx, int cy) {
+        if (node == null) return -1;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return -1;
+        int best = -1;
+        double bestDistance = 7.0;
+        for (int i = 0; i < mesh.vertices().size(); i++) {
+            var v = mesh.vertices().get(i);
+            var world = TransformMath.applyHierarchy(new TransformMath.Point(v.x(), v.y(), v.z()), node);
+            var p = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+            if (p == null) continue;
+            double distance = Math.hypot(mouseX - p.x(), mouseY - p.y());
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    public int[] meshEdgeHit(ModelNode node, ViewportProjector projector,
+                             double mouseX, double mouseY, int cx, int cy) {
+        if (node == null) return null;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return null;
+        int[] best = null;
+        double bestDistance = 6.0;
+        for (int[] edge : ModelRenderer.meshEdges(mesh)) {
+            var a = mesh.vertices().get(edge[0]);
+            var b = mesh.vertices().get(edge[1]);
+            var wa = TransformMath.applyHierarchy(new TransformMath.Point(a.x(), a.y(), a.z()), node);
+            var wb = TransformMath.applyHierarchy(new TransformMath.Point(b.x(), b.y(), b.z()), node);
+            var pa = projector.project(wa.x(), wa.y(), wa.z(), cx, cy, 300);
+            var pb = projector.project(wb.x(), wb.y(), wb.z(), cx, cy, 300);
+            if (pa == null || pb == null) continue;
+            double distance = distanceToSegment(mouseX, mouseY, pa.x(), pa.y(), pb.x(), pb.y());
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = new int[]{edge[0], edge[1]};
+            }
+        }
+        return best;
     }
 
     public int meshFaceHit(ModelNode node, ViewportProjector projector,
