@@ -61,6 +61,7 @@ public final class CreateScreen extends Screen {
     private TransformMath.Point componentDragPivot;
     private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
     private ComponentTransformGizmo.Axis componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
+    private boolean componentPlaneConstraint;
     private boolean componentKeyboardTransformArmed;
     private boolean mirrorArmed;
     private static final double MOVE_SNAP_INCREMENT = 0.25;
@@ -95,9 +96,9 @@ public final class CreateScreen extends Screen {
             }
             return true;
         }
-        if (keyCode == 71) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
-        if (keyCode == 82) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
-        if (keyCode == 83) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == 71) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
+        if (keyCode == 82) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
+        if (keyCode == 83) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
 
         if (viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
             ComponentTransformGizmo.Axis requested = switch (keyCode) {
@@ -106,9 +107,17 @@ public final class CreateScreen extends Screen {
                 case GLFW.GLFW_KEY_Z -> ComponentTransformGizmo.Axis.Z;
                 default -> ComponentTransformGizmo.Axis.NONE;
             };
-            if (requested != ComponentTransformGizmo.Axis.NONE) {
-                componentConstraintAxis = componentConstraintAxis == requested
-                        ? ComponentTransformGizmo.Axis.NONE : requested;
+            if (requested != ComponentTransformGizmo.Axis.NONE && componentKeyboardTransformArmed) {
+                if (componentConstraintAxis == requested) {
+                    componentPlaneConstraint = !componentPlaneConstraint && hasShiftDown();
+                    if (!hasShiftDown()) {
+                        componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
+                        componentPlaneConstraint = false;
+                    }
+                } else {
+                    componentConstraintAxis = requested;
+                    componentPlaneConstraint = hasShiftDown();
+                }
                 return true;
             }
         }
@@ -248,7 +257,7 @@ public final class CreateScreen extends Screen {
             }
         }
 
-        if (keyCode == 27) { componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
+        if (keyCode == 27) { componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -726,6 +735,7 @@ public final class CreateScreen extends Screen {
             componentDragging=false;
             componentKeyboardTransformArmed=false;
             componentConstraintAxis=ComponentTransformGizmo.Axis.NONE;
+            componentPlaneConstraint=false;
             componentAxis=ComponentTransformGizmo.Axis.NONE;
             hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
             componentDragOldMesh=null;
@@ -850,11 +860,32 @@ public final class CreateScreen extends Screen {
                     double totalDy = mouseY - componentDragStartY;
 
                     if(componentOperation==ComponentTransformGizmo.Operation.MOVE){
+                        if (componentPlaneConstraint && constrainedAxis != ComponentTransformGizmo.Axis.NONE) {
+                            ComponentTransformGizmo.Axis a1 = constrainedAxis == ComponentTransformGizmo.Axis.X
+                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
+                            ComponentTransformGizmo.Axis a2 = constrainedAxis == ComponentTransformGizmo.Axis.Z
+                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
+                            double amount1 = componentGizmo.amount(a1, projector, node, pivot,
+                                    width / 2, height / 2, totalDx, totalDy);
+                            double amount2 = componentGizmo.amount(a2, projector, node, pivot,
+                                    width / 2, height / 2, totalDx, totalDy);
+                            if (hasControlDown()) {
+                                amount1 = snapScalar(amount1, MOVE_SNAP_INCREMENT);
+                                amount2 = snapScalar(amount2, MOVE_SNAP_INCREMENT);
+                            }
+                            int excluded = constrainedAxis == ComponentTransformGizmo.Axis.X ? 0
+                                    : constrainedAxis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
+                            double dx = excluded == 0 ? 0 : (a1 == ComponentTransformGizmo.Axis.X ? amount1 : amount2);
+                            double dy = excluded == 1 ? 0 : (a1 == ComponentTransformGizmo.Axis.Y ? amount1 : amount2);
+                            double dz = excluded == 2 ? 0 : (a1 == ComponentTransformGizmo.Axis.Z ? amount1 : amount2);
+                            updated = MeshComponentTransforms.translate(updated, ids, dx, dy, dz);
+                        } else {
                         double amount=componentGizmo.amount(constrainedAxis,projector,node,pivot,
                                 width / 2,height / 2,totalDx,totalDy);
                         if (hasControlDown()) amount = snapScalar(amount, MOVE_SNAP_INCREMENT);
                         double dx=axis==0?amount:0, dy=axis==1?amount:0, dz=axis==2?amount:0;
                         updated=MeshComponentTransforms.translate(updated,ids,dx,dy,dz);
+                        }
                     } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
                         double degrees=componentGizmo.rotationAmount(constrainedAxis, node, pivot,
                                 componentDragStartX, componentDragStartY, mouseX, mouseY,
@@ -862,10 +893,29 @@ public final class CreateScreen extends Screen {
                         if (hasControlDown()) degrees = snapScalar(degrees, ROTATE_SNAP_INCREMENT);
                         updated=MeshComponentTransforms.rotate(updated,ids,pivot,axis,degrees);
                     } else {
-                        double factor=componentGizmo.scaleFactor(constrainedAxis,projector,node,pivot,
-                                width / 2,height / 2,totalDx,totalDy);
-                        if (hasControlDown()) factor = snapScaleFactor(factor, SCALE_SNAP_INCREMENT);
-                        updated=MeshComponentTransforms.scale(updated,ids,pivot,axis,factor);
+                        if (componentPlaneConstraint && constrainedAxis != ComponentTransformGizmo.Axis.NONE) {
+                            ComponentTransformGizmo.Axis a1 = constrainedAxis == ComponentTransformGizmo.Axis.X
+                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
+                            ComponentTransformGizmo.Axis a2 = constrainedAxis == ComponentTransformGizmo.Axis.Z
+                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
+                            double factor1 = componentGizmo.scaleFactor(a1, projector, node, pivot,
+                                    width / 2, height / 2, totalDx, totalDy);
+                            double factor2 = componentGizmo.scaleFactor(a2, projector, node, pivot,
+                                    width / 2, height / 2, totalDx, totalDy);
+                            if (hasControlDown()) {
+                                factor1 = snapScaleFactor(factor1, SCALE_SNAP_INCREMENT);
+                                factor2 = snapScaleFactor(factor2, SCALE_SNAP_INCREMENT);
+                            }
+                            updated = MeshComponentTransforms.scale(updated, ids, pivot,
+                                    a1 == ComponentTransformGizmo.Axis.X ? 0 : a1 == ComponentTransformGizmo.Axis.Y ? 1 : 2, factor1);
+                            updated = MeshComponentTransforms.scale(updated, ids, pivot,
+                                    a2 == ComponentTransformGizmo.Axis.X ? 0 : a2 == ComponentTransformGizmo.Axis.Y ? 1 : 2, factor2);
+                        } else {
+                            double factor=componentGizmo.scaleFactor(constrainedAxis,projector,node,pivot,
+                                    width / 2,height / 2,totalDx,totalDy);
+                            if (hasControlDown()) factor = snapScaleFactor(factor, SCALE_SNAP_INCREMENT);
+                            updated=MeshComponentTransforms.scale(updated,ids,pivot,axis,factor);
+                        }
                     }
                     node.setMeshGeometry(updated);
                 }
@@ -1049,7 +1099,7 @@ public final class CreateScreen extends Screen {
                 case null -> "";
                 case String value -> " • Active " + value;
             };
-            String constraint = componentConstraintAxis == ComponentTransformGizmo.Axis.NONE ? "" : " • " + componentConstraintAxis.name();
+            String constraint = componentConstraintAxis == ComponentTransformGizmo.Axis.NONE ? "" : " • " + (componentPlaneConstraint ? "PLANE " : "") + componentConstraintAxis.name();
             String snap = hasControlDown() ? " • SNAP" : "";
             context.drawTextWithShadow(textRenderer,
                     operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap,
