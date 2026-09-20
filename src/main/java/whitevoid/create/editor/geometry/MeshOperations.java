@@ -144,7 +144,10 @@ public final class MeshOperations {
         List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
         java.util.Map<Integer, Integer> duplicate = new java.util.LinkedHashMap<>();
 
-        for (int id : affected) {
+        List<Integer> affectedOrder = new ArrayList<>(affected);
+        java.util.Collections.sort(affectedOrder);
+
+        for (int id : affectedOrder) {
             double[] n = normals.get(id);
             double len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
             if (len < 1e-9) {
