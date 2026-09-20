@@ -754,13 +754,21 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 if (meshMode == MeshSelectionMode.VERTEX) {
                     int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (vertex >= 0) {
-                        if (hasAltDown()) viewport.meshComponentSelection().removeVertex(selected, vertex);
-                        else if (hasShiftDown()) viewport.meshComponentSelection().toggleVertex(selected, vertex);
-                        else viewport.meshComponentSelection().selectVertex(selected, vertex);
+                        var selection = viewport.meshComponentSelection();
+                        if (hasAltDown()) {
+                            selection.removeVertex(selected, vertex);
+                        } else if (hasControlDown() && !hasShiftDown() && selection.activeVertex() >= 0
+                                && selection.activeVertex() != vertex) {
+                            selection.selectShortestVertexPath(selected, selection.activeVertex(), vertex);
+                        } else if (hasShiftDown()) {
+                            selection.toggleVertex(selected, vertex);
+                        } else {
+                            selection.selectVertex(selected, vertex);
+                        }
                         viewport.meshFaceSelection().clear();
                         viewport.geometryFaceSelection().clear();
                         activeVertex = vertex;
-                        if (hasShiftDown()) return true;
+                        if (hasShiftDown() || hasAltDown() || hasControlDown()) return true;
                         var mesh = selected.ensureMeshGeometry();
                         if (mesh != null) {
                             vertexDragOldMesh = mesh.copy();
@@ -783,14 +791,19 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     } else if (meshMode == MeshSelectionMode.EDGE) {
                         int[] edge = gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy);
                         if (edge != null) {
-                            if (hasAltDown()) viewport.meshComponentSelection().removeEdge(selected, edge[0], edge[1]);
-                            else if (hasShiftDown()) viewport.meshComponentSelection().toggleEdge(selected, edge[0], edge[1]);
-                            else viewport.meshComponentSelection().selectEdge(selected, edge[0], edge[1]);
+                            var selection = viewport.meshComponentSelection();
+                            if (hasAltDown()) {
+                                selection.removeEdge(selected, edge[0], edge[1]);
+                            } else if (hasShiftDown()) {
+                                selection.toggleEdge(selected, edge[0], edge[1]);
+                            } else {
+                                selection.selectEdge(selected, edge[0], edge[1]);
+                            }
                             viewport.meshFaceSelection().clear();
                             viewport.geometryFaceSelection().clear();
                             activeEdgeA = edge[0];
                             activeEdgeB = edge[1];
-                            if (hasShiftDown()) return true;
+                            if (hasShiftDown() || hasAltDown()) return true;
                             var mesh = selected.ensureMeshGeometry();
                             if (mesh != null) {
                                 edgeDragOldMesh = mesh.copy();
