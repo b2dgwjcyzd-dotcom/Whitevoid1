@@ -554,7 +554,8 @@ public final class CreateScreen extends Screen {
             if(selected!=null && viewport.transform().mode()==TransformMode.GEOMETRY) {
                 hoveredAxis=gizmo.geometryHit(selected,new ViewportProjector(viewport.viewport().camera()),
                         mouseX,mouseY,width/2,height/2);
-                hoveredMeshFace = hoveredAxis == ViewportGizmo.Axis.NONE
+                hoveredMeshFace = (hoveredAxis == ViewportGizmo.Axis.NONE
+                        && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE)
                         ? gizmo.meshFaceHit(selected,new ViewportProjector(viewport.viewport().camera()),
                         mouseX,mouseY,width/2,height/2)
                         : -1;
