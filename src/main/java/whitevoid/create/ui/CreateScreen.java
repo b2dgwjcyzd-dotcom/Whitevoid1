@@ -898,7 +898,8 @@ public final class CreateScreen extends Screen {
         renderBackground(context, mouseX, mouseY, delta);
         GeometryFace selectedFace = core.editorContext().viewport().geometryFaceSelection().face();
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
-                core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace);
+                core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace,
+                hoveredComponentAxis, componentOperation);
         if (componentBoxSelecting) {
             int left = (int) Math.round(Math.min(boxStartX, boxCurrentX));
             int top = (int) Math.round(Math.min(boxStartY, boxCurrentY));
