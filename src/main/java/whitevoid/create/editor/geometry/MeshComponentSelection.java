@@ -127,6 +127,69 @@ public final class MeshComponentSelection {
         if (isEmpty()) nodeId = null;
     }
 
+    /**
+     * Rebuilds this selection against a topology-changing operation.
+     * Components that no longer exist are dropped; surviving components are
+     * translated through the operation's explicit mappings.
+     */
+    public void remap(ModelNode node, MeshOperations.OperationResult result) {
+        if (node == null || result == null) {
+            clear();
+            return;
+        }
+
+        List<Integer> oldVertices = vertexIndices();
+        List<int[]> oldEdges = edgeIndices();
+        List<Integer> oldFaces = faceIndices();
+        int oldActiveVertex = activeVertex;
+        long oldActiveEdge = activeEdge;
+        int oldActiveFace = activeFace;
+        MeshSelectionMode oldMode = mode;
+
+        clear();
+        nodeId = node.id();
+        mode = oldMode;
+
+        if (oldMode == MeshSelectionMode.VERTEX) {
+            for (int index : oldVertices) {
+                Integer mapped = result.vertexMapping().get(index);
+                if (mapped != null && mapped >= 0 && mapped < result.mesh().vertices().size()) {
+                    addVertex(node, mapped);
+                }
+            }
+            Integer mappedActive = result.vertexMapping().get(oldActiveVertex);
+            if (mappedActive != null && vertices.contains(mappedActive)) activeVertex = mappedActive;
+        } else if (oldMode == MeshSelectionMode.EDGE) {
+            for (int[] edge : oldEdges) {
+                Integer a = result.vertexMapping().get(edge[0]);
+                Integer b = result.vertexMapping().get(edge[1]);
+                if (a != null && b != null && a != b
+                        && result.mesh().vertices().size() > Math.max(a, b)) {
+                    addEdge(node, a, b);
+                }
+            }
+            int activeA = oldActiveEdge < 0 ? -1 : (int) (oldActiveEdge >>> 32);
+            int activeB = oldActiveEdge < 0 ? -1 : (int) oldActiveEdge;
+            Integer mappedA = result.vertexMapping().get(activeA);
+            Integer mappedB = result.vertexMapping().get(activeB);
+            if (mappedA != null && mappedB != null) {
+                long mapped = edgeKey(mappedA, mappedB);
+                if (edges.contains(mapped)) activeEdge = mapped;
+            }
+        } else {
+            for (int index : oldFaces) {
+                Integer mapped = result.faceMapping().get(index);
+                if (mapped != null && mapped >= 0 && mapped < result.mesh().faces().size()) {
+                    addFace(node, mapped);
+                }
+            }
+            Integer mappedActive = result.faceMapping().get(oldActiveFace);
+            if (mappedActive != null && faces.contains(mappedActive)) activeFace = mappedActive;
+        }
+
+        if (isEmpty()) nodeId = null;
+    }
+
     public void setMode(MeshSelectionMode mode) {
         if (mode != null) this.mode = mode;
         clearSelectionOnly();
