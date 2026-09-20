@@ -14,8 +14,8 @@ import whitevoid.create.core.history.commands.ResizeCubeFaceCommand;
 import whitevoid.create.core.history.commands.SetMeshGeometryCommand;
 import whitevoid.create.editor.geometry.MeshOperations;
 import whitevoid.create.editor.geometry.MeshComponentTransforms;
+import whitevoid.create.editor.geometry.MeshComponentSnapper;
 import whitevoid.create.editor.geometry.MeshSelectionMode;
-import whitevoid.create.editor.geometry.MeshComponentTransforms;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.editor.transform.TransformMode;
@@ -54,6 +54,9 @@ public final class CreateScreen extends Screen {
     private ComponentTransformGizmo.PivotMode componentPivotMode = ComponentTransformGizmo.PivotMode.MEDIAN;
     private ComponentTransformGizmo.Axis hoveredComponentAxis = ComponentTransformGizmo.Axis.NONE;
     private MeshGeometry componentDragOldMesh;
+    private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
+    private boolean mirrorArmed;
+    private static final double SNAP_INCREMENT = 0.25;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -92,6 +95,29 @@ public final class CreateScreen extends Screen {
         if (keyCode == GLFW.GLFW_KEY_3 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             setMeshSelectionMode(MeshSelectionMode.FACE);
             return true;
+        }
+
+        // Mirror is a two-step operation: M arms it, then X/Y/Z chooses the axis.
+        if (keyCode == GLFW.GLFW_KEY_M && viewport.transform().mode() == TransformMode.GEOMETRY
+                && viewport.meshComponentSelection().size() > 0) {
+            mirrorArmed = true;
+            return true;
+        }
+        if (mirrorArmed && viewport.transform().mode() == TransformMode.GEOMETRY
+                && viewport.meshComponentSelection().size() > 0) {
+            int axis = switch (keyCode) {
+                case GLFW.GLFW_KEY_X -> 0;
+                case GLFW.GLFW_KEY_Y -> 1;
+                case GLFW.GLFW_KEY_Z -> 2;
+                default -> -1;
+            };
+            if (axis >= 0) {
+                mirrorAxis = axis == 0 ? ComponentTransformGizmo.Axis.X
+                        : axis == 1 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
+                mirrorSelectedComponents(axis);
+                mirrorArmed = false;
+                return true;
+            }
         }
 
         if (keyCode == GLFW.GLFW_KEY_B && hasControlDown()
@@ -204,7 +230,28 @@ public final class CreateScreen extends Screen {
         }
     }
 
-    private void moveSelectedComponents(double dx, double dy, double dz) {
+    private void mirrorSelectedComponents(int axis) {
+        var viewport = core.editorContext().viewport();
+        var node = viewport.meshComponentSelection().node(core.editorContext().model());
+        if (node == null) return;
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null) return;
+
+        var selection = viewport.meshComponentSelection();
+        var ids = MeshComponentTransforms.affectedVertices(oldMesh, selection.mode(),
+                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices());
+        if (ids.isEmpty()) return;
+
+        var pivot = componentGizmo.localPivot(node, selection.mode(),
+                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices(), componentPivotMode);
+        var newMesh = MeshComponentTransforms.mirror(oldMesh, ids, pivot, axis);
+        if (newMesh.equals(oldMesh)) return;
+
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+    }
+
+(double dx, double dy, double dz) {    private void moveSelectedComponents
         var viewport = core.editorContext().viewport();
         var node = viewport.meshComponentSelection().node(core.editorContext().model());
         if (node == null) return;
@@ -738,6 +785,9 @@ public final class CreateScreen extends Screen {
                     } else {
                         double factor=componentGizmo.scaleFactor(componentAxis,projector,deltaX,deltaY);
                         updated=MeshComponentTransforms.scale(updated,ids,pivot,axis,factor);
+                    }
+                    if (hasControlDown()) {
+                        updated = MeshComponentSnapper.snap(updated, ids, SNAP_INCREMENT);
                     }
                     node.setMeshGeometry(updated);
                 }
