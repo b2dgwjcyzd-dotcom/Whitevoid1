@@ -212,6 +212,28 @@ public final class MeshComponentSelection {
         }
         if (isEmpty()) nodeId = null;
     }
+    public void selectLinked(ModelNode node) {
+        if (node == null || !matches(node)) return;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        if (mode == MeshSelectionMode.VERTEX) {
+            Set<Integer> seeds = new LinkedHashSet<>(vertices);
+            vertices.clear();
+            vertices.addAll(MeshTopologySelection.linkedVertices(mesh, seeds));
+            activeVertex = first(vertices);
+        } else if (mode == MeshSelectionMode.EDGE) {
+            Set<Long> seeds = new LinkedHashSet<>(edges);
+            edges.clear();
+            edges.addAll(MeshTopologySelection.linkedEdges(mesh, seeds));
+            activeEdge = firstLong(edges);
+        } else {
+            Set<Integer> seeds = new LinkedHashSet<>(faces);
+            faces.clear();
+            faces.addAll(MeshTopologySelection.linkedFaces(mesh, seeds));
+            activeFace = first(faces);
+        }
+    }
+
     public boolean containsVertex(int i) { return vertices.contains(i); }
     public boolean containsEdge(int a,int b) { return edges.contains(edgeKey(a,b)); }
     public boolean containsFace(int i) { return faces.contains(i); }
