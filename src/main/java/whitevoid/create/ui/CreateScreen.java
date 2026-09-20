@@ -544,7 +544,8 @@ public final class CreateScreen extends Screen {
                             viewport.meshComponentSelection().vertexIndices(),
                             viewport.meshComponentSelection().edgeIndices(),
                             viewport.meshComponentSelection().faceIndices(),
-                            projector, mouseX, mouseY, cx, cy, componentOperation);
+                            projector, mouseX, mouseY, cx, cy, componentOperation, componentPivotMode,
+                            viewport.meshComponentSelection());
                     if (componentAxis != ComponentTransformGizmo.Axis.NONE) {
                         componentDragging = true;
                         componentDragStartX = mouseX;
@@ -556,7 +557,7 @@ public final class CreateScreen extends Screen {
                         componentDragPivot = componentGizmo.localPivot(selected, meshMode,
                                 viewport.meshComponentSelection().vertexIndices(),
                                 viewport.meshComponentSelection().edgeIndices(),
-                                viewport.meshComponentSelection().faceIndices(), componentPivotMode);
+                                viewport.meshComponentSelection().faceIndices(), componentPivotMode, viewport.meshComponentSelection());
                         return true;
                     }
                 }
@@ -970,7 +971,8 @@ public final class CreateScreen extends Screen {
                             viewport.meshComponentSelection().vertexIndices(),
                             viewport.meshComponentSelection().edgeIndices(),
                             viewport.meshComponentSelection().faceIndices(),
-                            projector,mouseX,mouseY,width/2,height/2,componentOperation);
+                            projector,mouseX,mouseY,width/2,height/2,componentOperation,componentPivotMode,
+                            viewport.meshComponentSelection());
                 } else hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
                 hoveredMeshFace = (hoveredAxis == ViewportGizmo.Axis.NONE
                         && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE)
