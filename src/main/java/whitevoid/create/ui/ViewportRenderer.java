@@ -160,30 +160,40 @@ public final class ViewportRenderer {
                                       ViewportGizmo.Axis hoveredAxis) {
         if (node.geometry() == null) return;
 
-        double[] lengths = {
-                node.geometry().width() * 0.5 + 0.45,
-                node.geometry().height() * 0.5 + 0.45,
-                node.geometry().depth() * 0.5 + 0.45
+        double[] half = {
+                node.geometry().width() * 0.5,
+                node.geometry().height() * 0.5,
+                node.geometry().depth() * 0.5
         };
         double[][] dirs = {{1,0,0},{0,1,0},{0,0,1}};
         int[] colors = {0xFFE06B6B, 0xFF70C878, 0xFF6B8EDC};
-        ViewportGizmo.Axis[] axes = {
+        ViewportGizmo.Axis[] positive = {
                 ViewportGizmo.Axis.X, ViewportGizmo.Axis.Y, ViewportGizmo.Axis.Z
         };
+        ViewportGizmo.Axis[] negative = {
+                ViewportGizmo.Axis.NEG_X, ViewportGizmo.Axis.NEG_Y, ViewportGizmo.Axis.NEG_Z
+        };
 
-        TransformMath.Point o3 = TransformMath.applyHierarchy(new TransformMath.Point(0,0,0), node);
-        Point o = projector.project(o3.x(), o3.y(), o3.z(), cx, cy, 300);
-        if (o == null) return;
+        TransformMath.Point center3 = TransformMath.applyHierarchy(
+                new TransformMath.Point(0,0,0), node);
+        Point center = projector.project(center3.x(), center3.y(), center3.z(), cx, cy, 300);
+        if (center == null) return;
 
         for (int i=0;i<3;i++) {
-            TransformMath.Point p3 = TransformMath.applyHierarchy(
-                    new TransformMath.Point(dirs[i][0]*lengths[i], dirs[i][1]*lengths[i], dirs[i][2]*lengths[i]), node);
-            Point p = projector.project(p3.x(), p3.y(), p3.z(), cx, cy, 300);
-            if (p == null) continue;
+            for (int sign : new int[]{1,-1}) {
+                TransformMath.Point local = new TransformMath.Point(
+                        dirs[i][0] * half[i] * sign,
+                        dirs[i][1] * half[i] * sign,
+                        dirs[i][2] * half[i] * sign);
+                TransformMath.Point world = TransformMath.applyHierarchy(local, node);
+                Point p = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+                if (p == null) continue;
 
-            int color = hoveredAxis == axes[i] ? 0xFFFFFFFF : colors[i];
-            drawLine(context, o, p, left, top, right, bottom, color);
-            drawHandle(context, p, color, left, top, right, bottom);
+                ViewportGizmo.Axis axis = sign > 0 ? positive[i] : negative[i];
+                int color = hoveredAxis == axis ? 0xFFFFFFFF : colors[i];
+                drawLine(context, center, p, left, top, right, bottom, color);
+                drawHandle(context, p, color, left, top, right, bottom);
+            }
         }
     }
 
