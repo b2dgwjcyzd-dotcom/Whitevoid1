@@ -11,6 +11,8 @@ import whitevoid.create.core.history.commands.DuplicateNodeCommand;
 import whitevoid.create.core.history.commands.SetTransformCommand;
 import whitevoid.create.core.history.commands.SetCubeGeometryCommand;
 import whitevoid.create.core.history.commands.ResizeCubeFaceCommand;
+import whitevoid.create.core.history.commands.SetMeshGeometryCommand;
+import whitevoid.create.editor.geometry.MeshOperations;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.editor.transform.TransformMode;
@@ -31,6 +33,7 @@ public final class CreateScreen extends Screen {
     private GeometryFace hoveredFace = GeometryFace.NONE;
     private boolean faceDragging;
     private GeometryFace activeFace = GeometryFace.NONE;
+    private int hoveredMeshFace = -1;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -61,6 +64,10 @@ public final class CreateScreen extends Screen {
         }
         if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
             extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_I && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            insetSelectedFace(hasShiftDown() ? 0.5 : 0.25);
             return true;
         }
 
@@ -118,6 +125,25 @@ public final class CreateScreen extends Screen {
 
         if (keyCode == 27) viewport.transform().setMode(TransformMode.SELECT);
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void insetSelectedFace(double amount) {
+        var viewport = core.editorContext().viewport();
+        var model = core.editorContext().model();
+        var node = viewport.meshFaceSelection().node(model);
+        int faceIndex = viewport.meshFaceSelection().faceIndex();
+        if (node == null || faceIndex < 0) return;
+
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null || faceIndex >= oldMesh.faces().size()) return;
+
+        var newMesh = MeshOperations.insetFace(oldMesh, faceIndex, amount);
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh)
+        );
+
+        viewport.meshFaceSelection().select(node, newMesh.faces().size() - 1);
+        viewport.geometryFaceSelection().clear();
     }
 
     private void extrudeSelectedFace(double amount) {
@@ -271,6 +297,15 @@ public final class CreateScreen extends Screen {
                 ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
                 activeAxis = gizmo.geometryHit(selected, projector, mouseX, mouseY, cx, cy);
                 if (activeAxis == ViewportGizmo.Axis.NONE) {
+                    int clickedMeshFace = gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy);
+                    if (clickedMeshFace >= 0) {
+                        viewport.meshFaceSelection().select(selected, clickedMeshFace);
+                        viewport.geometryFaceSelection().clear();
+                        hoveredMeshFace = clickedMeshFace;
+                        hoveredFace = GeometryFace.NONE;
+                        return true;
+                    }
+                    viewport.meshFaceSelection().clear();
                     GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (clickedFace != GeometryFace.NONE) {
                         viewport.geometryFaceSelection().select(selected, clickedFace);
@@ -310,6 +345,7 @@ public final class CreateScreen extends Screen {
             if (hit != null) {
                 core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
                 core.editorContext().viewport().geometryFaceSelection().clear();
+                core.editorContext().viewport().meshFaceSelection().clear();
             } else {
                 core.editorContext().viewport().selection().clear();
                 core.editorContext().viewport().geometryFaceSelection().clear();
@@ -479,10 +515,11 @@ public final class CreateScreen extends Screen {
             if(selected!=null && viewport.transform().mode()==TransformMode.GEOMETRY) {
                 hoveredAxis=gizmo.geometryHit(selected,new ViewportProjector(viewport.viewport().camera()),
                         mouseX,mouseY,width/2,height/2);
-                hoveredFace = hoveredAxis == ViewportGizmo.Axis.NONE
-                        ? gizmo.faceHit(selected,new ViewportProjector(viewport.viewport().camera()),
+                hoveredMeshFace = hoveredAxis == ViewportGizmo.Axis.NONE
+                        ? gizmo.meshFaceHit(selected,new ViewportProjector(viewport.viewport().camera()),
                         mouseX,mouseY,width/2,height/2)
-                        : GeometryFace.NONE;
+                        : -1;
+                hoveredFace = GeometryFace.NONE;
             } else if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
                 hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()),mouseX,mouseY,width/2,height/2);
