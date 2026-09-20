@@ -556,15 +556,13 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
 
         MeshOperations.OperationResult result =
                 MeshOperations.insetFacesResult(oldMesh, selected, amount);
-        var newMesh = result.mesh();
         if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
 
         selection.applySelectionHint(node, result);
-        if (selection.activeFace() >= 0) {
-            selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
+        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
@@ -581,59 +579,59 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
 
         MeshOperations.OperationResult result =
                 MeshOperations.extrudeFacesResult(oldMesh, selected, amount);
-        var newMesh = result.mesh();
         if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
 
         selection.applySelectionHint(node, result);
-        if (selection.activeFace() >= 0) {
-            viewport.meshFaceSelection().select(node, selection.activeFace());
-        }
+        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
     private void insetSelectedFace(double amount) {
         var viewport = core.editorContext().viewport();
         var model = core.editorContext().model();
-        var node = viewport.meshFaceSelection().node(model);
-        int faceIndex = viewport.meshFaceSelection().faceIndex();
-        if (node == null || faceIndex < 0) return;
+        var selection = viewport.meshComponentSelection();
+        var node = selection.node(model);
+        int faceIndex = selection.activeFace();
+        if (node == null || faceIndex < 0 || !selection.containsFace(faceIndex)) return;
 
         var oldMesh = node.ensureMeshGeometry();
         if (oldMesh == null || faceIndex >= oldMesh.faces().size()) return;
 
-        var newMesh = MeshOperations.insetFace(oldMesh, faceIndex, amount);
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh)
-        );
+        MeshOperations.OperationResult result =
+                MeshOperations.insetFaceResult(oldMesh, faceIndex, amount);
+        if (result.createdFaces().isEmpty()) return;
 
-        viewport.meshComponentSelection().selectFace(node, newMesh.faces().size() - 1);
-        viewport.meshComponentSelection().syncLegacyFaceSelection(node, viewport.meshFaceSelection());
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
+
+        selection.applySelectionHint(node, result);
+        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
     private void extrudeSelectedFace(double amount) {
         var viewport = core.editorContext().viewport();
         var model = core.editorContext().model();
-        var node = viewport.meshFaceSelection().node(model);
-        int faceIndex = viewport.meshFaceSelection().faceIndex();
-
-        if (node == null || faceIndex < 0) return;
+        var selection = viewport.meshComponentSelection();
+        var node = selection.node(model);
+        int faceIndex = selection.activeFace();
+        if (node == null || faceIndex < 0 || !selection.containsFace(faceIndex)) return;
 
         var oldMesh = node.ensureMeshGeometry();
         if (oldMesh == null || faceIndex >= oldMesh.faces().size()) return;
 
-        var newMesh = MeshOperations.extrudeFace(oldMesh, faceIndex, amount);
-        int newFaceIndex = newMesh.faces().size() - 1;
+        MeshOperations.OperationResult result =
+                MeshOperations.extrudeFaceResult(oldMesh, faceIndex, amount);
+        if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh)
-        );
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
 
-        viewport.meshComponentSelection().selectFace(node, newFaceIndex);
-        viewport.meshComponentSelection().syncLegacyFaceSelection(node, viewport.meshFaceSelection());
+        selection.applySelectionHint(node, result);
+        selection.syncLegacyFaceSelection(node, viewport.meshFaceSelection());
         viewport.geometryFaceSelection().clear();
     }
 
