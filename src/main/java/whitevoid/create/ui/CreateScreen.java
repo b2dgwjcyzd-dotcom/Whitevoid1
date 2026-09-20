@@ -244,7 +244,7 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
         if (keyCode == GLFW.GLFW_KEY_B) {
             viewport.transform().setMode(TransformMode.GEOMETRY);
             viewport.geometryFaceSelection().clear();
-            viewport.meshFaceSelection().clear();
+            viewport.meshComponentSelection().clear();
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
@@ -397,11 +397,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         var selection = core.editorContext().viewport().meshComponentSelection();
         selection.clear();
         resetThroughCycle();
-        if (mode == MeshSelectionMode.FACE) {
-            var node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            int face = core.editorContext().viewport().meshFaceSelection().faceIndex();
-            if (node != null && face >= 0) selection.selectFace(node, face);
-        }
+        selection.setMode(mode);
     }
 
     private void mirrorSelectedComponents(int axis) {
@@ -841,7 +837,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                         } else {
                             selection.selectVertex(selected, vertex);
                         }
-                        viewport.meshFaceSelection().clear();
                         viewport.geometryFaceSelection().clear();
                         activeVertex = vertex;
                         if (hasShiftDown() || hasAltDown() || hasControlDown()) return true;
@@ -860,7 +855,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                         int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
                         if (vertex >= 0) {
                             viewport.meshComponentSelection().selectVertex(selected, vertex);
-                            viewport.meshFaceSelection().clear();
                             viewport.geometryFaceSelection().clear();
                             return true;
                         }
@@ -882,8 +876,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             } else {
                                 selection.selectEdge(selected, edge[0], edge[1]);
                             }
-                            viewport.meshFaceSelection().clear();
-                            viewport.geometryFaceSelection().clear();
+                                    viewport.geometryFaceSelection().clear();
                             activeEdgeA = edge[0];
                             activeEdgeB = edge[1];
                             if (hasShiftDown() || hasAltDown()) return true;
@@ -903,7 +896,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             if (hasAltDown()) viewport.meshComponentSelection().removeFace(selected, clickedMeshFace);
                             else if (hasShiftDown()) viewport.meshComponentSelection().toggleFace(selected, clickedMeshFace);
                             else viewport.meshComponentSelection().selectFace(selected, clickedMeshFace);
-                            viewport.meshFaceSelection().select(selected, clickedMeshFace);
                             viewport.geometryFaceSelection().clear();
                             hoveredMeshFace = clickedMeshFace;
                             hoveredFace = GeometryFace.NONE;
@@ -958,7 +950,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             if (hit != null) {
                 core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
                 core.editorContext().viewport().geometryFaceSelection().clear();
-                core.editorContext().viewport().meshFaceSelection().clear();
             } else {
                 core.editorContext().viewport().selection().clear();
                 core.editorContext().viewport().geometryFaceSelection().clear();
