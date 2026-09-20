@@ -8,6 +8,13 @@ import java.util.Objects;
 public final class Model {
     private final ModelNode root = new ModelNode("Root");
 
+    public static Model withDefaultCube() {
+        Model model = new Model();
+        ModelNode cube = model.addNode("Cube");
+        cube.setGeometry(new CubeGeometry(2.0, 2.0, 2.0));
+        return model;
+    }
+
     public ModelNode root() {
         return root;
     }
