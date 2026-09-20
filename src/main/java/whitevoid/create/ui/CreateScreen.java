@@ -63,6 +63,9 @@ public final class CreateScreen extends Screen {
     private ComponentTransformGizmo.Axis componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
     private boolean componentPlaneConstraint;
     private boolean componentKeyboardTransformArmed;
+    private boolean componentNumericEntry;
+    private StringBuilder componentNumericBuffer = new StringBuilder();
+    private boolean componentNumericNegative;
     private boolean mirrorArmed;
     private static final double MOVE_SNAP_INCREMENT = 0.25;
     private static final double ROTATE_SNAP_INCREMENT = 5.0;
@@ -87,7 +90,51 @@ public final class CreateScreen extends Screen {
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         ViewportContext viewport = core.editorContext().viewport();
 
-        if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
+        if (componentKeyboardTransformArmed && viewport.transform().mode() == TransformMode.GEOMETRY
+                && viewport.meshComponentSelection().size() > 0) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                componentKeyboardTransformArmed = false;
+                componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
+                componentPlaneConstraint = false;
+                componentNumericEntry = false;
+                componentNumericBuffer.setLength(0);
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_MINUS || keyCode == GLFW.GLFW_KEY_KP_SUBTRACT) {
+                componentNumericNegative = !componentNumericNegative;
+                componentNumericEntry = true;
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_PERIOD || keyCode == GLFW.GLFW_KEY_KP_DECIMAL) {
+                if (!componentNumericBuffer.toString().contains(".")) componentNumericBuffer.append('.');
+                componentNumericEntry = true;
+                return true;
+            }
+            int digit = switch (keyCode) {
+                case GLFW.GLFW_KEY_0, GLFW.GLFW_KEY_KP_0 -> 0;
+                case GLFW.GLFW_KEY_1, GLFW.GLFW_KEY_KP_1 -> 1;
+                case GLFW.GLFW_KEY_2, GLFW.GLFW_KEY_KP_2 -> 2;
+                case GLFW.GLFW_KEY_3, GLFW.GLFW_KEY_KP_3 -> 3;
+                case GLFW.GLFW_KEY_4, GLFW.GLFW_KEY_KP_4 -> 4;
+                case GLFW.GLFW_KEY_5, GLFW.GLFW_KEY_KP_5 -> 5;
+                case GLFW.GLFW_KEY_6, GLFW.GLFW_KEY_KP_6 -> 6;
+                case GLFW.GLFW_KEY_7, GLFW.GLFW_KEY_KP_7 -> 7;
+                case GLFW.GLFW_KEY_8, GLFW.GLFW_KEY_KP_8 -> 8;
+                case GLFW.GLFW_KEY_9, GLFW.GLFW_KEY_KP_9 -> 9;
+                default -> -1;
+            };
+            if (digit >= 0) {
+                componentNumericBuffer.append((char)('0' + digit));
+                componentNumericEntry = true;
+                return true;
+            }
+        }
+if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER)
+                && componentNumericEntry && componentKeyboardTransformArmed) {
+            applyNumericComponentTransform();
+            return true;
+        }
+if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             var node = viewport.selection().first(core.editorContext().model());
             if (node != null) {
                 if (hasAltDown()) viewport.meshComponentSelection().clear();
@@ -257,7 +304,7 @@ public final class CreateScreen extends Screen {
             }
         }
 
-        if (keyCode == 27) { componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
+        if (keyCode == 27) { componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint=false; componentNumericEntry=false; componentNumericBuffer.setLength(0); componentNumericNegative=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -1101,8 +1148,9 @@ public final class CreateScreen extends Screen {
             };
             String constraint = componentConstraintAxis == ComponentTransformGizmo.Axis.NONE ? "" : " • " + (componentPlaneConstraint ? "PLANE " : "") + componentConstraintAxis.name();
             String snap = hasControlDown() ? " • SNAP" : "";
+            String numeric = componentNumericEntry ? " • Value " + (componentNumericNegative ? "-" : "") + componentNumericBuffer : "";
             context.drawTextWithShadow(textRenderer,
-                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap,
+                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap + numeric,
                     26, height - 30, 0xFFE8E8E8);
         }
         if (componentBoxSelecting) {
@@ -1116,6 +1164,71 @@ public final class CreateScreen extends Screen {
             context.fill(right, top, right + 1, bottom, 0xFFFFFFFF);
         }
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    private void applyNumericComponentTransform() {
+        ViewportContext viewport = core.editorContext().viewport();
+        ModelNode node = viewport.selection().first(core.editorContext().model());
+        if (node == null || componentConstraintAxis == ComponentTransformGizmo.Axis.NONE
+                || componentNumericBuffer.length() == 0) return;
+        double value;
+        try {
+            value = Double.parseDouble((componentNumericNegative ? "-" : "") + componentNumericBuffer);
+        } catch (NumberFormatException ignored) {
+            return;
+        }
+        var selection = viewport.meshComponentSelection();
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        var ids = MeshComponentTransforms.affectedVertices(mesh, selection.mode(),
+                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices());
+        var pivot = componentGizmo.localPivot(node, selection.mode(),
+                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices(),
+                componentPivotMode, selection);
+        MeshGeometry before = mesh.copy();
+        MeshGeometry updated = mesh.copy();
+        int axis = componentConstraintAxis == ComponentTransformGizmo.Axis.X ? 0
+                : componentConstraintAxis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
+        if (componentOperation == ComponentTransformGizmo.Operation.MOVE) {
+            if (componentPlaneConstraint) {
+                ComponentTransformGizmo.Axis a1 = axis == 0 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
+                ComponentTransformGizmo.Axis a2 = axis == 2 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
+                updated = MeshComponentTransforms.translate(updated, ids,
+                        a1 == ComponentTransformGizmo.Axis.X ? value : 0,
+                        a1 == ComponentTransformGizmo.Axis.Y ? value : 0,
+                        a1 == ComponentTransformGizmo.Axis.Z ? value : 0);
+                updated = MeshComponentTransforms.translate(updated, ids,
+                        a2 == ComponentTransformGizmo.Axis.X ? value : 0,
+                        a2 == ComponentTransformGizmo.Axis.Y ? value : 0,
+                        a2 == ComponentTransformGizmo.Axis.Z ? value : 0);
+            } else {
+                updated = MeshComponentTransforms.translate(updated, ids,
+                        axis == 0 ? value : 0, axis == 1 ? value : 0, axis == 2 ? value : 0);
+            }
+        } else if (componentOperation == ComponentTransformGizmo.Operation.ROTATE) {
+            updated = MeshComponentTransforms.rotate(updated, ids, pivot, axis, value);
+        } else {
+            double factor = Math.max(0.01, value);
+            if (componentPlaneConstraint) {
+                int a1 = axis == 0 ? 1 : 0;
+                int a2 = axis == 2 ? 1 : 2;
+                updated = MeshComponentTransforms.scale(updated, ids, pivot, a1, factor);
+                updated = MeshComponentTransforms.scale(updated, ids, pivot, a2, factor);
+            } else {
+                updated = MeshComponentTransforms.scale(updated, ids, pivot, axis, factor);
+            }
+        }
+        if (!before.equals(updated)) {
+            node.setMeshGeometry(updated);
+            core.editorContext().history().recordExecuted(
+                    new SetMeshGeometryCommand(node, before, updated.copy()));
+        }
+        componentNumericEntry = false;
+        componentNumericBuffer.setLength(0);
+        componentNumericNegative = false;
+        componentKeyboardTransformArmed = false;
+        componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
+        componentPlaneConstraint = false;
     }
 
     private static String activeComponentLabel(whitevoid.create.editor.geometry.MeshComponentSelection selection) {
