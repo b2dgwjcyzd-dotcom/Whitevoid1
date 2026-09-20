@@ -265,7 +265,12 @@ public final class ViewportRenderer {
             drawComponentRotationRings(context,projector,localPivot,o,node,cx,cy,left,top,right,bottom,colors,hoveredAxis);
         } else {
             for(int i=0;i<3;i++){
-                Point p=projector.project(p3.x()+dirs[i][0],p3.y()+dirs[i][1],p3.z()+dirs[i][2],cx,cy,300);
+                TransformMath.Point localEnd = new TransformMath.Point(
+                        localPivot.x()+dirs[i][0],
+                        localPivot.y()+dirs[i][1],
+                        localPivot.z()+dirs[i][2]);
+                TransformMath.Point worldEnd = TransformMath.applyHierarchy(localEnd, node);
+                Point p=projector.project(worldEnd.x(),worldEnd.y(),worldEnd.z(),cx,cy,300);
                 if(p==null)continue;
                 int color=(hoveredAxis==new ComponentTransformGizmo.Axis[]{ComponentTransformGizmo.Axis.X,ComponentTransformGizmo.Axis.Y,ComponentTransformGizmo.Axis.Z}[i])?0xFFFFFFFF:colors[i];
                 drawLine(context,o,p,left,top,right,bottom,color);
