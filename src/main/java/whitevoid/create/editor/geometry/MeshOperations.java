@@ -145,9 +145,17 @@ public final class MeshOperations {
         java.util.Map<Integer, Integer> faceMapping = new java.util.LinkedHashMap<>();
         for (int i = 0; i < mesh.faces().size(); i++) faceMapping.put(i, i);
 
+        java.util.Set<Long> focusEdges = new java.util.LinkedHashSet<>();
+        for (long edge : createdEdges) {
+            int a = MeshTopology.edgeA(edge);
+            int b = MeshTopology.edgeB(edge);
+            if (a >= mesh.vertices().size() && b >= mesh.vertices().size()) {
+                focusEdges.add(edge);
+            }
+        }
         return new OperationResult(new MeshGeometry(vertices, faces),
                 createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
-                SelectionHint.edges(createdEdges, createdEdges.isEmpty() ? -1L : createdEdges.iterator().next()));
+                SelectionHint.edges(focusEdges, focusEdges.isEmpty() ? -1L : focusEdges.iterator().next()));
     }
 
 
@@ -294,8 +302,10 @@ public final class MeshOperations {
             }
         }
 
+        java.util.Set<Long> focusEdges = new java.util.LinkedHashSet<>(createdEdges);
+        long activeEdge = focusEdges.isEmpty() ? -1L : focusEdges.iterator().next();
         return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
-                SelectionHint.faces(createdFaces, createdFaces.isEmpty() ? -1 : createdFaces.iterator().next()));
+                SelectionHint.edges(focusEdges, activeEdge));
     }
 
     public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
