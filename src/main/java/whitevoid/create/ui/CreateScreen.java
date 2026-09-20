@@ -39,6 +39,10 @@ public final class CreateScreen extends Screen {
     private boolean vertexDragging;
     private int activeVertex = -1;
     private MeshGeometry vertexDragOldMesh;
+    private boolean edgeDragging;
+    private int activeEdgeA = -1;
+    private int activeEdgeB = -1;
+    private MeshGeometry edgeDragOldMesh;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -351,6 +355,13 @@ public final class CreateScreen extends Screen {
                             viewport.meshComponentSelection().selectEdge(selected, edge[0], edge[1]);
                             viewport.meshFaceSelection().clear();
                             viewport.geometryFaceSelection().clear();
+                            activeEdgeA = edge[0];
+                            activeEdgeB = edge[1];
+                            var mesh = selected.ensureMeshGeometry();
+                            if (mesh != null) {
+                                edgeDragOldMesh = mesh.copy();
+                                edgeDragging = true;
+                            }
                             return true;
                         }
                     } else {
@@ -427,6 +438,45 @@ public final class CreateScreen extends Screen {
             vertexDragging = false;
             activeVertex = -1;
             vertexDragOldMesh = null;
+            return true;
+        }
+        if (edgeDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (node != null && edgeDragOldMesh != null) {
+                var current = node.ensureMeshGeometry();
+                if (current != null && !edgeDragOldMesh.equals(current)) {
+                    core.editorContext().history().recordExecuted(
+                            new SetMeshGeometryCommand(node, edgeDragOldMesh, current.copy()));
+                }
+            }
+            edgeDragging = false;
+            activeEdgeA = -1;
+            activeEdgeB = -1;
+            edgeDragOldMesh = null;
+            return true;
+        }
+        if (edgeDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (node != null && activeEdgeA >= 0 && activeEdgeB >= 0) {
+                var mesh = node.ensureMeshGeometry();
+                if (mesh != null && activeEdgeA < mesh.vertices().size() && activeEdgeB < mesh.vertices().size()) {
+                    var camera = core.editorContext().viewport().viewport().camera();
+                    double yaw = Math.toRadians(camera.yaw());
+                    double pitch = Math.toRadians(camera.pitch());
+                    double worldPerPixel = Math.max(0.0005, camera.distance() / 300.0);
+                    double rightX = Math.cos(yaw);
+                    double rightZ = -Math.sin(yaw);
+                    double upX = -Math.sin(yaw) * Math.sin(pitch);
+                    double upY = Math.cos(pitch);
+                    double upZ = -Math.cos(yaw) * Math.sin(pitch);
+                    double dx = (deltaX * rightX - deltaY * upX) * worldPerPixel;
+                    double dy = (-deltaY * upY) * worldPerPixel;
+                    double dz = (deltaX * rightZ - deltaY * upZ) * worldPerPixel;
+                    mesh = MeshOperations.moveVertex(mesh, activeEdgeA, dx, dy, dz);
+                    mesh = MeshOperations.moveVertex(mesh, activeEdgeB, dx, dy, dz);
+                    node.setMeshGeometry(mesh);
+                }
+            }
             return true;
         }
         if (faceDragging && button == 0) {
