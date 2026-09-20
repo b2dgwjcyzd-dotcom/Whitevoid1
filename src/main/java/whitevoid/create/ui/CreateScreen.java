@@ -79,6 +79,12 @@ public final class CreateScreen extends Screen {
             return true;
         }
 
+        if (keyCode == GLFW.GLFW_KEY_B && hasControlDown()
+                && viewport.transform().mode() == TransformMode.GEOMETRY
+                && viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
+            bevelSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
+            return true;
+        }
         if (keyCode == GLFW.GLFW_KEY_B) {
             viewport.transform().setMode(TransformMode.GEOMETRY);
             viewport.geometryFaceSelection().clear();
@@ -86,7 +92,11 @@ public final class CreateScreen extends Screen {
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
+            if (viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
+                extrudeSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
+            } else {
+                extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
+            }
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_I && viewport.transform().mode() == TransformMode.GEOMETRY) {
@@ -181,6 +191,42 @@ public final class CreateScreen extends Screen {
         core.editorContext().history().execute(
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
         viewport.meshComponentSelection().selectVertex(node, index);
+    }
+
+    private void extrudeSelectedEdge(double amount) {
+        var viewport = core.editorContext().viewport();
+        var model = core.editorContext().model();
+        var node = viewport.meshComponentSelection().node(model);
+        int a = viewport.meshComponentSelection().indexA();
+        int b = viewport.meshComponentSelection().indexB();
+        if (node == null || a < 0 || b < 0) return;
+
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null) return;
+        var newMesh = MeshOperations.extrudeEdge(oldMesh, a, b, amount);
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+        viewport.meshComponentSelection().selectEdge(node, a, b);
+    }
+
+    private void bevelSelectedEdge(double amount) {
+        var viewport = core.editorContext().viewport();
+        var model = core.editorContext().model();
+        var node = viewport.meshComponentSelection().node(model);
+        int a = viewport.meshComponentSelection().indexA();
+        int b = viewport.meshComponentSelection().indexB();
+        if (node == null || a < 0 || b < 0) return;
+
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null) return;
+        try {
+            var newMesh = MeshOperations.bevelEdge(oldMesh, a, b, amount);
+            core.editorContext().history().execute(
+                    new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+            viewport.meshComponentSelection().clear();
+        } catch (IllegalArgumentException ignored) {
+            // Bevel currently requires a manifold edge with exactly two adjacent faces.
+        }
     }
 
     private void insetSelectedFace(double amount) {
@@ -453,30 +499,6 @@ public final class CreateScreen extends Screen {
             activeEdgeA = -1;
             activeEdgeB = -1;
             edgeDragOldMesh = null;
-            return true;
-        }
-        if (edgeDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null && activeEdgeA >= 0 && activeEdgeB >= 0) {
-                var mesh = node.ensureMeshGeometry();
-                if (mesh != null && activeEdgeA < mesh.vertices().size() && activeEdgeB < mesh.vertices().size()) {
-                    var camera = core.editorContext().viewport().viewport().camera();
-                    double yaw = Math.toRadians(camera.yaw());
-                    double pitch = Math.toRadians(camera.pitch());
-                    double worldPerPixel = Math.max(0.0005, camera.distance() / 300.0);
-                    double rightX = Math.cos(yaw);
-                    double rightZ = -Math.sin(yaw);
-                    double upX = -Math.sin(yaw) * Math.sin(pitch);
-                    double upY = Math.cos(pitch);
-                    double upZ = -Math.cos(yaw) * Math.sin(pitch);
-                    double dx = (deltaX * rightX - deltaY * upX) * worldPerPixel;
-                    double dy = (-deltaY * upY) * worldPerPixel;
-                    double dz = (deltaX * rightZ - deltaY * upZ) * worldPerPixel;
-                    mesh = MeshOperations.moveVertex(mesh, activeEdgeA, dx, dy, dz);
-                    mesh = MeshOperations.moveVertex(mesh, activeEdgeB, dx, dy, dz);
-                    node.setMeshGeometry(mesh);
-                }
-            }
             return true;
         }
         if (faceDragging && button == 0) {
