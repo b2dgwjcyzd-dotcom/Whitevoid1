@@ -170,6 +170,18 @@ public final class ViewportGizmo {
         return d;
     }
 
+    public double faceDragAmount(GeometryFace face, ViewportProjector projector,
+                                  double deltaX, double deltaY) {
+        if (face == null || face == GeometryFace.NONE) return 0.0;
+        Axis axis = switch (face) {
+            case POS_X, NEG_X -> Axis.X;
+            case POS_Y, NEG_Y -> Axis.Y;
+            case POS_Z, NEG_Z -> Axis.Z;
+            case NONE -> Axis.NONE;
+        };
+        return dragAmount(axis, projector, deltaX, deltaY);
+    }
+
     public double dragAmount(Axis axis, ViewportProjector projector, double deltaX, double deltaY) {
         if(axis==Axis.NONE) return 0;
         double yaw=Math.toRadians(projector.cameraYaw());
