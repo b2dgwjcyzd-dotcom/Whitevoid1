@@ -300,17 +300,6 @@ public final class MeshComponentSelection {
     public int activeEdgeB() { return activeEdge < 0 ? -1 : (int)activeEdge; }
     public int activeFace() { return activeFace; }
 
-    /** Mirrors the active face into the legacy single-face selection bridge. */
-    public void syncLegacyFaceSelection(MeshFaceSelection legacy) {
-        if (legacy == null) return;
-        if (mode == MeshSelectionMode.FACE && activeFace >= 0 && nodeId != null) {
-            // The legacy bridge cannot resolve a ModelNode from UUID alone.
-            // Call syncLegacyFaceSelection(ModelNode, MeshFaceSelection) when available.
-            return;
-        }
-        legacy.clear();
-    }
-
     /** Keeps the legacy single-face bridge synchronized with this component selection. */
     public void syncLegacyFaceSelection(ModelNode node, MeshFaceSelection legacy) {
         if (legacy == null) return;
