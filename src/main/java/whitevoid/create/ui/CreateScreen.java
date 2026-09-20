@@ -233,6 +233,14 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             bevelSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
             return true;
         }
+        if (keyCode == GLFW.GLFW_KEY_B
+                && viewport.transform().mode() == TransformMode.GEOMETRY
+                && viewport.meshComponentSelection().size() > 0) {
+            var boundaryNode = viewport.selection().first(core.editorContext().model());
+            if (boundaryNode != null) viewport.meshComponentSelection().selectBoundaryLoop(boundaryNode);
+            resetThroughCycle();
+            return true;
+        }
         if (keyCode == GLFW.GLFW_KEY_B) {
             viewport.transform().setMode(TransformMode.GEOMETRY);
             viewport.geometryFaceSelection().clear();
@@ -268,13 +276,6 @@ if (keyCode == GLFW.GLFW_KEY_V && viewport.transform().mode() == TransformMode.G
     topologyPathSecondPick = true;
     return true;
 }
-if (keyCode == GLFW.GLFW_KEY_B && viewport.transform().mode() == TransformMode.GEOMETRY
-        && viewport.meshComponentSelection().size() > 0) {
-    var selected = viewport.selection().first(core.editorContext().model());
-    if (selected != null) viewport.meshComponentSelection().selectBoundaryLoop(selected);
-    return true;
-}
-
 // Topology traversal: U = loop, K = ring.
 if (keyCode == GLFW.GLFW_KEY_U && viewport.transform().mode() == TransformMode.GEOMETRY
         && viewport.meshComponentSelection().size() > 0) {
@@ -388,13 +389,14 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             }
         }
 
-        if (keyCode == 27) { componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint=false; componentNumericEntry=false; componentNumericBuffer.setLength(0); componentNumericNegative=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
+        if (keyCode == 27) { resetThroughCycle(); componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint=false; componentNumericEntry=false; componentNumericBuffer.setLength(0); componentNumericNegative=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     private void setMeshSelectionMode(MeshSelectionMode mode) {
         var selection = core.editorContext().viewport().meshComponentSelection();
         selection.clear();
+        resetThroughCycle();
         if (mode == MeshSelectionMode.FACE) {
             var node = core.editorContext().viewport().selection().first(core.editorContext().model());
             int face = core.editorContext().viewport().meshFaceSelection().faceIndex();
