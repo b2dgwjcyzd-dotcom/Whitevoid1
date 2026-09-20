@@ -9,6 +9,7 @@ import whitevoid.create.core.history.commands.AddCubeCommand;
 import whitevoid.create.core.history.commands.DeleteNodeCommand;
 import whitevoid.create.core.history.commands.DuplicateNodeCommand;
 import whitevoid.create.core.history.commands.SetTransformCommand;
+import whitevoid.create.core.history.commands.SetCubeGeometryCommand;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
@@ -70,6 +71,11 @@ public final class CreateScreen extends Screen {
 
         if (keyCode == GLFW.GLFW_KEY_D && hasControlDown()) {
             duplicateSelectedNode();
+            return true;
+        }
+
+        if (keyCode == GLFW.GLFW_KEY_LEFT_BRACKET || keyCode == GLFW.GLFW_KEY_RIGHT_BRACKET) {
+            resizeSelectedCube(keyCode == GLFW.GLFW_KEY_RIGHT_BRACKET);
             return true;
         }
 
@@ -147,6 +153,23 @@ public final class CreateScreen extends Screen {
         core.editorContext().viewport().selection().select(
                 command.duplicatedNode(),
                 SelectionMode.SINGLE
+        );
+    }
+
+    private void resizeSelectedCube(boolean grow) {
+        var node = core.editorContext().viewport().selection().first(core.editorContext().model());
+        if (node == null || node.geometry() == null) return;
+
+        var g = node.geometry();
+        double step = hasShiftDown() ? 0.25 : 1.0;
+        double factor = grow ? step : -step;
+
+        double width = Math.max(0.1, g.width() + factor);
+        double height = Math.max(0.1, g.height() + factor);
+        double depth = Math.max(0.1, g.depth() + factor);
+
+        core.editorContext().history().execute(
+                new SetCubeGeometryCommand(node, new CubeGeometry(width, height, depth))
         );
     }
 
