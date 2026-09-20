@@ -8,12 +8,13 @@ import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.ModelRenderer;
 import whitevoid.create.model.TransformMath;
 import whitevoid.create.editor.transform.TransformMode;
+import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.ui.ViewportProjector.Point;
 
 public final class ViewportRenderer {
     private final ModelRenderer modelRenderer = new ModelRenderer();
 
-    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis) {
+    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace) {
         int left = 16, top = 16, right = width - 16, bottom = height - 16;
         int centerX = (left + right) / 2, centerY = (top + bottom) / 2;
         context.fill(left, top, right, bottom, 0xFF111216);
@@ -33,6 +34,8 @@ public final class ViewportRenderer {
                     hoveredAxis);
         }
         if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            drawGeometryFaceHighlight(context, projector, selected, hoveredFace,
+                    centerX, centerY, left, top, right, bottom);
             drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
         }
 
@@ -151,6 +154,51 @@ public final class ViewportRenderer {
                 drawLine(context,new Point(prevX,prevY,0),new Point(x,y,0),
                         left,top,right,bottom,colors[axis]);
                 prevX=x; prevY=y;
+            }
+        }
+    }
+
+    private void drawGeometryFaceHighlight(DrawContext context, ViewportProjector projector,
+                                             ModelNode node, GeometryFace face,
+                                             int cx, int cy, int left, int top, int right, int bottom) {
+        if (face == GeometryFace.NONE || node.geometry() == null) return;
+
+        double hx = node.geometry().width() * 0.5;
+        double hy = node.geometry().height() * 0.5;
+        double hz = node.geometry().depth() * 0.5;
+        TransformMath.Point[] local = switch (face) {
+            case POS_X -> new TransformMath.Point[]{
+                    new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(hx,hy,-hz),
+                    new TransformMath.Point(hx,hy,hz), new TransformMath.Point(hx,-hy,hz)};
+            case NEG_X -> new TransformMath.Point[]{
+                    new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(-hx,hy,hz),
+                    new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(-hx,-hy,-hz)};
+            case POS_Y -> new TransformMath.Point[]{
+                    new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(-hx,hy,hz),
+                    new TransformMath.Point(hx,hy,hz), new TransformMath.Point(hx,hy,-hz)};
+            case NEG_Y -> new TransformMath.Point[]{
+                    new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(-hx,-hy,-hz),
+                    new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(hx,-hy,hz)};
+            case POS_Z -> new TransformMath.Point[]{
+                    new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(hx,-hy,hz),
+                    new TransformMath.Point(hx,hy,hz), new TransformMath.Point(-hx,hy,hz)};
+            case NEG_Z -> new TransformMath.Point[]{
+                    new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(-hx,-hy,-hz),
+                    new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(hx,hy,-hz)};
+            case NONE -> new TransformMath.Point[0];
+        };
+
+        Point[] points = new Point[4];
+        for (int i=0;i<4;i++) {
+            TransformMath.Point world = TransformMath.applyHierarchy(local[i], node);
+            points[i] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+        }
+        for (int i=0;i<4;i++) {
+            Point a = points[i], b = points[(i+1)%4];
+            if (a != null && b != null) {
+                drawLine(context, a, b, left, top, right, bottom, 0xFFFFFFFF);
+                drawLine(context, new Point(a.x()+1,a.y(),a.depth()),
+                        new Point(b.x()+1,b.y(),b.depth()), left,top,right,bottom,0xFFE7E9EF);
             }
         }
     }
