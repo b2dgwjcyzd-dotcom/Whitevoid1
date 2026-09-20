@@ -12,6 +12,7 @@ public final class ModelNode {
     private final List<ModelNode> children = new ArrayList<>();
     private final Transform transform = new Transform();
     private CubeGeometry geometry;
+    private MeshGeometry meshGeometry;
 
     public ModelNode(String name) {
         this.name = name;
@@ -25,8 +26,26 @@ public final class ModelNode {
     public Transform transform() { return transform; }
     public CubeGeometry geometry() { return geometry; }
 
+    public MeshGeometry meshGeometry() { return meshGeometry; }
+
+    /**
+     * Returns the editable mesh, creating a mesh representation from the
+     * legacy cube geometry on first access.
+     */
+    public MeshGeometry ensureMeshGeometry() {
+        if (meshGeometry == null && geometry != null) {
+            meshGeometry = MeshGeometry.fromCube(geometry);
+        }
+        return meshGeometry;
+    }
+
+    public void setMeshGeometry(MeshGeometry meshGeometry) {
+        this.meshGeometry = meshGeometry;
+    }
+
     public void setGeometry(CubeGeometry geometry) {
         this.geometry = geometry;
+        this.meshGeometry = geometry == null ? null : MeshGeometry.fromCube(geometry);
     }
 
     public void addChild(ModelNode child) {
