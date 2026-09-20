@@ -385,6 +385,36 @@ public final class MeshComponentSelection {
         return shared >= 2;
     }
 
+    public void selectShortestPathBetweenActiveAnd(ModelNode node, int targetIndex) {
+        if (node == null || !matches(node)) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        if (mode == MeshSelectionMode.VERTEX && activeVertex >= 0) {
+            selectShortestVertexPath(node, activeVertex, targetIndex);
+        } else if (mode == MeshSelectionMode.EDGE && activeEdgeA() >= 0) {
+            int start = activeEdgeA();
+            selectShortestEdgePath(node, start, targetIndex);
+        }
+    }
+
+    public void selectBoundaryLoop(ModelNode node) {
+        if (node == null) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        if (mode == MeshSelectionMode.VERTEX) {
+            prepareForMultiSelect(node, mode);
+            vertices.clear();
+            vertices.addAll(MeshTopologySelection.boundaryVertices(mesh));
+            activeVertex = first(vertices);
+        } else if (mode == MeshSelectionMode.EDGE) {
+            prepareForMultiSelect(node, mode);
+            edges.clear();
+            edges.addAll(MeshTopologySelection.boundaryEdges(mesh));
+            activeEdge = firstLong(edges);
+        }
+        if (isEmpty()) nodeId = null;
+    }
+
     public void selectLinked(ModelNode node) {
         if (node == null || !matches(node)) return;
         var mesh = node.ensureMeshGeometry();
