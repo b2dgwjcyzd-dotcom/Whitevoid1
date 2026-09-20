@@ -503,29 +503,36 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     }
 
     private void insetSelectedFaces(double amount) {
-        var viewport=core.editorContext().viewport();
-        var model=core.editorContext().model();
-        var node=viewport.meshComponentSelection().node(model);
-        if(node==null) return;
-        var indices=new java.util.ArrayList<>(viewport.meshComponentSelection().faceIndices());
-        indices.sort(java.util.Comparator.reverseOrder());
-        var oldMesh=node.ensureMeshGeometry();
-        if(oldMesh==null) return;
+        var viewport = core.editorContext().viewport();
+        var model = core.editorContext().model();
+        var selection = viewport.meshComponentSelection();
+        var node = selection.node(model);
+        if (node == null || selection.faceIndices().isEmpty()) return;
 
-        var mesh=oldMesh.copy();
-        var created=new java.util.ArrayList<Integer>();
-        for(int index:indices) {
-            if(index<0 || index>=mesh.faces().size()) continue;
-            mesh=MeshOperations.insetFace(mesh,index,amount);
-            created.add(mesh.faces().size()-1);
-        }
-        if(created.isEmpty()) return;
+        var selected = new java.util.LinkedHashSet<>(selection.faceIndices());
+        var oldMesh = node.ensureMeshGeometry();
+        if (oldMesh == null) return;
+
+        var newMesh = MeshOperations.insetFaces(oldMesh, selected, amount);
+        if (newMesh.faces().size() == oldMesh.faces().size()) return;
+
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node,oldMesh.copy(),mesh));
-        viewport.meshComponentSelection().clear();
-        viewport.meshComponentSelection().selectFace(node,created.get(0));
-        for(int i=1;i<created.size();i++) viewport.meshComponentSelection().toggleFace(node,created.get(i));
-        viewport.meshFaceSelection().select(node,created.get(created.size()-1));
+                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
+
+        int insetStart = oldMesh.faces().size() - selected.size();
+        int insetCount = selected.size();
+
+        selection.clear();
+        for (int i = 0; i < insetCount; i++) {
+            int faceIndex = insetStart + i;
+            if (faceIndex < 0 || faceIndex >= newMesh.faces().size()) continue;
+            if (i == 0) selection.selectFace(node, faceIndex);
+            else selection.toggleFace(node, faceIndex);
+        }
+
+        if (insetCount > 0) {
+            viewport.meshFaceSelection().select(node, insetStart + insetCount - 1);
+        }
         viewport.geometryFaceSelection().clear();
     }
 
