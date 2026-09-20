@@ -212,6 +212,22 @@ public final class MeshComponentSelection {
         }
         if (isEmpty()) nodeId = null;
     }
+    public void selectEdgeLoop(ModelNode node, int a, int b) {
+        if (node == null) return;
+        prepareForMultiSelect(node, MeshSelectionMode.EDGE);
+        edges.clear();
+        edges.addAll(MeshTopologySelection.edgeLoop(node.ensureMeshGeometry(), a, b));
+        activeEdge = edgeKey(a,b);
+    }
+
+    public void selectFaceLoop(ModelNode node, int faceIndex) {
+        if (node == null) return;
+        prepareForMultiSelect(node, MeshSelectionMode.FACE);
+        faces.clear();
+        faces.addAll(MeshTopologySelection.faceLoop(node.ensureMeshGeometry(), faceIndex));
+        activeFace = faceIndex;
+    }
+
     public void selectLinked(ModelNode node) {
         if (node == null || !matches(node)) return;
         var mesh = node.ensureMeshGeometry();
