@@ -579,13 +579,17 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
 
         selection.clear();
+        int selectedInsetFaces = selected.size();
+        int seen = 0;
+        int activeFace = -1;
         for (int faceIndex : result.createdFaces()) {
+            if (seen++ >= selectedInsetFaces) break;
             if (selection.size() == 0) selection.selectFace(node, faceIndex);
             else selection.addFace(node, faceIndex);
+            activeFace = faceIndex;
         }
 
-        if (!result.createdFaces().isEmpty()) {
-            int activeFace = result.createdFaces().stream().reduce((a, b) -> b).orElse(-1);
+        if (activeFace >= 0) {
             viewport.meshFaceSelection().select(node, activeFace);
         }
         viewport.geometryFaceSelection().clear();
