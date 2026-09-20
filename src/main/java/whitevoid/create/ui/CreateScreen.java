@@ -29,6 +29,8 @@ public final class CreateScreen extends Screen {
     private double dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz;
     private CubeGeometry dragOldGeometry;
     private GeometryFace hoveredFace = GeometryFace.NONE;
+    private boolean faceDragging;
+    private GeometryFace activeFace = GeometryFace.NONE;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -273,6 +275,13 @@ public final class CreateScreen extends Screen {
                     if (clickedFace != GeometryFace.NONE) {
                         viewport.geometryFaceSelection().select(selected, clickedFace);
                         hoveredFace = clickedFace;
+                        activeFace = clickedFace;
+                        faceDragging = true;
+                        dragOldGeometry = selected.geometry();
+                        var t = selected.transform();
+                        dragOldX = t.x();
+                        dragOldY = t.y();
+                        dragOldZ = t.z();
                         return true;
                     }
                     viewport.geometryFaceSelection().clear();
@@ -311,6 +320,25 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (faceDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().geometryFaceSelection().node(core.editorContext().model());
+            if (node != null && dragOldGeometry != null && node.geometry() != null) {
+                var t = node.transform();
+                boolean changed = !dragOldGeometry.equals(node.geometry())
+                        || dragOldX != t.x() || dragOldY != t.y() || dragOldZ != t.z();
+                if (changed) {
+                    core.editorContext().history().recordExecuted(
+                            new ResizeCubeFaceCommand(node,
+                                    dragOldGeometry, node.geometry(),
+                                    dragOldX, dragOldY, dragOldZ,
+                                    t.x(), t.y(), t.z()));
+                }
+            }
+            faceDragging = false;
+            activeFace = GeometryFace.NONE;
+            dragOldGeometry = null;
+            return true;
+        }
         if (gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
@@ -351,6 +379,36 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (faceDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().geometryFaceSelection().node(core.editorContext().model());
+            if (node != null && node.geometry() != null && activeFace != GeometryFace.NONE) {
+                ViewportProjector projector = new ViewportProjector(core.editorContext().viewport().viewport().camera());
+                double amount = gizmo.faceDragAmount(activeFace, projector, deltaX, deltaY);
+                var g = node.geometry();
+                double width = g.width();
+                double height = g.height();
+                double depth = g.depth();
+                double sign = switch (activeFace) {
+                    case POS_X, POS_Y, POS_Z -> 1.0;
+                    case NEG_X, NEG_Y, NEG_Z -> -1.0;
+                    case NONE -> 0.0;
+                };
+                double move = amount * 2.0 * sign;
+                switch (activeFace) {
+                    case POS_X, NEG_X -> width = Math.max(0.1, width + move);
+                    case POS_Y, NEG_Y -> height = Math.max(0.1, height + move);
+                    case POS_Z, NEG_Z -> depth = Math.max(0.1, depth + move);
+                    case NONE -> { return true; }
+                }
+                node.setGeometry(new CubeGeometry(width, height, depth));
+                node.transform().position(
+                        node.transform().x() + amount * sign * (activeFace == GeometryFace.POS_X || activeFace == GeometryFace.NEG_X ? 1.0 : 0.0),
+                        node.transform().y() + amount * sign * (activeFace == GeometryFace.POS_Y || activeFace == GeometryFace.NEG_Y ? 1.0 : 0.0),
+                        node.transform().z() + amount * sign * (activeFace == GeometryFace.POS_Z || activeFace == GeometryFace.NEG_Z ? 1.0 : 0.0)
+                );
+            }
+            return true;
+        }
         if (gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
