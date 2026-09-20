@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import whitevoid.create.model.Model;
-import whitevoid.create.model.ModelNode;
+import whitevoid.create.model.ModelNode;\nimport whitevoid.create.model.MeshGeometry;
 
 public final class MeshComponentSelection {
     private UUID nodeId;
@@ -222,9 +222,31 @@ public final class MeshComponentSelection {
 
     public void selectFaceLoop(ModelNode node, int faceIndex) {
         if (node == null) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
         prepareForMultiSelect(node, MeshSelectionMode.FACE);
         faces.clear();
-        faces.addAll(MeshTopologySelection.faceLoop(node.ensureMeshGeometry(), faceIndex));
+        faces.addAll(MeshTopologySelection.faceLoop(mesh, faceIndex));
+        activeFace = faceIndex;
+    }
+
+    public void selectEdgeRing(ModelNode node, int a, int b) {
+        if (node == null) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        prepareForMultiSelect(node, MeshSelectionMode.EDGE);
+        edges.clear();
+        edges.addAll(MeshTopologySelection.edgeRing(mesh, a, b));
+        activeEdge = MeshTopologySelection.edgeKey(a, b);
+    }
+
+    public void selectFaceRing(ModelNode node, int faceIndex) {
+        if (node == null) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        prepareForMultiSelect(node, MeshSelectionMode.FACE);
+        faces.clear();
+        faces.addAll(MeshTopologySelection.faceRing(mesh, faceIndex));
         activeFace = faceIndex;
     }
 
