@@ -10,11 +10,13 @@ import whitevoid.create.editor.viewport.ViewportContext;
 public final class CreateScreen extends Screen {
     private final CreateCore core;
     private final ViewportRenderer viewportRenderer;
+    private final CreateViewportInput viewportInput;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
         this.core = core;
         this.viewportRenderer = new ViewportRenderer();
+        this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
     }
 
     @Override
@@ -24,8 +26,41 @@ public final class CreateScreen extends Screen {
 
     @Override
     public void close() {
+        viewportInput.cancelDrag();
         core.editorContext().setEditing(false);
         super.close();
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (viewportInput.mouseClicked(mouseX, mouseY, button)) {
+            return true;
+        }
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (viewportInput.mouseReleased(mouseX, mouseY, button)) {
+            return true;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (viewportInput.mouseDragged(mouseX, mouseY, button, hasShiftDown())) {
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (viewportInput.mouseScrolled(verticalAmount)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
