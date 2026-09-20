@@ -208,6 +208,35 @@ public final class MeshOperations {
      * Bevels a selected manifold edge region in one operation.
      * Each selected edge must have exactly two adjacent faces.
      */
+    public static OperationResult bevelEdgesResult(
+            MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedEdges == null || selectedEdges.isEmpty() || amount <= 0.0) {
+            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+        }
+
+        MeshGeometry result = bevelEdges(mesh, selectedEdges, amount);
+        java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
+        for (int i = mesh.vertices().size(); i < result.vertices().size(); i++) {
+            createdVertices.add(i);
+        }
+
+        java.util.Set<Integer> createdFaces = new java.util.LinkedHashSet<>();
+        for (int i = mesh.faces().size(); i < result.faces().size(); i++) {
+            createdFaces.add(i);
+        }
+
+        java.util.Set<Long> createdEdges = new java.util.LinkedHashSet<>();
+        for (int faceIndex : createdFaces) {
+            int[] ids = result.faces().get(faceIndex).vertices();
+            for (int i = 0; i < ids.length; i++) {
+                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+            }
+        }
+
+        return new OperationResult(result, createdVertices, createdFaces, createdEdges);
+    }
+
     public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (selectedEdges == null || selectedEdges.isEmpty() || amount <= 0.0) return mesh.copy();
