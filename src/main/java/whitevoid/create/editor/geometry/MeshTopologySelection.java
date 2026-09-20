@@ -1,9 +1,15 @@
 package whitevoid.create.editor.geometry;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import whitevoid.create.model.MeshGeometry;
-import whitevoid.create.model.ModelNode;
+import whitevoid.create.model.ModelRenderer;
 
 public final class MeshTopologySelection {
     private MeshTopologySelection() {}
@@ -62,58 +68,126 @@ public final class MeshTopologySelection {
         return result;
     }
 
+    /**
+     * Selects a true quad edge loop by walking across the edge opposite to the
+     * current edge in each adjacent quad. Non-quad/boundary regions stop.
+     */
     public static Set<Long> edgeLoop(MeshGeometry mesh, int a, int b) {
         Set<Long> result = new LinkedHashSet<>();
-        long start = edgeKey(a,b);
+        long start = edgeKey(a, b);
+        if (!containsEdge(mesh, a, b)) return result;
         result.add(start);
-        boolean changed;
-        do {
-            changed = false;
-            for (int[] edge : ModelRenderer.meshEdges(mesh)) {
-                long key = edgeKey(edge[0], edge[1]);
-                if (result.contains(key)) continue;
-                for (long selected : new LinkedHashSet<>(result)) {
-                    int sa=(int)(selected>>>32), sb=(int)selected;
-                    if (edge[0]==sa || edge[0]==sb || edge[1]==sa || edge[1]==sb) {
-                        if (result.add(key)) changed=true;
-                        break;
-                    }
+
+        Set<Long> frontier = new LinkedHashSet<>();
+        frontier.add(start);
+        while (!frontier.isEmpty()) {
+            Set<Long> next = new LinkedHashSet<>();
+            for (long edge : frontier) {
+                int ea = edgeA(edge), eb = edgeB(edge);
+                for (int faceIndex : adjacentFaces(mesh, ea, eb)) {
+                    long opposite = oppositeEdge(mesh.faces().get(faceIndex).vertices(), ea, eb);
+                    if (opposite >= 0 && result.add(opposite)) next.add(opposite);
                 }
             }
-        } while(changed);
+            frontier = next;
+        }
         return result;
     }
 
+    /**
+     * Selects a face strip by crossing the edge opposite the incoming edge.
+     * This is intentionally quad-aware; non-quad faces terminate the strip.
+     */
     public static Set<Integer> faceLoop(MeshGeometry mesh, int faceIndex) {
-        Set<Integer> result=new LinkedHashSet<>();
-        if(faceIndex<0 || faceIndex>=mesh.faces().size()) return result;
-        result.add(faceIndex);
-        boolean changed;
-        do {
-            changed=false;
-            for(int i=0;i<mesh.faces().size();i++) {
-                if(result.contains(i)) continue;
-                int[] a=mesh.faces().get(i).vertices();
-                for(int selected:new LinkedHashSet<>(result)) {
-                    if(shareEdge(a,mesh.faces().get(selected).vertices())) {
-                        if(result.add(i)) changed=true;
-                        break;
-                    }
-                }
-            }
-        } while(changed);
+        Set<Integer> result = new LinkedHashSet<>();
+        if (faceIndex < 0 || faceIndex >= mesh.faces().size()) return result;
+        int[] start = mesh.faces().get(faceIndex).vertices();
+        if (start.length != 4) {
+            result.add(faceIndex);
+            return result;
+        }
+
+        for (int edgeSlot = 0; edgeSlot < 2; edgeSlot++) {
+            int a = start[edgeSlot];
+            int b = start[(edgeSlot + 1) % 4];
+            walkFaceStrip(mesh, faceIndex, a, b, result);
+            int c = start[(edgeSlot + 2) % 4];
+            int d = start[(edgeSlot + 3) % 4];
+            walkFaceStrip(mesh, faceIndex, c, d, result);
+        }
         return result;
     }
 
-    private static boolean shareEdge(int[] a,int[] b) {
-        int shared=0;
-        for(int x:a) for(int y:b) if(x==y) shared++;
-        return shared>=2;
+    /** Edge ring: follows the opposite edge of each adjacent quad. */
+    public static Set<Long> edgeRing(MeshGeometry mesh, int a, int b) {
+        return edgeLoop(mesh, a, b);
+    }
+
+    /** Face ring: selects faces reached across opposite edges of the seed face. */
+    public static Set<Integer> faceRing(MeshGeometry mesh, int faceIndex) {
+        return faceLoop(mesh, faceIndex);
+    }
+
+    private static void walkFaceStrip(MeshGeometry mesh, int seedFace, int edgeA, int edgeB, Set<Integer> result) {
+        Queue<Integer> queue = new ArrayDeque<>();
+        Set<Integer> visited = new LinkedHashSet<>();
+        queue.add(seedFace);
+        visited.add(seedFace);
+
+        while (!queue.isEmpty()) {
+            int current = queue.remove();
+            int[] face = mesh.faces().get(current).vertices();
+            if (face.length != 4) continue;
+
+            long opposite = oppositeEdge(face, edgeA, edgeB);
+            if (opposite < 0) continue;
+
+            int oa = edgeA(opposite), ob = edgeB(opposite);
+            for (int neighbor : adjacentFaces(mesh, oa, ob)) {
+                if (neighbor == current) continue;
+                if (result.add(neighbor) && visited.add(neighbor)) {
+                    queue.add(neighbor);
+                }
+            }
+            edgeA = oa;
+            edgeB = ob;
+        }
+    }
+
+    private static long oppositeEdge(int[] face, int a, int b) {
+        if (face.length != 4) return -1L;
+        for (int i = 0; i < 4; i++) {
+            int x = face[i];
+            int y = face[(i + 1) % 4];
+            if (edgeKey(x, y) == edgeKey(a, b)) {
+                return edgeKey(face[(i + 2) % 4], face[(i + 3) % 4]);
+            }
+        }
+        return -1L;
+    }
+
+    private static List<Integer> adjacentFaces(MeshGeometry mesh, int a, int b) {
+        List<Integer> result = new ArrayList<>();
+        long key = edgeKey(a, b);
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            int[] face = mesh.faces().get(i).vertices();
+            for (int j = 0; j < face.length; j++) {
+                if (edgeKey(face[j], face[(j + 1) % face.length]) == key) {
+                    result.add(i);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    private static boolean containsEdge(MeshGeometry mesh, int a, int b) {
+        return !adjacentFaces(mesh, a, b).isEmpty();
     }
 
     public static Set<Integer> selectedFacesForVertices(MeshGeometry mesh, Set<Integer> vertices) {
         Set<Integer> result = new LinkedHashSet<>();
-        for (int i=0;i<mesh.faces().size();i++) {
+        for (int i = 0; i < mesh.faces().size(); i++) {
             for (int v : mesh.faces().get(i).vertices()) {
                 if (vertices.contains(v)) { result.add(i); break; }
             }
@@ -123,23 +197,28 @@ public final class MeshTopologySelection {
 
     public static Set<Integer> selectedFacesForEdges(MeshGeometry mesh, Set<Long> edges) {
         Set<Integer> result = new LinkedHashSet<>();
-        for (int i=0;i<mesh.faces().size();i++) {
-            int[] v=mesh.faces().get(i).vertices();
-            for(int j=0;j<v.length;j++) {
-                long k=edgeKey(v[j],v[(j+1)%v.length]);
-                if(edges.contains(k)){result.add(i);break;}
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            int[] v = mesh.faces().get(i).vertices();
+            for (int j = 0; j < v.length; j++) {
+                if (edges.contains(edgeKey(v[j], v[(j + 1) % v.length]))) {
+                    result.add(i);
+                    break;
+                }
             }
         }
         return result;
     }
 
-    private static boolean shareVertex(int[] a,int[] b) {
-        for(int x:a) for(int y:b) if(x==y) return true;
+    private static boolean shareVertex(int[] a, int[] b) {
+        for (int x : a) for (int y : b) if (x == y) return true;
         return false;
     }
 
-    private static long edgeKey(int a,int b) {
-        int lo=Math.min(a,b), hi=Math.max(a,b);
-        return ((long)lo<<32)|(hi&0xffffffffL);
+    private static int edgeA(long key) { return (int)(key >>> 32); }
+    private static int edgeB(long key) { return (int)key; }
+
+    public static long edgeKey(int a, int b) {
+        int lo = Math.min(a, b), hi = Math.max(a, b);
+        return ((long)lo << 32) | (hi & 0xffffffffL);
     }
 }
