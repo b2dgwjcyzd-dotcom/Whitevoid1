@@ -5,6 +5,9 @@ import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.TransformMath;
 
 public final class ViewportGizmo {
+    public Axis hoveredAxis(ModelNode node, TransformMode mode, ViewportProjector projector, double mouseX, double mouseY, int cx, int cy) {
+        return hit(node, mode, projector, mouseX, mouseY, cx, cy);
+    }
     public enum Axis { NONE, X, Y, Z }
 
     public Axis hit(ModelNode node, TransformMode mode, ViewportProjector projector,
