@@ -49,6 +49,21 @@ public final class MeshComponentTransforms {
         return new MeshGeometry(vertices,mesh.faces());
     }
 
+    public static MeshGeometry mirror(MeshGeometry mesh, Set<Integer> ids,
+                                      TransformMath.Point pivot, int axis) {
+        java.util.ArrayList<MeshGeometry.Vertex> vertices=new java.util.ArrayList<>(mesh.vertices());
+        for(int id:ids){
+            if(id<0||id>=vertices.size()) continue;
+            var v=vertices.get(id);
+            double x=v.x(), y=v.y(), z=v.z();
+            if(axis==0) x=2.0*pivot.x()-x;
+            else if(axis==1) y=2.0*pivot.y()-y;
+            else if(axis==2) z=2.0*pivot.z()-z;
+            vertices.set(id,new MeshGeometry.Vertex(x,y,z));
+        }
+        return new MeshGeometry(vertices,mesh.faces());
+    }
+
     public static Set<Integer> affectedVertices(MeshGeometry mesh, MeshSelectionMode mode,
                                                  List<Integer> vertices, List<int[]> edges,
                                                  List<Integer> faces) {
