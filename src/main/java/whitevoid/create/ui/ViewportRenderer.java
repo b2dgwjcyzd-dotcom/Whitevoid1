@@ -32,6 +32,9 @@ public final class ViewportRenderer {
             drawGizmo(context, projector, selected, viewport.transform().mode(), centerX, centerY, left, top, right, bottom,
                     hoveredAxis);
         }
+        if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
+        }
 
         var textRenderer = MinecraftClient.getInstance().textRenderer;
         context.drawTextWithShadow(textRenderer, "CREATE • Model Viewport", left + 10, top + 10, 0xFFE8E8E8);
@@ -149,6 +152,38 @@ public final class ViewportRenderer {
                         left,top,right,bottom,colors[axis]);
                 prevX=x; prevY=y;
             }
+        }
+    }
+
+    private void drawGeometryHandles(DrawContext context, ViewportProjector projector, ModelNode node,
+                                      int cx, int cy, int left, int top, int right, int bottom,
+                                      ViewportGizmo.Axis hoveredAxis) {
+        if (node.geometry() == null) return;
+
+        double[] lengths = {
+                node.geometry().width() * 0.5 + 0.45,
+                node.geometry().height() * 0.5 + 0.45,
+                node.geometry().depth() * 0.5 + 0.45
+        };
+        double[][] dirs = {{1,0,0},{0,1,0},{0,0,1}};
+        int[] colors = {0xFFE06B6B, 0xFF70C878, 0xFF6B8EDC};
+        ViewportGizmo.Axis[] axes = {
+                ViewportGizmo.Axis.X, ViewportGizmo.Axis.Y, ViewportGizmo.Axis.Z
+        };
+
+        TransformMath.Point o3 = TransformMath.applyHierarchy(new TransformMath.Point(0,0,0), node);
+        Point o = projector.project(o3.x(), o3.y(), o3.z(), cx, cy, 300);
+        if (o == null) return;
+
+        for (int i=0;i<3;i++) {
+            TransformMath.Point p3 = TransformMath.applyHierarchy(
+                    new TransformMath.Point(dirs[i][0]*lengths[i], dirs[i][1]*lengths[i], dirs[i][2]*lengths[i]), node);
+            Point p = projector.project(p3.x(), p3.y(), p3.z(), cx, cy, 300);
+            if (p == null) continue;
+
+            int color = hoveredAxis == axes[i] ? 0xFFFFFFFF : colors[i];
+            drawLine(context, o, p, left, top, right, bottom, color);
+            drawHandle(context, p, color, left, top, right, bottom);
         }
     }
 
