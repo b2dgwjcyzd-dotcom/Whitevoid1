@@ -307,28 +307,25 @@ public final class MeshComponentSelection {
         if (isEmpty()) nodeId = null;
     }
 
+    /** Grow the current selection by exactly one topology ring. */
     public void extend(ModelNode node) {
         if (node == null || !matches(node)) return;
         MeshGeometry mesh = node.ensureMeshGeometry();
         if (mesh == null) return;
         if (mode == MeshSelectionMode.VERTEX) {
-            Set<Integer> seeds = new LinkedHashSet<>(vertices);
-            Set<Integer> expanded = new LinkedHashSet<>(vertices);
-            for (int seed : seeds) {
-                expanded.addAll(MeshTopologySelection.vertexNeighbors(mesh, seed));
-            }
+            Set<Integer> current = new LinkedHashSet<>(vertices);
             vertices.clear();
-            vertices.addAll(expanded);
+            vertices.addAll(MeshTopologySelection.growVertices(mesh, current));
             activeVertex = first(vertices);
         } else if (mode == MeshSelectionMode.EDGE) {
-            Set<Long> next = new LinkedHashSet<>(edges);
-            for (long edge : edges) {
-                next.addAll(MeshTopologySelection.linkedEdges(mesh, Set.of(edge)));
-            }
-            edges.addAll(next);
+            Set<Long> current = new LinkedHashSet<>(edges);
+            edges.clear();
+            edges.addAll(MeshTopologySelection.growEdges(mesh, current));
             activeEdge = firstLong(edges);
         } else {
-            faces.addAll(MeshTopologySelection.linkedFaces(mesh, new LinkedHashSet<>(faces)));
+            Set<Integer> current = new LinkedHashSet<>(faces);
+            faces.clear();
+            faces.addAll(MeshTopologySelection.growFaces(mesh, current));
             activeFace = first(faces);
         }
     }
@@ -350,24 +347,18 @@ public final class MeshComponentSelection {
         } else if (mode == MeshSelectionMode.EDGE) {
             Set<Long> next = new LinkedHashSet<>();
             for (long edge : edges) {
-                int a = (int)(edge >>> 32), b = (int)edge;
                 boolean exposed = false;
-                for (int[] candidate : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
-                    long key = MeshTopologySelection.edgeKey(candidate[0], candidate[1]);
-                    if (key == edge) {
-                        for (int[] other : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
-                            long otherKey = MeshTopologySelection.edgeKey(other[0], other[1]);
-                            if (otherKey == edge) continue;
-                            if ((other[0] == a || other[0] == b || other[1] == a || other[1] == b) && !edges.contains(otherKey)) {
-                                exposed = true; break;
-                            }
-                        }
+                for (long neighbor : MeshTopologySelection.edgeNeighbors(mesh, edge)) {
+                    if (!edges.contains(neighbor)) {
+                        exposed = true;
+                        break;
                     }
-                    if (exposed) break;
                 }
                 if (!exposed) next.add(edge);
             }
-            edges.clear(); edges.addAll(next); activeEdge = firstLong(edges);
+            edges.clear();
+            edges.addAll(next);
+            activeEdge = firstLong(edges);
         } else {
             Set<Integer> next = new LinkedHashSet<>();
             for (int face : faces) {
