@@ -4,6 +4,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import whitevoid.create.core.CreateCore;
+import whitevoid.create.core.history.commands.SetTransformCommand;
 import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
@@ -31,24 +32,76 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 71) { core.editorContext().viewport().transform().setMode(TransformMode.MOVE); return true; }
-        if (keyCode == 82) { core.editorContext().viewport().transform().setMode(TransformMode.ROTATE); return true; }
-        if (keyCode == 83) { core.editorContext().viewport().transform().setMode(TransformMode.SCALE); return true; }
-        if (keyCode == 27) { core.editorContext().viewport().transform().setMode(TransformMode.SELECT); }
+        ViewportContext viewport = core.editorContext().viewport();
+
+        if (keyCode == 71) { viewport.transform().setMode(TransformMode.MOVE); return true; }
+        if (keyCode == 82) { viewport.transform().setMode(TransformMode.ROTATE); return true; }
+        if (keyCode == 83) { viewport.transform().setMode(TransformMode.SCALE); return true; }
+
+        if (keyCode == 90 && hasControlDown()) {
+            if (hasShiftDown()) viewportContextHistoryRedo();
+            else viewportContextHistoryUndo();
+            return true;
+        }
+        if (keyCode == 89 && hasControlDown()) {
+            viewportContextHistoryRedo();
+            return true;
+        }
+
+        ModelNode node = viewport.selection().first(core.editorContext().model());
+        if (node != null) {
+            double step = hasShiftDown() ? 0.1 : 1.0;
+            if (viewport.transform().mode() == TransformMode.MOVE) {
+                if (keyCode == 263) { transformMove(node, -step, 0, 0); return true; }
+                if (keyCode == 262) { transformMove(node, step, 0, 0); return true; }
+                if (keyCode == 264) { transformMove(node, 0, 0, step); return true; }
+                if (keyCode == 265) { transformMove(node, 0, 0, -step); return true; }
+                if (keyCode == 32) { transformMove(node, 0, step, 0); return true; }
+            }
+            if (viewport.transform().mode() == TransformMode.ROTATE) {
+                if (keyCode == 263) { transformRotate(node, 0, -5, 0); return true; }
+                if (keyCode == 262) { transformRotate(node, 0, 5, 0); return true; }
+                if (keyCode == 264) { transformRotate(node, -5, 0, 0); return true; }
+                if (keyCode == 265) { transformRotate(node, 5, 0, 0); return true; }
+            }
+            if (viewport.transform().mode() == TransformMode.SCALE) {
+                if (keyCode == 263 || keyCode == 264) { transformScale(node, -0.1, -0.1, -0.1); return true; }
+                if (keyCode == 262 || keyCode == 265) { transformScale(node, 0.1, 0.1, 0.1); return true; }
+            }
+        }
+
+        if (keyCode == 27) viewport.transform().setMode(TransformMode.SELECT);
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
+    private void transformMove(ModelNode node, double dx, double dy, double dz) {
+        var t=node.transform();
+        core.editorContext().history().execute(new SetTransformCommand(node,
+                t.x()+dx,t.y()+dy,t.z()+dz,t.rotationX(),t.rotationY(),t.rotationZ(),t.scaleX(),t.scaleY(),t.scaleZ()));
+    }
+
+    private void transformRotate(ModelNode node, double dx, double dy, double dz) {
+        var t=node.transform();
+        core.editorContext().history().execute(new SetTransformCommand(node,
+                t.x(),t.y(),t.z(),t.rotationX()+dx,t.rotationY()+dy,t.rotationZ()+dz,t.scaleX(),t.scaleY(),t.scaleZ()));
+    }
+
+    private void transformScale(ModelNode node, double dx, double dy, double dz) {
+        var t=node.transform();
+        core.editorContext().history().execute(new SetTransformCommand(node,
+                t.x(),t.y(),t.z(),t.rotationX(),t.rotationY(),t.rotationZ(),
+                Math.max(.01,t.scaleX()+dx),Math.max(.01,t.scaleY()+dy),Math.max(.01,t.scaleZ()+dz)));
+    }
+
+    private void viewportContextHistoryUndo() { core.editorContext().history().undo(); }
+    private void viewportContextHistoryRedo() { core.editorContext().history().redo(); }
+
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (viewportInput.mouseClicked(mouseX, mouseY, button)) return true;
-
         if (button == 0) {
-            ModelNode hit = new ViewportPicker().pick(core.editorContext().model(),
-                    core.editorContext().viewport(), mouseX, mouseY, width, height);
-            if (hit != null) {
-                core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
-            } else {
-                core.editorContext().viewport().selection().clear();
-            }
+            ModelNode hit = new ViewportPicker().pick(core.editorContext().model(), core.editorContext().viewport(), mouseX, mouseY, width, height);
+            if (hit != null) core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
+            else core.editorContext().viewport().selection().clear();
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -71,8 +124,7 @@ public final class CreateScreen extends Screen {
 
     @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
-        ViewportContext viewport = core.editorContext().viewport();
-        viewportRenderer.render(context, width, height, viewport, core.editorContext().model());
+        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model());
         super.render(context, mouseX, mouseY, delta);
     }
 
