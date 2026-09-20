@@ -36,11 +36,18 @@ public final class ViewportRenderer {
                     hoveredAxis);
         }
         if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            GeometryFace faceToDraw = viewport.geometryFaceSelection().matches(selected)
-                    ? selectedFace
-                    : hoveredFace;
-            drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
-                    centerX, centerY, left, top, right, bottom);
+            int selectedMeshFace = viewport.meshFaceSelection().matches(selected)
+                    ? viewport.meshFaceSelection().faceIndex() : -1;
+            int hoveredMeshFace = viewport.meshFaceSelection().matches(selected)
+                    ? -1 : -1;
+            drawMeshFaceHighlight(context, projector, selected,
+                    selectedMeshFace, centerX, centerY, left, top, right, bottom);
+            if (selectedMeshFace < 0) {
+                GeometryFace faceToDraw = viewport.geometryFaceSelection().matches(selected)
+                        ? selectedFace : hoveredFace;
+                drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
+                        centerX, centerY, left, top, right, bottom);
+            }
             drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
         }
 
@@ -190,6 +197,32 @@ public final class ViewportRenderer {
                         left,top,right,bottom,colors[axis]);
                 prevX=x; prevY=y;
             }
+        }
+    }
+
+    private void drawMeshFaceHighlight(DrawContext context, ViewportProjector projector,
+                                          ModelNode node, int faceIndex,
+                                          int cx, int cy, int left, int top, int right, int bottom) {
+        if (faceIndex < 0) return;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null || faceIndex >= mesh.faces().size()) return;
+
+        int[] indices = mesh.faces().get(faceIndex).vertices();
+        Point[] points = new Point[indices.length];
+        for (int i = 0; i < indices.length; i++) {
+            var v = mesh.vertices().get(indices[i]);
+            TransformMath.Point world = TransformMath.applyHierarchy(
+                    new TransformMath.Point(v.x(), v.y(), v.z()), node);
+            points[i] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+            if (points[i] == null) return;
+        }
+
+        for (int i = 0; i < points.length; i++) {
+            Point a = points[i], b = points[(i + 1) % points.length];
+            drawLine(context, a, b, left, top, right, bottom, 0xFFFFFFFF);
+            drawLine(context, new Point(a.x() + 1, a.y(), a.depth()),
+                    new Point(b.x() + 1, b.y(), b.depth()),
+                    left, top, right, bottom, 0xFFE7E9EF);
         }
     }
 
