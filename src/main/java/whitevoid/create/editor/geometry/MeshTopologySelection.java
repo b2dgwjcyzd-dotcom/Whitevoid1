@@ -98,57 +98,94 @@ public final class MeshTopologySelection {
     public static Set<Integer> faceLoop(MeshGeometry mesh, int faceIndex) {
         Set<Integer> result = new LinkedHashSet<>();
         if (faceIndex < 0 || faceIndex >= mesh.faces().size()) return result;
-        int[] start = mesh.faces().get(faceIndex).vertices();
-        if (start.length != 4) {
+        int[] face = mesh.faces().get(faceIndex).vertices();
+        if (face.length != 4) {
             result.add(faceIndex);
             return result;
         }
 
-        for (int edgeSlot = 0; edgeSlot < 2; edgeSlot++) {
-            int a = start[edgeSlot];
-            int b = start[(edgeSlot + 1) % 4];
-            walkFaceStrip(mesh, faceIndex, a, b, result);
-            int c = start[(edgeSlot + 2) % 4];
-            int d = start[(edgeSlot + 3) % 4];
-            walkFaceStrip(mesh, faceIndex, c, d, result);
-        }
+        result.add(faceIndex);
+        // A quad has two independent strip directions. Walk both directions
+        // from each pair of opposite edges.
+        walkFaceStrip(mesh, faceIndex, face[0], face[1], result);
+        walkFaceStrip(mesh, faceIndex, face[1], face[2], result);
         return result;
     }
 
     /**
-     * Selects an edge ring by crossing the two faces adjacent to the seed edge
-     * and collecting corresponding edges on the opposite side. Unlike a loop,
-     * this travels through the face columns around the edge.
+     * Selects an edge ring as the parallel edge family of the seed edge.
+     * Boundary/non-quad faces naturally terminate the traversal.
      */
     public static Set<Long> edgeRing(MeshGeometry mesh, int a, int b) {
         Set<Long> result = new LinkedHashSet<>();
         if (!containsEdge(mesh, a, b)) return result;
+
         long seed = edgeKey(a, b);
         result.add(seed);
+        Queue<RingState> queue = new ArrayDeque<>();
+        Set<String> visited = new LinkedHashSet<>();
 
         for (int faceIndex : adjacentFaces(mesh, a, b)) {
             int[] face = mesh.faces().get(faceIndex).vertices();
             if (face.length != 4) continue;
-
             int slot = edgeSlot(face, a, b);
             if (slot < 0) continue;
 
-            // Ring direction: take the two edges immediately adjacent to the
-            // seed edge, then continue through matching edges in neighboring quads.
+            // The two edges sharing one endpoint with the seed are the
+            // parallel-family continuation on the neighboring column.
             int leftA = face[(slot + 3) % 4];
             int leftB = face[slot];
             int rightA = face[(slot + 1) % 4];
             int rightB = face[(slot + 2) % 4];
 
-            walkEdgeRing(mesh, leftA, leftB, result);
-            walkEdgeRing(mesh, rightA, rightB, result);
+            enqueueRingEdge(mesh, leftA, leftB, result, queue, visited);
+            enqueueRingEdge(mesh, rightA, rightB, result, queue, visited);
+        }
+
+        while (!queue.isEmpty()) {
+            RingState state = queue.remove();
+            int[] face = mesh.faces().get(state.faceIndex).vertices();
+            if (face.length != 4) continue;
+            int slot = edgeSlot(face, state.a, state.b);
+            if (slot < 0) continue;
+
+            int nextA = face[(slot + 1) % 4];
+            int nextB = face[(slot + 2) % 4];
+            long next = edgeKey(nextA, nextB);
+            if (result.add(next)) {
+                for (int neighbor : adjacentFaces(mesh, nextA, nextB)) {
+                    enqueueRingEdge(mesh, nextA, nextB, result, queue, visited, neighbor);
+                }
+            }
         }
         return result;
     }
 
+    private record RingState(int faceIndex, int a, int b) {}
+
+    private static void enqueueRingEdge(MeshGeometry mesh, int a, int b,
+                                         Set<Long> result, Queue<RingState> queue,
+                                         Set<String> visited) {
+        for (int faceIndex : adjacentFaces(mesh, a, b)) {
+            enqueueRingEdge(mesh, a, b, result, queue, visited, faceIndex);
+        }
+    }
+
+    private static void enqueueRingEdge(MeshGeometry mesh, int a, int b,
+                                         Set<Long> result, Queue<RingState> queue,
+                                         Set<String> visited, int faceIndex) {
+        int[] face = mesh.faces().get(faceIndex).vertices();
+        if (face.length != 4) return;
+        int slot = edgeSlot(face, a, b);
+        if (slot < 0) return;
+        String key = faceIndex + ":" + edgeKey(a, b);
+        if (visited.add(key)) queue.add(new RingState(faceIndex, a, b));
+    }
+
     /**
-     * Selects a face ring by collecting faces sharing a corresponding
-     * cross-direction edge with the seed face.
+     * Selects a face ring by traversing corresponding cross-direction edges.
+     * Each step crosses the current edge into a quad and continues from the
+     * edge opposite that crossing edge.
      */
     public static Set<Integer> faceRing(MeshGeometry mesh, int faceIndex) {
         Set<Integer> result = new LinkedHashSet<>();
@@ -160,8 +197,6 @@ public final class MeshTopologySelection {
         }
 
         result.add(faceIndex);
-        // Start from each pair of opposite edges and walk across the
-        // neighboring face columns.
         walkFaceRing(mesh, faceIndex, seed[0], seed[1], result);
         walkFaceRing(mesh, faceIndex, seed[1], seed[2], result);
         return result;
@@ -175,77 +210,54 @@ public final class MeshTopologySelection {
         return -1;
     }
 
-    private static void walkEdgeRing(MeshGeometry mesh, int a, int b, Set<Long> result) {
-        Queue<Long> queue = new ArrayDeque<>();
-        Set<Long> visited = new LinkedHashSet<>();
-        long start = edgeKey(a, b);
-        queue.add(start);
-        visited.add(start);
+    private static void walkFaceRing(MeshGeometry mesh, int seedFace,
+                                         int a, int b, Set<Integer> result) {
+        Queue<StripState> queue = new ArrayDeque<>();
+        Set<String> visited = new LinkedHashSet<>();
+        queue.add(new StripState(seedFace, a, b));
+        visited.add(seedFace + ":" + edgeKey(a, b));
 
         while (!queue.isEmpty()) {
-            long current = queue.remove();
-            int ca = edgeA(current), cb = edgeB(current);
-            for (int faceIndex : adjacentFaces(mesh, ca, cb)) {
-                int[] face = mesh.faces().get(faceIndex).vertices();
-                if (face.length != 4) continue;
-                int slot = edgeSlot(face, ca, cb);
-                if (slot < 0) continue;
-
-                long e1 = edgeKey(face[(slot + 1) % 4], face[(slot + 2) % 4]);
-                long e2 = edgeKey(face[(slot + 2) % 4], face[(slot + 3) % 4]);
-                for (long next : List.of(e1, e2)) {
-                    if (result.add(next) && visited.add(next)) queue.add(next);
-                }
-            }
-        }
-    }
-
-    private static void walkFaceRing(MeshGeometry mesh, int seedFace, int a, int b, Set<Integer> result) {
-        Queue<Integer> queue = new ArrayDeque<>();
-        Set<Integer> visited = new LinkedHashSet<>();
-        queue.add(seedFace);
-        visited.add(seedFace);
-
-        while (!queue.isEmpty()) {
-            int current = queue.remove();
-            int[] face = mesh.faces().get(current).vertices();
+            StripState state = queue.remove();
+            int[] face = mesh.faces().get(state.faceIndex).vertices();
             if (face.length != 4) continue;
-            int slot = edgeSlot(face, a, b);
-            if (slot < 0) continue;
-
-            // Cross the edge, then choose the neighboring quad's opposite
-            // edge as the next ring direction.
-            for (int neighbor : adjacentFaces(mesh, a, b)) {
-                if (neighbor == current) continue;
-                if (!result.add(neighbor) || !visited.add(neighbor)) continue;
-                queue.add(neighbor);
-            }
-        }
-    }
-
-    private static void walkFaceStrip(MeshGeometry mesh, int seedFace, int edgeA, int edgeB, Set<Integer> result) {
-        Queue<Integer> queue = new ArrayDeque<>();
-        Set<Integer> visited = new LinkedHashSet<>();
-        queue.add(seedFace);
-        visited.add(seedFace);
-
-        while (!queue.isEmpty()) {
-            int current = queue.remove();
-            int[] face = mesh.faces().get(current).vertices();
-            if (face.length != 4) continue;
-
-            long opposite = oppositeEdge(face, edgeA, edgeB);
+            long opposite = oppositeEdge(face, state.a, state.b);
             if (opposite < 0) continue;
 
             int oa = edgeA(opposite), ob = edgeB(opposite);
             for (int neighbor : adjacentFaces(mesh, oa, ob)) {
-                if (neighbor == current) continue;
-                if (result.add(neighbor) && visited.add(neighbor)) {
-                    queue.add(neighbor);
-                }
+                if (neighbor == state.faceIndex) continue;
+                if (!result.add(neighbor)) continue;
+                String key = neighbor + ":" + edgeKey(oa, ob);
+                if (visited.add(key)) queue.add(new StripState(neighbor, oa, ob));
             }
-            edgeA = oa;
-            edgeB = ob;
+        }
+    }
+
+    private record StripState(int faceIndex, int a, int b) {}
+
+    private static void walkFaceStrip(MeshGeometry mesh, int seedFace,
+                                      int edgeA, int edgeB, Set<Integer> result) {
+        Queue<StripState> queue = new ArrayDeque<>();
+        Set<String> visited = new LinkedHashSet<>();
+        queue.add(new StripState(seedFace, edgeA, edgeB));
+        visited.add(seedFace + ":" + edgeKey(edgeA, edgeB));
+
+        while (!queue.isEmpty()) {
+            StripState state = queue.remove();
+            int[] face = mesh.faces().get(state.faceIndex).vertices();
+            if (face.length != 4) continue;
+
+            long opposite = oppositeEdge(face, state.a, state.b);
+            if (opposite < 0) continue;
+            int oa = edgeA(opposite), ob = edgeB(opposite);
+
+            for (int neighbor : adjacentFaces(mesh, oa, ob)) {
+                if (neighbor == state.faceIndex) continue;
+                if (!result.add(neighbor)) continue;
+                String key = neighbor + ":" + edgeKey(oa, ob);
+                if (visited.add(key)) queue.add(new StripState(neighbor, oa, ob));
+            }
         }
     }
 
