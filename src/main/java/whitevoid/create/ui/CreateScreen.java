@@ -66,6 +66,8 @@ public final class CreateScreen extends Screen {
     private boolean componentNumericEntry;
     private boolean topologyPathPickArmed;
     private boolean topologyPathSecondPick;
+    private boolean topologyPathHasStart;
+    private int topologyPathStartIndex = -1;
 
     private StringBuilder componentNumericBuffer = new StringBuilder();
     private boolean componentNumericNegative;
@@ -98,6 +100,10 @@ public final class CreateScreen extends Screen {
         if (componentKeyboardTransformArmed && viewport.transform().mode() == TransformMode.GEOMETRY
                 && viewport.meshComponentSelection().size() > 0) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            topologyPathPickArmed = false;
+            topologyPathSecondPick = false;
+            topologyPathHasStart = false;
+            topologyPathStartIndex = -1;
                 componentKeyboardTransformArmed = false;
                 componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
                 componentPlaneConstraint = false;
@@ -673,10 +679,18 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 if (mesh != null) {
                     int hit = hitTestMeshVertex(node, mesh, viewport, mouseX, mouseY);
                     if (hit >= 0) {
+                        if (!topologyPathHasStart) {
+                            viewport.meshComponentSelection().selectVertex(node, hit);
+                            topologyPathHasStart = true;
+                            topologyPathStartIndex = hit;
+                            return true;
+                        }
                         viewport.meshComponentSelection().selectShortestVertexPath(
-                                node, viewport.meshComponentSelection().activeVertex(), hit);
+                                node, topologyPathStartIndex, hit);
                         topologyPathPickArmed = false;
                         topologyPathSecondPick = false;
+                        topologyPathHasStart = false;
+                        topologyPathStartIndex = -1;
                         return true;
                     }
                 }
