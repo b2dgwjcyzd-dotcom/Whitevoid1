@@ -56,7 +56,7 @@ public final class ViewportRenderer {
             drawMeshComponentSelection(context, projector, selected, viewport,
                     centerX, centerY, left, top, right, bottom);
             drawComponentGizmo(context, projector, selected, viewport,
-                    centerX, centerY, left, top, right, bottom, ComponentTransformGizmo.Axis.NONE, Operation.MOVE);
+                    centerX, centerY, left, top, right, bottom, hoveredComponentAxis, componentOperation);
             if (selected.meshGeometry() == null) {
                 drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
             }
