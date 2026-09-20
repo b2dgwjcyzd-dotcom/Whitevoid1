@@ -60,6 +60,7 @@ public final class CreateScreen extends Screen {
         if (keyCode == GLFW.GLFW_KEY_B) {
             viewport.transform().setMode(TransformMode.GEOMETRY);
             viewport.geometryFaceSelection().clear();
+            viewport.meshFaceSelection().clear();
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
