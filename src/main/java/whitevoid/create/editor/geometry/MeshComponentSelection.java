@@ -307,6 +307,84 @@ public final class MeshComponentSelection {
         if (isEmpty()) nodeId = null;
     }
 
+    public void extend(ModelNode node) {
+        if (node == null || !matches(node)) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+        if (mode == MeshSelectionMode.VERTEX) {
+            vertices.addAll(MeshTopologySelection.vertexNeighbors(mesh, first(vertices)));
+            activeVertex = first(vertices);
+        } else if (mode == MeshSelectionMode.EDGE) {
+            Set<Long> next = new LinkedHashSet<>(edges);
+            for (long edge : edges) {
+                next.addAll(MeshTopologySelection.linkedEdges(mesh, Set.of(edge)));
+            }
+            edges.addAll(next);
+            activeEdge = firstLong(edges);
+        } else {
+            faces.addAll(MeshTopologySelection.linkedFaces(mesh, new LinkedHashSet<>(faces)));
+            activeFace = first(faces);
+        }
+    }
+
+    public void shrink(ModelNode node) {
+        if (node == null || !matches(node)) return;
+        MeshGeometry mesh = node.ensureMeshGeometry();
+        if (mesh == null || size() == 0) return;
+        if (mode == MeshSelectionMode.VERTEX) {
+            Set<Integer> next = new LinkedHashSet<>();
+            for (int v : vertices) {
+                boolean boundary = false;
+                for (int neighbor : MeshTopologySelection.vertexNeighbors(mesh, v)) {
+                    if (!vertices.contains(neighbor)) { boundary = true; break; }
+                }
+                if (!boundary) next.add(v);
+            }
+            vertices.clear(); vertices.addAll(next); activeVertex = first(vertices);
+        } else if (mode == MeshSelectionMode.EDGE) {
+            Set<Long> next = new LinkedHashSet<>();
+            for (long edge : edges) {
+                int a = (int)(edge >>> 32), b = (int)edge;
+                boolean exposed = false;
+                for (int[] candidate : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
+                    long key = MeshTopologySelection.edgeKey(candidate[0], candidate[1]);
+                    if (key == edge) {
+                        for (int[] other : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
+                            long otherKey = MeshTopologySelection.edgeKey(other[0], other[1]);
+                            if (otherKey == edge) continue;
+                            if ((other[0] == a || other[0] == b || other[1] == a || other[1] == b) && !edges.contains(otherKey)) {
+                                exposed = true; break;
+                            }
+                        }
+                    }
+                    if (exposed) break;
+                }
+                if (!exposed) next.add(edge);
+            }
+            edges.clear(); edges.addAll(next); activeEdge = firstLong(edges);
+        } else {
+            Set<Integer> next = new LinkedHashSet<>();
+            for (int face : faces) {
+                boolean exposed = false;
+                int[] fv = mesh.faces().get(face).vertices();
+                for (int other = 0; other < mesh.faces().size(); other++) {
+                    if (faces.contains(other)) continue;
+                    int[] ov = mesh.faces().get(other).vertices();
+                    if (sharesEdge(fv, ov)) { exposed = true; break; }
+                }
+                if (!exposed) next.add(face);
+            }
+            faces.clear(); faces.addAll(next); activeFace = first(faces);
+        }
+        if (isEmpty()) nodeId = null;
+    }
+
+    private static boolean sharesEdge(int[] a, int[] b) {
+        int shared = 0;
+        for (int x : a) for (int y : b) if (x == y) shared++;
+        return shared >= 2;
+    }
+
     public void selectLinked(ModelNode node) {
         if (node == null || !matches(node)) return;
         var mesh = node.ensureMeshGeometry();
