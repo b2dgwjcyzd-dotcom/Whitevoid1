@@ -1,11 +1,100 @@
 package whitevoid.create.editor.geometry;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import whitevoid.create.model.MeshGeometry;
 
 public final class MeshOperations {
     private MeshOperations() {}
+
+    public record OperationResult(
+            MeshGeometry mesh,
+            Set<Integer> createdVertices,
+            Set<Integer> createdFaces,
+            Set<Long> createdEdges) {
+        public OperationResult {
+            if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+            createdVertices = Collections.unmodifiableSet(new LinkedHashSet<>(createdVertices));
+            createdFaces = Collections.unmodifiableSet(new LinkedHashSet<>(createdFaces));
+            createdEdges = Collections.unmodifiableSet(new LinkedHashSet<>(createdEdges));
+        }
+    }
+
+    public static OperationResult extrudeEdgesResult(
+            MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedEdges == null || selectedEdges.isEmpty() || amount == 0.0) {
+            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+        }
+
+        java.util.Set<Long> valid = new java.util.LinkedHashSet<>();
+        java.util.Set<Integer> affected = new java.util.LinkedHashSet<>();
+        java.util.Map<Integer, double[]> normals = new java.util.LinkedHashMap<>();
+
+        for (long key : selectedEdges) {
+            int a = (int) (key >>> 32);
+            int b = (int) key;
+            validateEdge(mesh, a, b);
+            if (adjacentFaces(mesh, a, b).isEmpty()) {
+                throw new IllegalArgumentException("Selected edge is not connected to a face");
+            }
+            valid.add(key);
+            affected.add(a);
+            affected.add(b);
+            for (int faceIndex : adjacentFaces(mesh, a, b)) {
+                double[] n = faceNormal(mesh, mesh.faces().get(faceIndex));
+                for (int vertex : new int[]{a, b}) {
+                    double[] sum = normals.computeIfAbsent(vertex, ignored -> new double[3]);
+                    sum[0] += n[0]; sum[1] += n[1]; sum[2] += n[2];
+                }
+            }
+        }
+
+        java.util.List<Integer> ordered = new java.util.ArrayList<>(affected);
+        java.util.Collections.sort(ordered);
+        java.util.List<MeshGeometry.Vertex> vertices = new java.util.ArrayList<>(mesh.vertices());
+        java.util.Map<Integer, Integer> duplicate = new java.util.LinkedHashMap<>();
+        java.util.Set<Integer> createdVertices = new java.util.LinkedHashSet<>();
+
+        for (int id : ordered) {
+            double[] n = normals.get(id);
+            double len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+            if (len < 1e-9) { n[0] = 0; n[1] = 1; n[2] = 0; }
+            else { n[0] /= len; n[1] /= len; n[2] /= len; }
+
+            MeshGeometry.Vertex v = mesh.vertices().get(id);
+            int copy = vertices.size();
+            vertices.add(new MeshGeometry.Vertex(
+                    v.x() + n[0] * amount,
+                    v.y() + n[1] * amount,
+                    v.z() + n[2] * amount));
+            duplicate.put(id, copy);
+            createdVertices.add(copy);
+        }
+
+        java.util.List<MeshGeometry.Face> faces = new java.util.ArrayList<>(mesh.faces());
+        java.util.Set<Integer> createdFaces = new java.util.LinkedHashSet<>();
+        java.util.Set<Long> createdEdges = new java.util.LinkedHashSet<>();
+
+        for (long key : valid) {
+            int a = (int) (key >>> 32);
+            int b = (int) key;
+            int da = duplicate.get(a);
+            int db = duplicate.get(b);
+            int faceIndex = faces.size();
+            faces.add(new MeshGeometry.Face(a, b, db, da));
+            createdFaces.add(faceIndex);
+            createdEdges.add(MeshTopology.edgeKey(da, db));
+            createdEdges.add(MeshTopology.edgeKey(a, da));
+            createdEdges.add(MeshTopology.edgeKey(b, db));
+        }
+
+        return new OperationResult(new MeshGeometry(vertices, faces),
+                createdVertices, createdFaces, createdEdges);
+    }
+
 
     public static MeshGeometry moveVertex(MeshGeometry mesh, int vertexIndex,
                                              double dx, double dy, double dz) {
@@ -112,67 +201,7 @@ public final class MeshOperations {
      * a connecting quad, so edge loops/rings can be extruded together.
      */
     public static MeshGeometry extrudeEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
-        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
-        if (selectedEdges == null || selectedEdges.isEmpty() || amount == 0.0) return mesh.copy();
-
-        java.util.Set<Long> valid = new java.util.LinkedHashSet<>();
-        java.util.Set<Integer> affected = new java.util.LinkedHashSet<>();
-        java.util.Map<Integer, double[]> normals = new java.util.LinkedHashMap<>();
-
-        for (long key : selectedEdges) {
-            int a = (int) (key >>> 32);
-            int b = (int) key;
-            validateEdge(mesh, a, b);
-            if (adjacentFaces(mesh, a, b).isEmpty()) {
-                throw new IllegalArgumentException("Selected edge is not connected to a face");
-            }
-            valid.add(key);
-            affected.add(a);
-            affected.add(b);
-
-            for (int faceIndex : adjacentFaces(mesh, a, b)) {
-                double[] n = faceNormal(mesh, mesh.faces().get(faceIndex));
-                for (int vertex : new int[]{a, b}) {
-                    double[] sum = normals.computeIfAbsent(vertex, ignored -> new double[3]);
-                    sum[0] += n[0];
-                    sum[1] += n[1];
-                    sum[2] += n[2];
-                }
-            }
-        }
-
-        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
-        java.util.Map<Integer, Integer> duplicate = new java.util.LinkedHashMap<>();
-
-        List<Integer> affectedOrder = new ArrayList<>(affected);
-        java.util.Collections.sort(affectedOrder);
-
-        for (int id : affectedOrder) {
-            double[] n = normals.get(id);
-            double len = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
-            if (len < 1e-9) {
-                n[0] = 0; n[1] = 1; n[2] = 0;
-            } else {
-                n[0] /= len; n[1] /= len; n[2] /= len;
-            }
-
-            MeshGeometry.Vertex v = mesh.vertices().get(id);
-            int copy = vertices.size();
-            vertices.add(new MeshGeometry.Vertex(
-                    v.x() + n[0] * amount,
-                    v.y() + n[1] * amount,
-                    v.z() + n[2] * amount));
-            duplicate.put(id, copy);
-        }
-
-        List<MeshGeometry.Face> faces = new ArrayList<>(mesh.faces());
-        for (long key : valid) {
-            int a = (int) (key >>> 32);
-            int b = (int) key;
-            faces.add(new MeshGeometry.Face(a, b, duplicate.get(b), duplicate.get(a)));
-        }
-
-        return new MeshGeometry(vertices, faces);
+        return extrudeEdgesResult(mesh, selectedEdges, amount).mesh();
     }
 
     /**
