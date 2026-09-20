@@ -8,6 +8,14 @@ import whitevoid.create.model.TransformMath;
 public final class ComponentTransformGizmo {
     public enum Axis { NONE, X, Y, Z }
     public enum Operation { MOVE, ROTATE, SCALE }
+    public enum PivotMode {
+        MEDIAN,
+        ACTIVE,
+        BOUNDS_CENTER;
+        public PivotMode next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
 
     public TransformMath.Point pivot(ModelNode node, MeshSelectionMode mode,
                                      java.util.List<Integer> vertices,
@@ -38,6 +46,14 @@ public final class ComponentTransformGizmo {
                                           java.util.List<Integer> vertices,
                                           java.util.List<int[]> edges,
                                           java.util.List<Integer> faces) {
+        return localPivot(node, mode, vertices, edges, faces, PivotMode.MEDIAN);
+    }
+
+    public TransformMath.Point localPivot(ModelNode node, MeshSelectionMode mode,
+                                          java.util.List<Integer> vertices,
+                                          java.util.List<int[]> edges,
+                                          java.util.List<Integer> faces,
+                                          PivotMode pivotMode) {
         if(node==null) return new TransformMath.Point(0,0,0);
         MeshGeometry mesh=node.ensureMeshGeometry();
         if(mesh==null) return new TransformMath.Point(0,0,0);
@@ -45,6 +61,29 @@ public final class ComponentTransformGizmo {
         if(mode==MeshSelectionMode.VERTEX) ids.addAll(vertices);
         else if(mode==MeshSelectionMode.EDGE) for(int[] e:edges){ids.add(e[0]);ids.add(e[1]);}
         else for(int fi:faces) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
+        java.util.LinkedHashSet<Integer> ids=new java.util.LinkedHashSet<>();
+        if(mode==MeshSelectionMode.VERTEX) ids.addAll(vertices);
+        else if(mode==MeshSelectionMode.EDGE) for(int[] e:edges){ids.add(e[0]);ids.add(e[1]);}
+        else for(int fi:faces) if(fi>=0&&fi<mesh.faces().size()) for(int id:mesh.faces().get(fi).vertices()) ids.add(id);
+        if(ids.isEmpty()) return new TransformMath.Point(0,0,0);
+
+        if(pivotMode == PivotMode.ACTIVE) {
+            int id=ids.iterator().next();
+            var v=mesh.vertices().get(id);
+            return new TransformMath.Point(v.x(),v.y(),v.z());
+        }
+
+        if(pivotMode == PivotMode.BOUNDS_CENTER) {
+            double minX=Double.POSITIVE_INFINITY,minY=Double.POSITIVE_INFINITY,minZ=Double.POSITIVE_INFINITY;
+            double maxX=Double.NEGATIVE_INFINITY,maxY=Double.NEGATIVE_INFINITY,maxZ=Double.NEGATIVE_INFINITY;
+            for(int id:ids) if(id>=0&&id<mesh.vertices().size()){
+                var v=mesh.vertices().get(id);
+                minX=Math.min(minX,v.x()); minY=Math.min(minY,v.y()); minZ=Math.min(minZ,v.z());
+                maxX=Math.max(maxX,v.x()); maxY=Math.max(maxY,v.y()); maxZ=Math.max(maxZ,v.z());
+            }
+            return new TransformMath.Point((minX+maxX)/2,(minY+maxY)/2,(minZ+maxZ)/2);
+        }
+
         double x=0,y=0,z=0; int n=0;
         for(int id:ids) if(id>=0&&id<mesh.vertices().size()){
             var v=mesh.vertices().get(id); x+=v.x(); y+=v.y(); z+=v.z(); n++;
