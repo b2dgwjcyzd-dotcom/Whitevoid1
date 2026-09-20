@@ -77,6 +77,11 @@ public final class CreateScreen extends Screen {
     private boolean proportionalEditing;
     private double proportionalRadius = 3.0;
     private boolean mirrorArmed;
+    private boolean selectThrough;
+    private MeshSelectionMode throughLastMode;
+    private double throughLastX = Double.NaN;
+    private double throughLastY = Double.NaN;
+    private int throughLastIndex;
     private static final double MOVE_SNAP_INCREMENT = 0.25;
     private static final double ROTATE_SNAP_INCREMENT = 5.0;
     private static final double SCALE_SNAP_INCREMENT = 0.05;
@@ -319,6 +324,14 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         }
         if (keyCode == 89 && hasControlDown()) {
             viewportContextHistoryRedo();
+            return true;
+        }
+
+        if (keyCode == GLFW.GLFW_KEY_T && viewport.transform().mode() == TransformMode.GEOMETRY) {
+            selectThrough = !selectThrough;
+            throughLastIndex = -1;
+            throughLastX = Double.NaN;
+            throughLastY = Double.NaN;
             return true;
         }
 
@@ -669,6 +682,26 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 Math.max(.01,t.scaleX()+dx),Math.max(.01,t.scaleY()+dy),Math.max(.01,t.scaleZ()+dz)));
     }
 
+
+    private int nextThroughIndex(MeshSelectionMode mode, double mouseX, double mouseY, int count) {
+        if (!selectThrough || count <= 1) return 0;
+        boolean sameSpot = throughLastMode == mode
+                && !Double.isNaN(throughLastX)
+                && Math.hypot(mouseX - throughLastX, mouseY - throughLastY) <= 8.0;
+        if (!sameSpot) throughLastIndex = 0;
+        else throughLastIndex = (throughLastIndex + 1) % count;
+        throughLastMode = mode;
+        throughLastX = mouseX;
+        throughLastY = mouseY;
+        return throughLastIndex;
+    }
+
+    private void resetThroughCycle() {
+        throughLastIndex = -1;
+        throughLastX = Double.NaN;
+        throughLastY = Double.NaN;
+    }
+
     private void viewportContextHistoryUndo() { core.editorContext().history().undo(); }
     private void viewportContextHistoryRedo() { core.editorContext().history().redo(); }
 
@@ -752,7 +785,10 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     }
                 }
                 if (meshMode == MeshSelectionMode.VERTEX) {
-                    int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
+                    java.util.List<Integer> vertexHits = selectThrough
+        ? gizmo.meshVertexHits(selected, projector, mouseX, mouseY, cx, cy)
+        : java.util.List.of(gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy));
+                    int vertex = vertexHits.isEmpty() ? -1 : vertexHits.get(nextThroughIndex(meshMode, mouseX, mouseY, vertexHits.size()));
                     if (vertex >= 0) {
                         var selection = viewport.meshComponentSelection();
                         if (hasAltDown()) {
@@ -789,7 +825,10 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             return true;
                         }
                     } else if (meshMode == MeshSelectionMode.EDGE) {
-                        int[] edge = gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy);
+                        java.util.List<int[]> edgeHits = selectThrough
+        ? gizmo.meshEdgeHits(selected, projector, mouseX, mouseY, cx, cy)
+        : java.util.List.ofNullable(gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy));
+                        int[] edge = edgeHits.isEmpty() ? null : edgeHits.get(nextThroughIndex(meshMode, mouseX, mouseY, edgeHits.size()));
                         if (edge != null) {
                             var selection = viewport.meshComponentSelection();
                             if (hasAltDown()) {
@@ -812,7 +851,10 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             return true;
                         }
                     } else {
-                        int clickedMeshFace = gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy);
+                        java.util.List<Integer> faceHits = selectThrough
+        ? gizmo.meshFaceHits(selected, projector, mouseX, mouseY, cx, cy)
+        : java.util.List.of(gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy));
+                        int clickedMeshFace = faceHits.isEmpty() ? -1 : faceHits.get(nextThroughIndex(meshMode, mouseX, mouseY, faceHits.size()));
                         if (clickedMeshFace >= 0) {
                             if (hasAltDown()) viewport.meshComponentSelection().removeFace(selected, clickedMeshFace);
                             else if (hasShiftDown()) viewport.meshComponentSelection().toggleFace(selected, clickedMeshFace);
