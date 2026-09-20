@@ -62,6 +62,55 @@ public final class MeshTopologySelection {
         return result;
     }
 
+    public static Set<Long> edgeLoop(MeshGeometry mesh, int a, int b) {
+        Set<Long> result = new LinkedHashSet<>();
+        long start = edgeKey(a,b);
+        result.add(start);
+        boolean changed;
+        do {
+            changed = false;
+            for (int[] edge : ModelRenderer.meshEdges(mesh)) {
+                long key = edgeKey(edge[0], edge[1]);
+                if (result.contains(key)) continue;
+                for (long selected : new LinkedHashSet<>(result)) {
+                    int sa=(int)(selected>>>32), sb=(int)selected;
+                    if (edge[0]==sa || edge[0]==sb || edge[1]==sa || edge[1]==sb) {
+                        if (result.add(key)) changed=true;
+                        break;
+                    }
+                }
+            }
+        } while(changed);
+        return result;
+    }
+
+    public static Set<Integer> faceLoop(MeshGeometry mesh, int faceIndex) {
+        Set<Integer> result=new LinkedHashSet<>();
+        if(faceIndex<0 || faceIndex>=mesh.faces().size()) return result;
+        result.add(faceIndex);
+        boolean changed;
+        do {
+            changed=false;
+            for(int i=0;i<mesh.faces().size();i++) {
+                if(result.contains(i)) continue;
+                int[] a=mesh.faces().get(i).vertices();
+                for(int selected:new LinkedHashSet<>(result)) {
+                    if(shareEdge(a,mesh.faces().get(selected).vertices())) {
+                        if(result.add(i)) changed=true;
+                        break;
+                    }
+                }
+            }
+        } while(changed);
+        return result;
+    }
+
+    private static boolean shareEdge(int[] a,int[] b) {
+        int shared=0;
+        for(int x:a) for(int y:b) if(x==y) shared++;
+        return shared>=2;
+    }
+
     public static Set<Integer> selectedFacesForVertices(MeshGeometry mesh, Set<Integer> vertices) {
         Set<Integer> result = new LinkedHashSet<>();
         for (int i=0;i<mesh.faces().size();i++) {
