@@ -1,0 +1,61 @@
+package whitevoid.create.core.history;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Objects;
+
+/**
+ * Owns undo/redo state for CREATE. GUI and tools submit commands here instead
+ * of modifying project state while bypassing history.
+ */
+public final class CommandHistory {
+    private final Deque<Command> undoStack = new ArrayDeque<>();
+    private final Deque<Command> redoStack = new ArrayDeque<>();
+    private final int maxSize;
+
+    public CommandHistory() { this(256); }
+
+    public CommandHistory(int maxSize) {
+        if (maxSize < 1) throw new IllegalArgumentException("maxSize must be positive");
+        this.maxSize = maxSize;
+    }
+
+    public void execute(Command command) {
+        Objects.requireNonNull(command, "command");
+        command.execute();
+        undoStack.push(command);
+        redoStack.clear();
+        trim();
+    }
+
+    public boolean undo() {
+        if (undoStack.isEmpty()) return false;
+        Command command = undoStack.pop();
+        command.undo();
+        redoStack.push(command);
+        return true;
+    }
+
+    public boolean redo() {
+        if (redoStack.isEmpty()) return false;
+        Command command = redoStack.pop();
+        command.redo();
+        undoStack.push(command);
+        trim();
+        return true;
+    }
+
+    public void clear() {
+        undoStack.clear();
+        redoStack.clear();
+    }
+
+    public boolean canUndo() { return !undoStack.isEmpty(); }
+    public boolean canRedo() { return !redoStack.isEmpty(); }
+    public int undoSize() { return undoStack.size(); }
+    public int redoSize() { return redoStack.size(); }
+
+    private void trim() {
+        while (undoStack.size() > maxSize) undoStack.removeLast();
+    }
+}
