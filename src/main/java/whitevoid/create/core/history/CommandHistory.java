@@ -28,6 +28,14 @@ public final class CommandHistory {
         trim();
     }
 
+    /** Records a command whose state change has already been applied by an interactive editor operation. */
+    public void recordExecuted(Command command) {
+        Objects.requireNonNull(command, "command");
+        undoStack.push(command);
+        redoStack.clear();
+        trim();
+    }
+
     public boolean undo() {
         if (undoStack.isEmpty()) return false;
         Command command = undoStack.pop();
