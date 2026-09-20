@@ -3,9 +3,10 @@
                 var pa=projector.project(wa.x(),wa.y(),wa.z(),cx,cy,300);
                 var pb=projector.project(wb.x(),wb.y(),wb.z(),cx,cy,300);
                 if(pa!=null && pb!=null && pointInsideBox(pa.x(),pa.y(),left,top,right,bottom)
-                        && pointInsideBox(pb.x(),pb.y(),left,top,right,bottom))
+                        && pointInsideBox(pb.x(),pb.y(),left,top,right,bottom)) {
                     if (hasAltDown()) selection.removeEdge(node, edge[0], edge[1]);
                     else selection.addEdge(node, edge[0], edge[1]);
+                }
             }
         } else {
             for (int i=0;i<mesh.faces().size();i++) {
