@@ -96,13 +96,21 @@ public final class CreateScreen extends Screen {
         if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
             if (viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
                 extrudeSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
+            } else if (viewport.meshComponentSelection().size() > 1
+                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE) {
+                extrudeSelectedFaces(hasShiftDown() ? 1.0 : 0.25);
             } else {
                 extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
             }
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_I && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            insetSelectedFace(hasShiftDown() ? 0.5 : 0.25);
+            if (viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE
+                    && viewport.meshComponentSelection().size() > 1) {
+                insetSelectedFaces(hasShiftDown() ? 0.5 : 0.25);
+            } else {
+                insetSelectedFace(hasShiftDown() ? 0.5 : 0.25);
+            }
             return true;
         }
 
@@ -258,6 +266,60 @@ public final class CreateScreen extends Screen {
         } catch (IllegalArgumentException ignored) {
             // Bevel currently requires a manifold edge with exactly two adjacent faces.
         }
+    }
+
+    private void insetSelectedFaces(double amount) {
+        var viewport=core.editorContext().viewport();
+        var model=core.editorContext().model();
+        var node=viewport.meshComponentSelection().node(model);
+        if(node==null) return;
+        var indices=new java.util.ArrayList<>(viewport.meshComponentSelection().faceIndices());
+        indices.sort(java.util.Comparator.reverseOrder());
+        var oldMesh=node.ensureMeshGeometry();
+        if(oldMesh==null) return;
+
+        var mesh=oldMesh.copy();
+        var created=new java.util.ArrayList<Integer>();
+        for(int index:indices) {
+            if(index<0 || index>=mesh.faces().size()) continue;
+            mesh=MeshOperations.insetFace(mesh,index,amount);
+            created.add(mesh.faces().size()-1);
+        }
+        if(created.isEmpty()) return;
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node,oldMesh.copy(),mesh));
+        viewport.meshComponentSelection().clear();
+        viewport.meshComponentSelection().selectFace(node,created.get(0));
+        for(int i=1;i<created.size();i++) viewport.meshComponentSelection().toggleFace(node,created.get(i));
+        viewport.meshFaceSelection().select(node,created.get(created.size()-1));
+        viewport.geometryFaceSelection().clear();
+    }
+
+    private void extrudeSelectedFaces(double amount) {
+        var viewport=core.editorContext().viewport();
+        var model=core.editorContext().model();
+        var node=viewport.meshComponentSelection().node(model);
+        if(node==null) return;
+        var indices=new java.util.ArrayList<>(viewport.meshComponentSelection().faceIndices());
+        indices.sort(java.util.Comparator.reverseOrder());
+        var oldMesh=node.ensureMeshGeometry();
+        if(oldMesh==null) return;
+
+        var mesh=oldMesh.copy();
+        var created=new java.util.ArrayList<Integer>();
+        for(int index:indices) {
+            if(index<0 || index>=mesh.faces().size()) continue;
+            mesh=MeshOperations.extrudeFace(mesh,index,amount);
+            created.add(mesh.faces().size()-1);
+        }
+        if(created.isEmpty()) return;
+        core.editorContext().history().execute(
+                new SetMeshGeometryCommand(node,oldMesh.copy(),mesh));
+        viewport.meshComponentSelection().clear();
+        viewport.meshComponentSelection().selectFace(node,created.get(0));
+        for(int i=1;i<created.size();i++) viewport.meshComponentSelection().toggleFace(node,created.get(i));
+        viewport.meshFaceSelection().select(node,created.get(created.size()-1));
+        viewport.geometryFaceSelection().clear();
     }
 
     private void insetSelectedFace(double amount) {
