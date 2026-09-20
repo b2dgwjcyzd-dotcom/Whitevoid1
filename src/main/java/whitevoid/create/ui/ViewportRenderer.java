@@ -54,6 +54,8 @@ public final class ViewportRenderer {
             }
             drawMeshComponentSelection(context, projector, selected, viewport,
                     centerX, centerY, left, top, right, bottom);
+            drawComponentGizmo(context, projector, selected, viewport,
+                    centerX, centerY, left, top, right, bottom);
             if (selected.meshGeometry() == null) {
                 drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
             }
@@ -233,6 +235,29 @@ public final class ViewportRenderer {
                 prevX=x; prevY=y;
             }
         }
+    }
+
+    private void drawComponentGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
+                                        ViewportContext viewport, int cx, int cy,
+                                        int left, int top, int right, int bottom) {
+        var selection=viewport.meshComponentSelection();
+        if(!selection.matches(node) || selection.size()==0) return;
+        ComponentTransformGizmo gizmo=new ComponentTransformGizmo();
+        TransformMath.Point p3=gizmo.pivot(node,selection.mode(),selection.vertexIndices(),
+                selection.edgeIndices(),selection.faceIndices());
+        Point o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
+        if(o==null)return;
+        double[][] dirs={{2,0,0},{0,2,0},{0,0,2}};
+        int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
+        for(int i=0;i<3;i++){
+            Point p=projector.project(p3.x()+dirs[i][0],p3.y()+dirs[i][1],p3.z()+dirs[i][2],cx,cy,300);
+            if(p==null)continue;
+            drawLine(context,o,p,left,top,right,bottom,colors[i]);
+            int x=(int)Math.round(p.x()),y=(int)Math.round(p.y());
+            context.fill(x-4,y-4,x+5,y+5,colors[i]);
+        }
+        int ox=(int)Math.round(o.x()),oy=(int)Math.round(o.y());
+        context.fill(ox-4,oy-4,ox+5,oy+5,0xFFFFFFFF);
     }
 
     private void drawMeshComponentSelection(DrawContext context, ViewportProjector projector,
