@@ -32,6 +32,7 @@ public final class CreateScreen extends Screen {
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
     private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
+    private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
     private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
     private boolean gizmoDragging;
     private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
@@ -821,88 +822,39 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                         return true;
                     }
                 }
-                if (meshMode == MeshSelectionMode.VERTEX) {
-                    java.util.List<Integer> vertexHits = selectThrough
-        ? gizmo.meshVertexHits(selected, projector, mouseX, mouseY, cx, cy)
-        : java.util.List.of(gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy));
-                    int vertex = vertexHits.isEmpty() ? -1 : vertexHits.get(nextThroughIndex(meshMode, mouseX, mouseY, vertexHits.size()));
-                    if (vertex >= 0) {
-                        var selection = viewport.meshComponentSelection();
-                        if (hasAltDown()) {
-                            selection.removeVertex(selected, vertex);
-                        } else if (hasControlDown() && !hasShiftDown() && selection.activeVertex() >= 0
-                                && selection.activeVertex() != vertex) {
-                            selection.selectShortestVertexPath(selected, selection.activeVertex(), vertex);
-                        } else if (hasShiftDown()) {
-                            selection.toggleVertex(selected, vertex);
-                        } else {
-                            selection.selectVertex(selected, vertex);
-                        }
-                        viewport.geometryFaceSelection().clear();
-                        activeVertex = vertex;
-                        if (hasShiftDown() || hasAltDown() || hasControlDown()) return true;
-                        var mesh = selected.ensureMeshGeometry();
-                        if (mesh != null) {
-                            vertexDragOldMesh = mesh.copy();
-                            vertexDragging = true;
-                        }
-                        return true;
-                    }
-                }
-                activeAxis = gizmo.geometryHit(selected, projector, mouseX, mouseY, cx, cy);
-                if (activeAxis == ViewportGizmo.Axis.NONE) {
-                    var meshMode = viewport.meshComponentSelection().mode();
-                    if (meshMode == MeshSelectionMode.VERTEX) {
-                        int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
-                        if (vertex >= 0) {
-                            viewport.meshComponentSelection().selectVertex(selected, vertex);
-                            viewport.geometryFaceSelection().clear();
-                            return true;
-                        }
-                    } else if (meshMode == MeshSelectionMode.EDGE) {
-                        java.util.List<int[]> edgeHits;
-                    if (selectThrough) {
-                        edgeHits = gizmo.meshEdgeHits(selected, projector, mouseX, mouseY, cx, cy);
-                    } else {
-                        int[] singleEdge = gizmo.meshEdgeHit(selected, projector, mouseX, mouseY, cx, cy);
-                        edgeHits = singleEdge == null ? java.util.List.of() : java.util.List.of(singleEdge);
-                    }
-                    int[] edge = edgeHits.isEmpty() ? null : edgeHits.get(nextThroughIndex(meshMode, mouseX, mouseY, edgeHits.size()));
-                        if (edge != null) {
-                            var selection = viewport.meshComponentSelection();
-                            if (hasAltDown()) {
-                                selection.removeEdge(selected, edge[0], edge[1]);
-                            } else if (hasShiftDown()) {
-                                selection.toggleEdge(selected, edge[0], edge[1]);
-                            } else {
-                                selection.selectEdge(selected, edge[0], edge[1]);
+                MeshEditorController.PickResult meshPick = meshEditor.pickAndSelect(
+                        selected, viewport, mouseX, mouseY, cx, cy,
+                        selectThrough, hasAltDown(), hasShiftDown(), hasControlDown());
+                if (meshPick.type() != MeshEditorController.PickType.NONE) {
+                    viewport.geometryFaceSelection().clear();
+                    switch (meshPick.type()) {
+                        case VERTEX -> {
+                            activeVertex = meshPick.index();
+                            if (hasShiftDown() || hasAltDown() || hasControlDown()) return true;
+                            var mesh = selected.ensureMeshGeometry();
+                            if (mesh != null) {
+                                vertexDragOldMesh = mesh.copy();
+                                vertexDragging = true;
                             }
-                                    viewport.geometryFaceSelection().clear();
-                            activeEdgeA = edge[0];
-                            activeEdgeB = edge[1];
+                        }
+                        case EDGE -> {
+                            activeEdgeA = meshPick.edgeA();
+                            activeEdgeB = meshPick.edgeB();
                             if (hasShiftDown() || hasAltDown()) return true;
                             var mesh = selected.ensureMeshGeometry();
                             if (mesh != null) {
                                 edgeDragOldMesh = mesh.copy();
                                 edgeDragging = true;
                             }
-                            return true;
                         }
-                    } else {
-                        java.util.List<Integer> faceHits = selectThrough
-        ? gizmo.meshFaceHits(selected, projector, mouseX, mouseY, cx, cy)
-        : java.util.List.of(gizmo.meshFaceHit(selected, projector, mouseX, mouseY, cx, cy));
-                        int clickedMeshFace = faceHits.isEmpty() ? -1 : faceHits.get(nextThroughIndex(meshMode, mouseX, mouseY, faceHits.size()));
-                        if (clickedMeshFace >= 0) {
-                            if (hasAltDown()) viewport.meshComponentSelection().removeFace(selected, clickedMeshFace);
-                            else if (hasShiftDown()) viewport.meshComponentSelection().toggleFace(selected, clickedMeshFace);
-                            else viewport.meshComponentSelection().selectFace(selected, clickedMeshFace);
-                            viewport.geometryFaceSelection().clear();
-                            hoveredMeshFace = clickedMeshFace;
+                        case FACE -> {
+                            hoveredMeshFace = meshPick.index();
                             hoveredFace = GeometryFace.NONE;
-                            return true;
                         }
+                        case NONE -> { }
                     }
+                    return true;
+                }
                     GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (clickedFace != GeometryFace.NONE) {
                         viewport.geometryFaceSelection().select(selected, clickedFace);
