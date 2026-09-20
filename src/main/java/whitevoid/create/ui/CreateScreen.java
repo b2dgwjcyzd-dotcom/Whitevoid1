@@ -25,6 +25,7 @@ public final class CreateScreen extends Screen {
     private boolean gizmoDragging;
     private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
     private double dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz;
+    private CubeGeometry dragOldGeometry;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -48,6 +49,7 @@ public final class CreateScreen extends Screen {
         if (keyCode == 71) { viewport.transform().setMode(TransformMode.MOVE); return true; }
         if (keyCode == 82) { viewport.transform().setMode(TransformMode.ROTATE); return true; }
         if (keyCode == 83) { viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == GLFW.GLFW_KEY_B) { viewport.transform().setMode(TransformMode.GEOMETRY); return true; }
 
         if (keyCode == 90 && hasControlDown()) {
             if (hasShiftDown()) viewportContextHistoryRedo();
@@ -200,7 +202,17 @@ public final class CreateScreen extends Screen {
         if (button == 0) {
             ViewportContext viewport = core.editorContext().viewport();
             ModelNode selected = viewport.selection().first(core.editorContext().model());
-            if (selected != null && viewport.transform().mode() != TransformMode.SELECT) {
+            if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
+                int cx=width/2, cy=height/2;
+                activeAxis = gizmo.geometryHit(selected,
+                        new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
+                gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
+                hoveredAxis = activeAxis;
+                if (gizmoDragging) {
+                    dragOldGeometry = selected.geometry();
+                    return true;
+                }
+            } else if (selected != null && viewport.transform().mode() != TransformMode.SELECT) {
                 int cx=width/2, cy=height/2;
                 activeAxis = gizmo.hit(selected, viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
@@ -226,6 +238,18 @@ public final class CreateScreen extends Screen {
         if (gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
+                if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY
+                        && dragOldGeometry != null && node.geometry() != null) {
+                    if (!dragOldGeometry.equals(node.geometry())) {
+                        core.editorContext().history().recordExecuted(
+                                new SetCubeGeometryCommand(node, dragOldGeometry, node.geometry()));
+                    }
+                    dragOldGeometry = null;
+                    gizmoDragging=false;
+                    activeAxis=ViewportGizmo.Axis.NONE;
+                    return true;
+                }
+
                 var t=node.transform();
                 boolean changed = dragOldX!=t.x() || dragOldY!=t.y() || dragOldZ!=t.z() ||
                         dragOldRx!=t.rotationX() || dragOldRy!=t.rotationY() || dragOldRz!=t.rotationZ() ||
@@ -250,7 +274,22 @@ public final class CreateScreen extends Screen {
             if (node != null) {
                 double amount = gizmo.dragAmount(activeAxis, new ViewportProjector(core.editorContext().viewport().viewport().camera()), deltaX, deltaY);
                 var t=node.transform();
-                if (core.editorContext().viewport().transform().mode() == TransformMode.MOVE) {
+                if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY) {
+                    var g = node.geometry();
+                    if (g != null) {
+                        double amount = gizmo.dragAmount(activeAxis,
+                                new ViewportProjector(core.editorContext().viewport().viewport().camera()),
+                                deltaX, deltaY);
+                        double width = g.width();
+                        double height = g.height();
+                        double depth = g.depth();
+                        if (activeAxis == ViewportGizmo.Axis.X) width = Math.max(0.1, width + amount * 2.0);
+                        if (activeAxis == ViewportGizmo.Axis.Y) height = Math.max(0.1, height - amount * 2.0);
+                        if (activeAxis == ViewportGizmo.Axis.Z) depth = Math.max(0.1, depth + amount * 2.0);
+                        node.setGeometry(new CubeGeometry(width, height, depth));
+                    }
+                    return true;
+                } else if (core.editorContext().viewport().transform().mode() == TransformMode.MOVE) {
                     double dx=activeAxis==ViewportGizmo.Axis.X?amount:0;
                     double dy=activeAxis==ViewportGizmo.Axis.Y?amount:0;
                     double dz=activeAxis==ViewportGizmo.Axis.Z?amount:0;
@@ -283,7 +322,10 @@ public final class CreateScreen extends Screen {
         if (!gizmoDragging) {
             ViewportContext viewport=core.editorContext().viewport();
             ModelNode selected=viewport.selection().first(core.editorContext().model());
-            if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
+            if(selected!=null && viewport.transform().mode()==TransformMode.GEOMETRY) {
+                hoveredAxis=gizmo.geometryHit(selected,new ViewportProjector(viewport.viewport().camera()),
+                        mouseX,mouseY,width/2,height/2);
+            } else if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
                 hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()),mouseX,mouseY,width/2,height/2);
             } else hoveredAxis=ViewportGizmo.Axis.NONE;
