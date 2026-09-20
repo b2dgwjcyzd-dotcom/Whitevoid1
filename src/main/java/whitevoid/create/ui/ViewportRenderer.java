@@ -10,6 +10,7 @@ import whitevoid.create.model.ModelRenderer;
 import whitevoid.create.model.TransformMath;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.geometry.GeometryFace;
+import whitevoid.create.editor.geometry.MeshSelectionMode;
 import whitevoid.create.ui.ViewportProjector.Point;
 
 public final class ViewportRenderer {
@@ -50,6 +51,8 @@ public final class ViewportRenderer {
                 drawGeometryFaceHighlight(context, projector, selected, faceToDraw,
                         centerX, centerY, left, top, right, bottom);
             }
+            drawMeshComponentSelection(context, projector, selected, viewport,
+                    centerX, centerY, left, top, right, bottom);
             if (selected.meshGeometry() == null) {
                 drawGeometryHandles(context, projector, selected, centerX, centerY, left, top, right, bottom, hoveredAxis);
             }
@@ -200,6 +203,43 @@ public final class ViewportRenderer {
                 drawLine(context,new Point(prevX,prevY,0),new Point(x,y,0),
                         left,top,right,bottom,colors[axis]);
                 prevX=x; prevY=y;
+            }
+        }
+    }
+
+    private void drawMeshComponentSelection(DrawContext context, ViewportProjector projector,
+                                                ModelNode node, ViewportContext viewport,
+                                                int cx, int cy, int left, int top, int right, int bottom) {
+        var selection = viewport.meshComponentSelection();
+        if (!selection.matches(node)) return;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return;
+
+        if (selection.mode() == MeshSelectionMode.VERTEX) {
+            int index = selection.indexA();
+            if (index >= 0 && index < mesh.vertices().size()) {
+                var v = mesh.vertices().get(index);
+                var w = TransformMath.applyHierarchy(new TransformMath.Point(v.x(), v.y(), v.z()), node);
+                var p = projector.project(w.x(), w.y(), w.z(), cx, cy, 300);
+                if (p != null) {
+                    int x = (int)Math.round(p.x()), y = (int)Math.round(p.y());
+                    context.fill(x - 4, y - 4, x + 5, y + 5, 0xFFFFFFFF);
+                }
+            }
+        } else if (selection.mode() == MeshSelectionMode.EDGE) {
+            int a = selection.indexA(), b = selection.indexB();
+            if (a >= 0 && b >= 0 && a < mesh.vertices().size() && b < mesh.vertices().size()) {
+                var va = mesh.vertices().get(a);
+                var vb = mesh.vertices().get(b);
+                var wa = TransformMath.applyHierarchy(new TransformMath.Point(va.x(), va.y(), va.z()), node);
+                var wb = TransformMath.applyHierarchy(new TransformMath.Point(vb.x(), vb.y(), vb.z()), node);
+                var pa = projector.project(wa.x(), wa.y(), wa.z(), cx, cy, 300);
+                var pb = projector.project(wb.x(), wb.y(), wb.z(), cx, cy, 300);
+                if (pa != null && pb != null) {
+                    drawLine(context, pa, pb, left, top, right, bottom, 0xFFFFFFFF);
+                    drawLine(context, new Point(pa.x()+1,pa.y(),pa.depth()),
+                            new Point(pb.x()+1,pb.y(),pb.depth()), left,top,right,bottom,0xFFE7E9EF);
+                }
             }
         }
     }
