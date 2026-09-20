@@ -20,6 +20,7 @@ import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
 import whitevoid.create.model.CubeGeometry;
 import whitevoid.create.model.ModelNode;
+import whitevoid.create.model.MeshGeometry;
 
 public final class CreateScreen extends Screen {
     private final CreateCore core;
@@ -35,6 +36,9 @@ public final class CreateScreen extends Screen {
     private boolean faceDragging;
     private GeometryFace activeFace = GeometryFace.NONE;
     private int hoveredMeshFace = -1;
+    private boolean vertexDragging;
+    private int activeVertex = -1;
+    private MeshGeometry vertexDragOldMesh;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -314,6 +318,22 @@ public final class CreateScreen extends Screen {
             if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
                 int cx=width/2, cy=height/2;
                 ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
+                var meshMode = viewport.meshComponentSelection().mode();
+                if (meshMode == MeshSelectionMode.VERTEX) {
+                    int vertex = gizmo.meshVertexHit(selected, projector, mouseX, mouseY, cx, cy);
+                    if (vertex >= 0) {
+                        viewport.meshComponentSelection().selectVertex(selected, vertex);
+                        viewport.meshFaceSelection().clear();
+                        viewport.geometryFaceSelection().clear();
+                        activeVertex = vertex;
+                        var mesh = selected.ensureMeshGeometry();
+                        if (mesh != null) {
+                            vertexDragOldMesh = mesh.copy();
+                            vertexDragging = true;
+                        }
+                        return true;
+                    }
+                }
                 activeAxis = gizmo.geometryHit(selected, projector, mouseX, mouseY, cx, cy);
                 if (activeAxis == ViewportGizmo.Axis.NONE) {
                     var meshMode = viewport.meshComponentSelection().mode();
@@ -395,6 +415,20 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (vertexDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (node != null && vertexDragOldMesh != null) {
+                var current = node.ensureMeshGeometry();
+                if (current != null && !vertexDragOldMesh.equals(current)) {
+                    core.editorContext().history().recordExecuted(
+                            new SetMeshGeometryCommand(node, vertexDragOldMesh, current.copy()));
+                }
+            }
+            vertexDragging = false;
+            activeVertex = -1;
+            vertexDragOldMesh = null;
+            return true;
+        }
         if (faceDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().geometryFaceSelection().node(core.editorContext().model());
             if (node != null && dragOldGeometry != null && node.geometry() != null) {
@@ -454,6 +488,32 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (vertexDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (node != null && activeVertex >= 0) {
+                var mesh = node.ensureMeshGeometry();
+                if (mesh != null && activeVertex < mesh.vertices().size()) {
+                    var camera = core.editorContext().viewport().viewport().camera();
+                    double yaw = Math.toRadians(camera.yaw());
+                    double pitch = Math.toRadians(camera.pitch());
+                    double cy = Math.cos(yaw);
+                    double sy = Math.sin(yaw);
+                    double cp = Math.cos(pitch);
+                    double sp = Math.sin(pitch);
+                    double worldPerPixel = Math.max(0.0005, camera.distance() / 300.0);
+                    double rightX = cy;
+                    double rightZ = -sy;
+                    double upX = -sy * sp;
+                    double upY = cp;
+                    double upZ = -cy * sp;
+                    double dx = (deltaX * rightX - deltaY * upX) * worldPerPixel;
+                    double dy = (-deltaY * upY) * worldPerPixel;
+                    double dz = (deltaX * rightZ - deltaY * upZ) * worldPerPixel;
+                    node.setMeshGeometry(MeshOperations.moveVertex(mesh, activeVertex, dx, dy, dz));
+                }
+            }
+            return true;
+        }
         if (faceDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().geometryFaceSelection().node(core.editorContext().model());
             if (node != null && node.geometry() != null && activeFace != GeometryFace.NONE) {
