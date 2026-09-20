@@ -1255,6 +1255,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         GeometryFace selectedFace = core.editorContext().viewport().geometryFaceSelection().face();
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
                 core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace,
+                hoveredMeshVertex, hoveredMeshEdgeA, hoveredMeshEdgeB,
                 hoveredComponentAxis, componentOperation, componentPivotMode);
 
         ViewportContext activeViewport = core.editorContext().viewport();
