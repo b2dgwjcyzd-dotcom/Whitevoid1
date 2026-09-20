@@ -145,10 +145,25 @@ public final class ComponentTransformGizmo {
         return (dx*(sx/len)+dy*(sy/len))/35.0;
     }
 
+    public double rotationAmount(Axis axis, double startX, double startY,
+                                  double mouseX, double mouseY,
+                                  ViewportProjector projector, int cx, int cy,
+                                  TransformMath.Point pivot) {
+        if (axis == Axis.NONE || pivot == null) return 0;
+        var center = projector.project(pivot.x(), pivot.y(), pivot.z(), cx, cy, 300);
+        if (center == null) return 0;
+
+        double startAngle = Math.atan2(startY - center.y(), startX - center.x());
+        double currentAngle = Math.atan2(mouseY - center.y(), mouseX - center.x());
+        double delta = Math.toDegrees(currentAngle - startAngle);
+        while (delta > 180.0) delta -= 360.0;
+        while (delta < -180.0) delta += 360.0;
+        return delta;
+    }
+
     public double rotationAmount(Axis axis, double dx, double dy) {
         if (axis == Axis.NONE) return 0;
-        double sensitivity = 1.2;
-        return (dx - dy) * sensitivity;
+        return (dx - dy) * 1.2;
     }
 
     public double scaleFactor(Axis axis, ViewportProjector projector, double dx, double dy) {
