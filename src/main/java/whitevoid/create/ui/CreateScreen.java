@@ -52,7 +52,11 @@ public final class CreateScreen extends Screen {
         if (keyCode == 71) { viewport.transform().setMode(TransformMode.MOVE); return true; }
         if (keyCode == 82) { viewport.transform().setMode(TransformMode.ROTATE); return true; }
         if (keyCode == 83) { viewport.transform().setMode(TransformMode.SCALE); return true; }
-        if (keyCode == GLFW.GLFW_KEY_B) { viewport.transform().setMode(TransformMode.GEOMETRY); return true; }
+        if (keyCode == GLFW.GLFW_KEY_B) {
+            viewport.transform().setMode(TransformMode.GEOMETRY);
+            viewport.geometryFaceSelection().clear();
+            return true;
+        }
 
         if (keyCode == 90 && hasControlDown()) {
             if (hasShiftDown()) viewportContextHistoryRedo();
@@ -207,11 +211,16 @@ public final class CreateScreen extends Screen {
             ModelNode selected = viewport.selection().first(core.editorContext().model());
             if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
                 int cx=width/2, cy=height/2;
-                activeAxis = gizmo.geometryHit(selected,
-                        new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
+                ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
+                activeAxis = gizmo.geometryHit(selected, projector, mouseX, mouseY, cx, cy);
                 if (activeAxis == ViewportGizmo.Axis.NONE) {
-                    hoveredFace = gizmo.faceHit(selected,
-                            new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
+                    GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
+                    if (clickedFace != GeometryFace.NONE) {
+                        viewport.geometryFaceSelection().select(selected, clickedFace);
+                        hoveredFace = clickedFace;
+                        return true;
+                    }
+                    viewport.geometryFaceSelection().clear();
                 }
                 gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
                 hoveredAxis = activeAxis;
@@ -234,8 +243,13 @@ public final class CreateScreen extends Screen {
                 }
             }
             ModelNode hit = new ViewportPicker().pick(core.editorContext().model(), core.editorContext().viewport(), mouseX, mouseY, width, height);
-            if (hit != null) core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
-            else core.editorContext().viewport().selection().clear();
+            if (hit != null) {
+                core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
+                core.editorContext().viewport().geometryFaceSelection().clear();
+            } else {
+                core.editorContext().viewport().selection().clear();
+                core.editorContext().viewport().geometryFaceSelection().clear();
+            }
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -285,7 +299,6 @@ public final class CreateScreen extends Screen {
         if (gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
-                double amount = gizmo.dragAmount(activeAxis, new ViewportProjector(core.editorContext().viewport().viewport().camera()), deltaX, deltaY);
                 if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY) {
                     var g = node.geometry();
                     if (g != null) {
@@ -367,7 +380,8 @@ public final class CreateScreen extends Screen {
 
     @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
-        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model(), hoveredAxis, hoveredFace);
+        GeometryFace selectedFace = core.editorContext().viewport().geometryFaceSelection().face();
+        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace);
         super.render(context, mouseX, mouseY, delta);
     }
 
