@@ -33,6 +33,12 @@ public final class MeshComponentSelection {
         indexB = b;
     }
 
+    public void setMode(MeshSelectionMode mode) {
+        if (mode != null) this.mode = mode;
+        indexA = -1;
+        indexB = -1;
+    }
+
     public void clear() {
         nodeId = null;
         indexA = -1;
