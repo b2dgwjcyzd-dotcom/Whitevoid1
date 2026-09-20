@@ -78,78 +78,76 @@ public final class ViewportGizmo {
 
     public GeometryFace faceHit(ModelNode node, ViewportProjector projector,
                                    double mouseX, double mouseY, int cx, int cy) {
-        if (node == null || node.geometry() == null) return GeometryFace.NONE;
+        if (node == null) return GeometryFace.NONE;
+        var mesh = node.ensureMeshGeometry();
+        if (mesh == null) return GeometryFace.NONE;
 
         GeometryFace bestFace = GeometryFace.NONE;
         double bestDepth = Double.POSITIVE_INFINITY;
         double bestDistance = 8.0;
 
-        double hx = node.geometry().width() * 0.5;
-        double hy = node.geometry().height() * 0.5;
-        double hz = node.geometry().depth() * 0.5;
+        for (int faceIndex = 0; faceIndex < mesh.faces().size(); faceIndex++) {
+            int[] indices = mesh.faces().get(faceIndex).vertices();
+            if (indices.length < 3) continue;
 
-        double[][] faces = {
-                { hx, 0, 0}, {-hx, 0, 0},
-                { 0, hy, 0}, { 0,-hy, 0},
-                { 0, 0, hz}, { 0, 0,-hz}
-        };
-        GeometryFace[] faceTypes = {
-                GeometryFace.POS_X, GeometryFace.NEG_X,
-                GeometryFace.POS_Y, GeometryFace.NEG_Y,
-                GeometryFace.POS_Z, GeometryFace.NEG_Z
-        };
-
-        TransformMath.Point[][] corners = {
-                {
-                        new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(hx,hy,-hz),
-                        new TransformMath.Point(hx,hy,hz), new TransformMath.Point(hx,-hy,hz)
-                },
-                {
-                        new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(-hx,hy,hz),
-                        new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(-hx,-hy,-hz)
-                },
-                {
-                        new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(-hx,hy,hz),
-                        new TransformMath.Point(hx,hy,hz), new TransformMath.Point(hx,hy,-hz)
-                },
-                {
-                        new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(-hx,-hy,-hz),
-                        new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(hx,-hy,hz)
-                },
-                {
-                        new TransformMath.Point(-hx,-hy,hz), new TransformMath.Point(hx,-hy,hz),
-                        new TransformMath.Point(hx,hy,hz), new TransformMath.Point(-hx,hy,hz)
-                },
-                {
-                        new TransformMath.Point(hx,-hy,-hz), new TransformMath.Point(-hx,-hy,-hz),
-                        new TransformMath.Point(-hx,hy,-hz), new TransformMath.Point(hx,hy,-hz)
-                }
-        };
-
-        for (int i = 0; i < 6; i++) {
-            ViewportProjector.Point[] p = new ViewportProjector.Point[4];
+            ViewportProjector.Point[] projected = new ViewportProjector.Point[indices.length];
             boolean valid = true;
-            for (int j = 0; j < 4; j++) {
-                TransformMath.Point world = TransformMath.applyHierarchy(corners[i][j], node);
-                p[j] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
-                if (p[j] == null) {
+            for (int i = 0; i < indices.length; i++) {
+                var vertex = mesh.vertices().get(indices[i]);
+                TransformMath.Point world = TransformMath.applyHierarchy(
+                        new TransformMath.Point(vertex.x(), vertex.y(), vertex.z()), node);
+                projected[i] = projector.project(
+                        world.x(), world.y(), world.z(), cx, cy, 300);
+                if (projected[i] == null) {
                     valid = false;
                     break;
                 }
             }
             if (!valid) continue;
 
-            double d = pointToQuad(mouseX, mouseY, p);
-            if (d <= bestDistance) {
-                double depth = (p[0].depth() + p[1].depth() + p[2].depth() + p[3].depth()) / 4.0;
+            double distance = pointToPolygon(mouseX, mouseY, projected);
+            if (distance <= bestDistance) {
+                double depth = 0.0;
+                for (var point : projected) depth += point.depth();
+                depth /= projected.length;
+
                 if (depth < bestDepth) {
                     bestDepth = depth;
-                    bestFace = faceTypes[i];
+                    bestFace = switch (faceIndex) {
+                        case 0 -> GeometryFace.POS_X;
+                        case 1 -> GeometryFace.NEG_X;
+                        case 2 -> GeometryFace.POS_Y;
+                        case 3 -> GeometryFace.NEG_Y;
+                        case 4 -> GeometryFace.POS_Z;
+                        case 5 -> GeometryFace.NEG_Z;
+                        default -> GeometryFace.NONE;
+                    };
                 }
             }
         }
-
         return bestFace;
+    }
+
+    private double pointToPolygon(double px, double py, ViewportProjector.Point[] polygon) {
+        if (polygon.length == 0) return Double.POSITIVE_INFINITY;
+
+        boolean inside = false;
+        for (int i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            double xi = polygon[i].x(), yi = polygon[i].y();
+            double xj = polygon[j].x(), yj = polygon[j].y();
+            boolean intersects = ((yi > py) != (yj > py))
+                    && (px < (xj - xi) * (py - yi) / ((yj - yi) == 0 ? 1e-9 : (yj - yi)) + xi);
+            if (intersects) inside = !inside;
+        }
+        if (inside) return 0.0;
+
+        double best = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < polygon.length; i++) {
+            var a = polygon[i];
+            var b = polygon[(i + 1) % polygon.length];
+            best = Math.min(best, distanceToSegment(px, py, a.x(), a.y(), b.x(), b.y()));
+        }
+        return best;
     }
 
     private double pointToQuad(double px, double py, ViewportProjector.Point[] q) {
