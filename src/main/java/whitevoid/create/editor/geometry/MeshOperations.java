@@ -317,6 +317,83 @@ public final class MeshOperations {
         }
     }
 
+    /**
+     * Insets a connected face region as one operation. Shared vertices are
+     * duplicated once, internal selected edges stay internal, and only the
+     * outer boundary receives the inset rim.
+     */
+    public static MeshGeometry insetFaces(MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (selectedFaces == null || selectedFaces.isEmpty() || amount <= 0.0) return mesh.copy();
+
+        java.util.Set<Integer> valid = new java.util.LinkedHashSet<>();
+        for (int face : selectedFaces) {
+            if (face >= 0 && face < mesh.faces().size()) valid.add(face);
+        }
+        if (valid.isEmpty()) return mesh.copy();
+
+        double factor = Math.max(0.0, Math.min(0.99, amount));
+        java.util.Map<Integer, double[]> targets = new java.util.LinkedHashMap<>();
+        java.util.Map<Integer, Integer> counts = new java.util.LinkedHashMap<>();
+
+        // Each shared vertex gets the average center of the selected faces
+        // touching it. This preserves the local shape of a multi-face region.
+        for (int faceIndex : valid) {
+            MeshGeometry.Face face = mesh.faces().get(faceIndex);
+            double[] center = centroid(mesh, face);
+            for (int id : face.vertices()) {
+                double[] target = targets.computeIfAbsent(id, ignored -> new double[3]);
+                target[0] += center[0];
+                target[1] += center[1];
+                target[2] += center[2];
+                counts.put(id, counts.getOrDefault(id, 0) + 1);
+            }
+        }
+
+        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
+        java.util.Map<Integer, Integer> inner = new java.util.LinkedHashMap<>();
+        for (int id : targets.keySet()) {
+            double[] target = targets.get(id);
+            int count = counts.get(id);
+            target[0] /= count; target[1] /= count; target[2] /= count;
+
+            MeshGeometry.Vertex v = mesh.vertices().get(id);
+            int copy = vertices.size();
+            vertices.add(new MeshGeometry.Vertex(
+                    v.x() + (target[0] - v.x()) * factor,
+                    v.y() + (target[1] - v.y()) * factor,
+                    v.z() + (target[2] - v.z()) * factor));
+            inner.put(id, copy);
+        }
+
+        List<MeshGeometry.Face> faces = new ArrayList<>();
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            if (!valid.contains(i)) faces.add(mesh.faces().get(i));
+        }
+
+        // Add the inset faces first so the caller can select them as a region.
+        for (int faceIndex : valid) {
+            int[] original = mesh.faces().get(faceIndex).vertices();
+            int[] inset = new int[original.length];
+            for (int i = 0; i < original.length; i++) inset[i] = inner.get(original[i]);
+            faces.add(new MeshGeometry.Face(inset));
+        }
+
+        // Build a rim only on the boundary of the selected region.
+        for (int faceIndex : valid) {
+            int[] original = mesh.faces().get(faceIndex).vertices();
+            for (int i = 0; i < original.length; i++) {
+                int a = original[i];
+                int b = original[(i + 1) % original.length];
+                if (!isSelectedEdge(mesh, a, b, valid)) {
+                    faces.add(new MeshGeometry.Face(a, b, inner.get(b), inner.get(a)));
+                }
+            }
+        }
+
+        return new MeshGeometry(vertices, faces);
+    }
+
     public static MeshGeometry insetFace(MeshGeometry mesh, int faceIndex, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
