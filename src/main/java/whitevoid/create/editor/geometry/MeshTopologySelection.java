@@ -185,6 +185,88 @@ public final class MeshTopologySelection {
         return !adjacentFaces(mesh, a, b).isEmpty();
     }
 
+    /** Returns the shortest topological vertex path between two vertices. */
+    public static List<Integer> shortestVertexPath(MeshGeometry mesh, int start, int goal) {
+        List<Integer> empty = List.of();
+        if (mesh == null || start < 0 || goal < 0 || start >= mesh.vertices().size() || goal >= mesh.vertices().size()) return empty;
+        if (start == goal) return List.of(start);
+
+        Map<Integer, Integer> previous = new LinkedHashMap<>();
+        Queue<Integer> queue = new ArrayDeque<>();
+        Set<Integer> visited = new LinkedHashSet<>();
+        queue.add(start);
+        visited.add(start);
+
+        while (!queue.isEmpty()) {
+            int current = queue.remove();
+            for (int next : vertexNeighbors(mesh, current)) {
+                if (!visited.add(next)) continue;
+                previous.put(next, current);
+                if (next == goal) {
+                    ArrayList<Integer> path = new ArrayList<>();
+                    int cursor = goal;
+                    while (cursor != start) {
+                        path.add(cursor);
+                        cursor = previous.get(cursor);
+                    }
+                    path.add(start);
+                    java.util.Collections.reverse(path);
+                    return path;
+                }
+                queue.add(next);
+            }
+        }
+        return empty;
+    }
+
+    /** Returns all mesh edges belonging to the shortest vertex path. */
+    public static Set<Long> shortestEdgePath(MeshGeometry mesh, int start, int goal) {
+        List<Integer> path = shortestVertexPath(mesh, start, goal);
+        Set<Long> result = new LinkedHashSet<>();
+        for (int i = 0; i + 1 < path.size(); i++) result.add(edgeKey(path.get(i), path.get(i + 1)));
+        return result;
+    }
+
+    /** Boundary edges are edges used by exactly one face. */
+    public static Set<Long> boundaryEdges(MeshGeometry mesh) {
+        Map<Long, Integer> counts = new LinkedHashMap<>();
+        for (MeshGeometry.Face face : mesh.faces()) {
+            int[] v = face.vertices();
+            for (int i = 0; i < v.length; i++) {
+                long key = edgeKey(v[i], v[(i + 1) % v.length]);
+                counts.put(key, counts.getOrDefault(key, 0) + 1);
+            }
+        }
+        Set<Long> result = new LinkedHashSet<>();
+        for (Map.Entry<Long, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() == 1) result.add(entry.getKey());
+        }
+        return result;
+    }
+
+    public static Set<Integer> boundaryVertices(MeshGeometry mesh) {
+        Set<Integer> result = new LinkedHashSet<>();
+        for (long edge : boundaryEdges(mesh)) {
+            result.add(edgeA(edge));
+            result.add(edgeB(edge));
+        }
+        return result;
+    }
+
+    /** Returns vertices directly connected to a vertex by a mesh edge. */
+    public static Set<Integer> vertexNeighbors(MeshGeometry mesh, int vertex) {
+        Set<Integer> result = new LinkedHashSet<>();
+        for (MeshGeometry.Face face : mesh.faces()) {
+            int[] v = face.vertices();
+            for (int i = 0; i < v.length; i++) {
+                if (v[i] != vertex) continue;
+                result.add(v[(i + v.length - 1) % v.length]);
+                result.add(v[(i + 1) % v.length]);
+            }
+        }
+        return result;
+    }
+
     public static Set<Integer> selectedFacesForVertices(MeshGeometry mesh, Set<Integer> vertices) {
         Set<Integer> result = new LinkedHashSet<>();
         for (int i = 0; i < mesh.faces().size(); i++) {
