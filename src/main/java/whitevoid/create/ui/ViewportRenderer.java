@@ -13,7 +13,7 @@ import whitevoid.create.ui.ViewportProjector.Point;
 public final class ViewportRenderer {
     private final ModelRenderer modelRenderer = new ModelRenderer();
 
-    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model) {
+    public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model, ViewportGizmo.Axis hoveredAxis) {
         int left = 16, top = 16, right = width - 16, bottom = height - 16;
         int centerX = (left + right) / 2, centerY = (top + bottom) / 2;
         context.fill(left, top, right, bottom, 0xFF111216);
@@ -30,7 +30,7 @@ public final class ViewportRenderer {
         ModelNode selected = viewport.selection().first(model);
         if (selected != null && viewport.transform().mode() != whitevoid.create.editor.transform.TransformMode.SELECT) {
             drawGizmo(context, projector, selected, viewport.transform().mode(), centerX, centerY, left, top, right, bottom,
-                    ViewportGizmo.Axis.NONE);
+                    hoveredAxis);
         }
 
         var textRenderer = MinecraftClient.getInstance().textRenderer;
