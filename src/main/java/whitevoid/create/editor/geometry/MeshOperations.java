@@ -21,6 +21,148 @@ public final class MeshOperations {
         return new MeshGeometry(vertices, mesh.faces());
     }
 
+    public static MeshGeometry extrudeEdge(MeshGeometry mesh, int a, int b, double amount) {
+        validateEdge(mesh, a, b);
+        if (amount == 0.0) return mesh.copy();
+
+        List<Integer> adjacent = adjacentFaces(mesh, a, b);
+        if (adjacent.isEmpty()) throw new IllegalArgumentException("Edge is not connected to a face");
+
+        double nx = 0.0, ny = 0.0, nz = 0.0;
+        for (int faceIndex : adjacent) {
+            double[] n = faceNormal(mesh, mesh.faces().get(faceIndex));
+            nx += n[0]; ny += n[1]; nz += n[2];
+        }
+        double len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        if (len < 1e-9) throw new IllegalArgumentException("Cannot extrude degenerate edge");
+        nx /= len; ny /= len; nz /= len;
+
+        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
+        int na = vertices.size();
+        var va = mesh.vertices().get(a);
+        vertices.add(new MeshGeometry.Vertex(va.x() + nx * amount, va.y() + ny * amount, va.z() + nz * amount));
+        int nb = vertices.size();
+        var vb = mesh.vertices().get(b);
+        vertices.add(new MeshGeometry.Vertex(vb.x() + nx * amount, vb.y() + ny * amount, vb.z() + nz * amount));
+
+        List<MeshGeometry.Face> faces = new ArrayList<>(mesh.faces());
+        faces.add(new MeshGeometry.Face(a, b, nb, na));
+        return new MeshGeometry(vertices, faces);
+    }
+
+    public static MeshGeometry bevelEdge(MeshGeometry mesh, int a, int b, double amount) {
+        validateEdge(mesh, a, b);
+        if (amount <= 0.0) return mesh.copy();
+
+        List<Integer> adjacent = adjacentFaces(mesh, a, b);
+        if (adjacent.size() != 2) {
+            throw new IllegalArgumentException("Bevel currently requires exactly two adjacent faces");
+        }
+
+        double edgeLength = distance(mesh.vertices().get(a), mesh.vertices().get(b));
+        double offset = Math.min(amount, edgeLength * 0.49);
+
+        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
+        int[] newA = new int[2];
+        int[] newB = new int[2];
+
+        for (int i = 0; i < 2; i++) {
+            var face = mesh.faces().get(adjacent.get(i));
+            double[] ca = centroid(mesh, face);
+            var va = mesh.vertices().get(a);
+            var vb = mesh.vertices().get(b);
+
+            newA[i] = vertices.size();
+            vertices.add(toward(va, ca, offset));
+            newB[i] = vertices.size();
+            vertices.add(toward(vb, ca, offset));
+        }
+
+        List<MeshGeometry.Face> faces = new ArrayList<>();
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            if (i == adjacent.get(0) || i == adjacent.get(1)) continue;
+            faces.add(mesh.faces().get(i));
+        }
+
+        for (int side = 0; side < 2; side++) {
+            int faceIndex = adjacent.get(side);
+            int[] original = mesh.faces().get(faceIndex).vertices();
+            int[] replaced = original.clone();
+            for (int i = 0; i < replaced.length; i++) {
+                int current = replaced[i];
+                int next = replaced[(i + 1) % replaced.length];
+                if (current == a && next == b) {
+                    replaced[i] = newA[side];
+                    replaced[(i + 1) % replaced.length] = newB[side];
+                } else if (current == b && next == a) {
+                    replaced[i] = newB[side];
+                    replaced[(i + 1) % replaced.length] = newA[side];
+                }
+            }
+            faces.add(new MeshGeometry.Face(replaced));
+        }
+
+        faces.add(new MeshGeometry.Face(newA[0], newB[0], newB[1], newA[1]));
+        return new MeshGeometry(vertices, faces);
+    }
+
+    private static void validateEdge(MeshGeometry mesh, int a, int b) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (a < 0 || b < 0 || a >= mesh.vertices().size() || b >= mesh.vertices().size() || a == b) {
+            throw new IllegalArgumentException("Invalid edge");
+        }
+    }
+
+    private static List<Integer> adjacentFaces(MeshGeometry mesh, int a, int b) {
+        List<Integer> result = new ArrayList<>();
+        for (int i = 0; i < mesh.faces().size(); i++) {
+            int[] indices = mesh.faces().get(i).vertices();
+            for (int j = 0; j < indices.length; j++) {
+                int next = indices[(j + 1) % indices.length];
+                if ((indices[j] == a && next == b) || (indices[j] == b && next == a)) {
+                    result.add(i);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    private static double[] faceNormal(MeshGeometry mesh, MeshGeometry.Face face) {
+        int[] ids = face.vertices();
+        var a = mesh.vertices().get(ids[0]);
+        var b = mesh.vertices().get(ids[1]);
+        var c = mesh.vertices().get(ids[2]);
+        double ux = b.x() - a.x(), uy = b.y() - a.y(), uz = b.z() - a.z();
+        double vx = c.x() - a.x(), vy = c.y() - a.y(), vz = c.z() - a.z();
+        double nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        double len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        return len < 1e-9 ? new double[]{0, 0, 0} : new double[]{nx / len, ny / len, nz / len};
+    }
+
+    private static double[] centroid(MeshGeometry mesh, MeshGeometry.Face face) {
+        int[] ids = face.vertices();
+        double x = 0, y = 0, z = 0;
+        for (int id : ids) {
+            var v = mesh.vertices().get(id);
+            x += v.x(); y += v.y(); z += v.z();
+        }
+        return new double[]{x / ids.length, y / ids.length, z / ids.length};
+    }
+
+    private static MeshGeometry.Vertex toward(MeshGeometry.Vertex v, double[] target, double distance) {
+        double dx = target[0] - v.x(), dy = target[1] - v.y(), dz = target[2] - v.z();
+        double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (len < 1e-9) return v;
+        double factor = distance / len;
+        return new MeshGeometry.Vertex(v.x() + dx * factor, v.y() + dy * factor, v.z() + dz * factor);
+    }
+
+    private static double distance(MeshGeometry.Vertex a, MeshGeometry.Vertex b) {
+        double dx = a.x() - b.x(), dy = a.y() - b.y(), dz = a.z() - b.z();
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
     public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
