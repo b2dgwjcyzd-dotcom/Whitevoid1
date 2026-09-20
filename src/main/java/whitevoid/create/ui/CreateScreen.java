@@ -1006,9 +1006,13 @@ public final class CreateScreen extends Screen {
                     ? "" : " " + hoveredComponentAxis.name())
                     : " " + componentAxis.name();
             String pivot = componentPivotMode.name().replace('_', ' ');
+            String active = switch (activeComponentLabel(activeViewport.meshComponentSelection())) {
+                case null -> "";
+                case String value -> " • Active " + value;
+            };
             String snap = hasControlDown() ? " • SNAP" : "";
             context.drawTextWithShadow(textRenderer,
-                    operation + axis + " • " + mode + " • Pivot " + pivot + snap,
+                    operation + axis + " • " + mode + " • Pivot " + pivot + active + snap,
                     26, height - 30, 0xFFE8E8E8);
         }
         if (componentBoxSelecting) {
@@ -1022,6 +1026,14 @@ public final class CreateScreen extends Screen {
             context.fill(right, top, right + 1, bottom, 0xFFFFFFFF);
         }
         super.render(context, mouseX, mouseY, delta);
+    }
+
+    private static String activeComponentLabel(whitevoid.create.editor.geometry.MeshComponentSelection selection) {
+        return switch (selection.mode()) {
+            case VERTEX -> selection.activeVertex() >= 0 ? "V" + selection.activeVertex() : null;
+            case EDGE -> selection.activeEdgeA() >= 0 ? "E" + selection.activeEdgeA() + "-" + selection.activeEdgeB() : null;
+            case FACE -> selection.activeFace() >= 0 ? "F" + selection.activeFace() : null;
+        };
     }
 
     private static double snapScalar(double value, double increment) {
