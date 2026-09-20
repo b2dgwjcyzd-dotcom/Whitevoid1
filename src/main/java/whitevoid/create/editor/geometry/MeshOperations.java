@@ -7,6 +7,20 @@ import whitevoid.create.model.MeshGeometry;
 public final class MeshOperations {
     private MeshOperations() {}
 
+    public static MeshGeometry moveVertex(MeshGeometry mesh, int vertexIndex,
+                                             double dx, double dy, double dz) {
+        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
+        if (vertexIndex < 0 || vertexIndex >= mesh.vertices().size()) {
+            throw new IllegalArgumentException("Invalid vertex index: " + vertexIndex);
+        }
+
+        List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
+        var v = vertices.get(vertexIndex);
+        vertices.set(vertexIndex, new MeshGeometry.Vertex(
+                v.x() + dx, v.y() + dy, v.z() + dz));
+        return new MeshGeometry(vertices, mesh.faces());
+    }
+
     public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (faceIndex < 0 || faceIndex >= mesh.faces().size()) {
