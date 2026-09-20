@@ -109,20 +109,42 @@ public final class ComponentTransformGizmo {
                               java.util.List<int[]> edges, java.util.List<Integer> faces,
                               ViewportProjector projector, double mouseX, double mouseY, int cx, int cy,
                               PivotMode pivotMode) {
-        TransformMath.Point p=TransformMath.applyHierarchy(
-                localPivot(node, mode, vertices, edges, faces, pivotMode), node);
-        var o=projector.project(p.x(),p.y(),p.z(),cx,cy,300);
-        if(o==null)return Axis.NONE;
-        double best=9; Axis result=Axis.NONE;
-        double[][] dirs={{2,0,0},{0,2,0},{0,0,2}};
-        Axis[] axes={Axis.X,Axis.Y,Axis.Z};
-        for(int i=0;i<3;i++){
-            var q3=new TransformMath.Point(p.x()+dirs[i][0],p.y()+dirs[i][1],p.z()+dirs[i][2]);
-            var q=projector.project(q3.x(),q3.y(),q3.z(),cx,cy,300);
-            if(q==null)continue;
-            double radius=Math.hypot(q.x()-o.x(),q.y()-o.y());
-            double d=Math.abs(Math.hypot(mouseX-o.x(),mouseY-o.y())-radius);
-            if(d<best){best=d;result=axes[i];}
+        TransformMath.Point localPivot = localPivot(node, mode, vertices, edges, faces, pivotMode);
+        TransformMath.Point worldPivot = TransformMath.applyHierarchy(localPivot, node);
+        double best = 8.0;
+        Axis result = Axis.NONE;
+
+        int[][] planes = {{1, 2}, {0, 2}, {0, 1}};
+        Axis[] axes = {Axis.X, Axis.Y, Axis.Z};
+        for (int axis = 0; axis < 3; axis++) {
+            double previousX = 0.0;
+            double previousY = 0.0;
+            boolean havePrevious = false;
+            for (int i = 0; i <= 48; i++) {
+                double angle = Math.PI * 2.0 * i / 48.0;
+                double[] offset = {0.0, 0.0, 0.0};
+                offset[planes[axis][0]] = Math.cos(angle) * 2.0;
+                offset[planes[axis][1]] = Math.sin(angle) * 2.0;
+
+                TransformMath.Point local = new TransformMath.Point(
+                        localPivot.x() + offset[0],
+                        localPivot.y() + offset[1],
+                        localPivot.z() + offset[2]);
+                TransformMath.Point world = TransformMath.applyHierarchy(local, node);
+                var point = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+                if (point == null) continue;
+
+                if (havePrevious) {
+                    double distance = distance(mouseX, mouseY, previousX, previousY, point.x(), point.y());
+                    if (distance < best) {
+                        best = distance;
+                        result = axes[axis];
+                    }
+                }
+                previousX = point.x();
+                previousY = point.y();
+                havePrevious = true;
+            }
         }
         return result;
     }
