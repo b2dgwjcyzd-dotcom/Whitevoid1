@@ -231,8 +231,8 @@ public final class ViewportRenderer {
             for (int i = 0; i <= 64; i++) {
                 double angle = Math.PI * 2.0 * i / 64.0;
                 double[] offset = {0.0, 0.0, 0.0};
-                offset[planes[axis][0]] = Math.cos(angle) * 2.0;
-                offset[planes[axis][1]] = Math.sin(angle) * 2.0;
+                offset[planes[axis][0]] = Math.cos(angle) * ComponentTransformGizmo.gizmoRadius(projector);
+                offset[planes[axis][1]] = Math.sin(angle) * ComponentTransformGizmo.gizmoRadius(projector);
 
                 TransformMath.Point local = new TransformMath.Point(
                         localPivot.x() + offset[0],
@@ -266,7 +266,8 @@ public final class ViewportRenderer {
         TransformMath.Point p3=TransformMath.applyHierarchy(localPivot,node);
         Point o=projector.project(p3.x(),p3.y(),p3.z(),cx,cy,300);
         if(o==null)return;
-        double[][] dirs={{2.4,0,0},{0,2.4,0},{0,0,2.4}};
+        double gizmoRadius = ComponentTransformGizmo.gizmoRadius(projector);
+        double[][] dirs={{gizmoRadius,0,0},{0,gizmoRadius,0},{0,0,gizmoRadius}};
         int[] colors={0xFFE06B6B,0xFF70C878,0xFF6B8EDC};
         if(operation==Operation.ROTATE){
             drawComponentRotationRings(context,projector,localPivot,o,node,cx,cy,left,top,right,bottom,colors,hoveredAxis);
