@@ -50,10 +50,26 @@ public final class ViewportRenderer {
             points[i] = projector.project(p.x(), p.y(), p.z(), cx, cy, 300.0);
         }
 
-        int color = viewport.selection().selection().contains(node.id()) ? 0xFFFFFFFF : 0xFFBFC3CC;
+        boolean selected = viewport.selection().selection().contains(node.id());
+        int color = selected ? 0xFFFFFFFF : 0xFFBFC3CC;
         for (int[] edge : ModelRenderer.edges()) {
             Point a = points[edge[0]], b = points[edge[1]];
-            if (a != null && b != null) drawLine(context, a, b, left, top, right, bottom, color);
+            if (a == null || b == null) continue;
+            drawLine(context, a, b, left, top, right, bottom, color);
+            if (selected) {
+                drawLine(context, new Point(a.x()+1,a.y(),a.depth()),
+                        new Point(b.x()+1,b.y(),b.depth()), left,top,right,bottom,0xFFE7E9EF);
+                drawLine(context, new Point(a.x()-1,a.y(),a.depth()),
+                        new Point(b.x()-1,b.y(),b.depth()), left,top,right,bottom,0xFFE7E9EF);
+            }
+        }
+
+        if (selected) {
+            for (Point point : points) {
+                if (point == null) continue;
+                int x=(int)Math.round(point.x()), y=(int)Math.round(point.y());
+                context.fill(x-2,y-2,x+3,y+3,0xFFFFFFFF);
+            }
         }
     }
 
