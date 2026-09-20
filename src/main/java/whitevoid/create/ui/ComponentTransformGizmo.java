@@ -222,20 +222,86 @@ public final class ComponentTransformGizmo {
         return (dx * (sx / length) + dy * (sy / length)) / 35.0;
     }
 
-    public double rotationAmount(Axis axis, double startX, double startY,
-                                  double mouseX, double mouseY,
-                                  ViewportProjector projector, int cx, int cy,
-                                  TransformMath.Point pivot) {
-        if (axis == Axis.NONE || pivot == null) return 0;
-        var center = projector.project(pivot.x(), pivot.y(), pivot.z(), cx, cy, 300);
+    /**
+     * Measures rotation against the actual projected 3D ring for the selected axis.
+     * This keeps drag direction consistent with the visible local rotation ring.
+     */
+    public double rotationAmount(Axis axis, ModelNode node, TransformMath.Point localPivot,
+                                 double startX, double startY, double mouseX, double mouseY,
+                                 ViewportProjector projector, int cx, int cy) {
+        if (axis == Axis.NONE || node == null || localPivot == null) return 0;
+
+        TransformMath.Point worldPivot = TransformMath.applyHierarchy(localPivot, node);
+        var center = projector.project(worldPivot.x(), worldPivot.y(), worldPivot.z(), cx, cy, 300);
         if (center == null) return 0;
+
+        int axisIndex = axis == Axis.X ? 0 : axis == Axis.Y ? 1 : 2;
+        int[] plane = axisIndex == 0 ? new int[]{1, 2}
+                : axisIndex == 1 ? new int[]{0, 2}
+                : new int[]{0, 1};
+
+        double bestDistance = 24.0;
+        double bestTangentX = 0.0;
+        double bestTangentY = 0.0;
+        boolean found = false;
+
+        for (int i = 0; i < 64; i++) {
+            double a0 = Math.PI * 2.0 * i / 64.0;
+            double a1 = Math.PI * 2.0 * (i + 1) / 64.0;
+            var p0 = projectRingPoint(node, localPivot, plane, a0, projector, cx, cy);
+            var p1 = projectRingPoint(node, localPivot, plane, a1, projector, cx, cy);
+            if (p0 == null || p1 == null) continue;
+
+            double distance = distance(startX, startY, p0.x(), p0.y(), p1.x(), p1.y());
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestTangentX = p1.x() - p0.x();
+                bestTangentY = p1.y() - p0.y();
+                found = true;
+            }
+        }
 
         double startAngle = Math.atan2(startY - center.y(), startX - center.x());
         double currentAngle = Math.atan2(mouseY - center.y(), mouseX - center.x());
-        double delta = Math.toDegrees(currentAngle - startAngle);
-        while (delta > 180.0) delta -= 360.0;
-        while (delta < -180.0) delta += 360.0;
+        double delta = normalizeDegrees(Math.toDegrees(currentAngle - startAngle));
+
+        if (!found) return delta;
+
+        double movementX = mouseX - startX;
+        double movementY = mouseY - startY;
+        double tangentLength = Math.hypot(bestTangentX, bestTangentY);
+        if (tangentLength > 0.001) {
+            double dot = movementX * bestTangentX + movementY * bestTangentY;
+            if (dot < 0.0) delta = -Math.abs(delta);
+            else if (dot > 0.0) delta = Math.abs(delta);
+        }
         return delta;
+    }
+
+    private TransformMath.Point projectRingPoint(ModelNode node, TransformMath.Point localPivot,
+                                                   int[] plane, double angle,
+                                                   ViewportProjector projector, int cx, int cy) {
+        double[] offset = {0.0, 0.0, 0.0};
+        offset[plane[0]] = Math.cos(angle) * 2.0;
+        offset[plane[1]] = Math.sin(angle) * 2.0;
+        var local = new TransformMath.Point(localPivot.x() + offset[0],
+                localPivot.y() + offset[1], localPivot.z() + offset[2]);
+        var world = TransformMath.applyHierarchy(local, node);
+        return projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
+    }
+
+    private double normalizeDegrees(double degrees) {
+        while (degrees > 180.0) degrees -= 360.0;
+        while (degrees < -180.0) degrees += 360.0;
+        return degrees;
+    }
+
+    private double distance(double px, double py, double x1, double y1, double x2, double y2) {
+        double dx = x2 - x1, dy = y2 - y1;
+        if (dx == 0.0 && dy == 0.0) return Math.hypot(px - x1, py - y1);
+        double t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
+        t = Math.max(0.0, Math.min(1.0, t));
+        return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
     }
 
     public double rotationAmount(Axis axis, double dx, double dy) {
