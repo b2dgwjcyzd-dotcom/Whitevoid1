@@ -199,7 +199,7 @@ public final class CreateScreen extends Screen {
 
     @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         renderBackground(context, mouseX, mouseY, delta);
-        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model());
+        viewportRenderer.render(context, width, height, core.editorContext().viewport(), core.editorContext().model(), hoveredAxis);
         super.render(context, mouseX, mouseY, delta);
     }
 
