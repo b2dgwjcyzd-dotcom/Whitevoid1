@@ -12,7 +12,7 @@ public final class SetMeshGeometryCommand implements Command {
 
     public SetMeshGeometryCommand(ModelNode node, MeshGeometry oldMesh, MeshGeometry newMesh) {
         this.node = Objects.requireNonNull(node, "node");
-        this.oldMesh = oldMesh;
+        this.oldMesh = Objects.requireNonNull(oldMesh, "oldMesh");
         this.newMesh = Objects.requireNonNull(newMesh, "newMesh");
     }
 
