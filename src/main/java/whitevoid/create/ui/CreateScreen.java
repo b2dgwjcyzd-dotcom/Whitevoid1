@@ -179,7 +179,12 @@ public final class CreateScreen extends Screen {
             return true;
         }
 
-        if (keyCode == GLFW.GLFW_KEY_O) {\n            viewport.viewport().camera().toggleMode();\n            return true;\n        }\n\n        if (keyCode == GLFW.GLFW_KEY_N) {
+        if (keyCode == GLFW.GLFW_KEY_O) {
+            viewport.viewport().camera().toggleMode();
+            return true;
+        }
+
+        if (keyCode == GLFW.GLFW_KEY_N) {
             nodeActions.addCube();
             return true;
         }
