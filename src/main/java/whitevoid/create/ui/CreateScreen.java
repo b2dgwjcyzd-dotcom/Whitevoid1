@@ -351,7 +351,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
     }
 
-(double dx, double dy, double dz) {    private void moveSelectedComponents
+private void moveSelectedComponents(double dx, double dy, double dz) {
         var viewport = core.editorContext().viewport();
         var node = viewport.meshComponentSelection().node(core.editorContext().model());
         if (node == null) return;
