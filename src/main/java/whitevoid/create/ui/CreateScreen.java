@@ -57,6 +57,7 @@ public final class CreateScreen extends Screen {
     private final CreateResetController resetController;
     private final CreateViewportReleaseController viewportReleaseController;
     private final CreateViewportDragController viewportDragController;
+    private final CreateViewportClickController viewportClickController;
 
     private final CubeFaceEditorController cubeFaceEditor;
 
@@ -87,6 +88,17 @@ public final class CreateScreen extends Screen {
                 cubeFaceEditor,
                 transformGizmoDrag,
                 viewportInput);
+        this.viewportClickController = new CreateViewportClickController(
+                topologyPathController,
+                meshComponentInteraction,
+                componentTransformInteraction,
+                transformGizmoInteraction,
+                componentBoxSelection,
+                nodeSelection,
+                gizmo,
+                cubeFaceEditor,
+                viewportInput,
+                componentTransformInput);
     }
 
     @Override protected void init() {
@@ -161,66 +173,18 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && topologyPathController.handleLeftClick(
-                core, interaction, mouseX, mouseY, width, height)) {
+        if (viewportClickController.handle(
+                core,
+                interaction,
+                mouseX,
+                mouseY,
+                button,
+                width,
+                height,
+                hasShiftDown(),
+                hasAltDown(),
+                hasControlDown())) {
             return true;
-        }
-
-        if (viewportInput.mouseClicked(mouseX, mouseY, button)) return true;
-        if (button == 0) {
-            ViewportContext viewport = core.editorContext().viewport();
-            ModelNode selected = viewport.selection().first(core.editorContext().model());
-            if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
-                int cx=width/2, cy=height/2;
-                ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
-                if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0
-                        && componentTransformInput.armed()
-                        && componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
-                    interaction.componentDragging = componentTransformInteraction.beginKeyboardArmed(
-                            selected, viewport, mouseX, mouseY);
-                    return true;
-                }
-                if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
-                    if (componentTransformInteraction.beginFromGizmo(
-                            selected, viewport, projector, mouseX, mouseY, cx, cy)) {
-                        interaction.componentDragging = true;
-                        return true;
-                    }
-                }
-                if (meshComponentInteraction.handleClick(
-                        core, interaction, selected, viewport, mouseX, mouseY, cx, cy,
-                        interaction.selectThrough, hasAltDown(), hasShiftDown(), hasControlDown())) {
-                    return true;
-                }
-                    GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
-                    if (clickedFace != GeometryFace.NONE) {
-                        viewport.geometryFaceSelection().select(selected, clickedFace);
-                        interaction.hoveredFace = clickedFace;
-                        cubeFaceEditor.begin(selected, clickedFace);
-                        return true;
-                    }
-                    viewport.geometryFaceSelection().clear();
-                }
-                interaction.gizmoDragging = interaction.activeAxis != ViewportGizmo.Axis.NONE;
-                interaction.hoveredAxis = interaction.activeAxis;
-                if (interaction.gizmoDragging) {
-                    interaction.dragOldGeometry = selected.geometry();
-                    return true;
-                }
-            } else if (selected != null && viewport.transform().mode() != TransformMode.SELECT) {
-                if (transformGizmoInteraction.begin(
-                        core, interaction, selected, viewport, viewport.transform().mode(),
-                        mouseX, mouseY, width / 2, height / 2)) {
-                    return true;
-                }
-            }
-            // Empty-space drag in geometry mode starts component box selection.
-            if (componentBoxSelection.begin(core, interaction, selected, viewport, mouseX, mouseY)) {
-                return true;
-            }
-
-            return nodeSelection.selectAt(
-                    core, core.editorContext().viewport(), mouseX, mouseY, width, height);
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
