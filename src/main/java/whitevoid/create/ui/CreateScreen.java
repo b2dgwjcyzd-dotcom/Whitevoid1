@@ -33,6 +33,8 @@ public final class CreateScreen extends Screen {
     private final CreateTopologyPathInteractionController topologyPathController = new CreateTopologyPathInteractionController(selectionController);
     private final CreateMeshComponentInteractionController meshComponentInteraction =
             new CreateMeshComponentInteractionController(meshEditor, meshComponentDrag);
+    private final CreateTransformGizmoInteractionController transformGizmoInteraction =
+            new CreateTransformGizmoInteractionController(gizmo);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -702,16 +704,9 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
                     return true;
                 }
             } else if (selected != null && viewport.transform().mode() != TransformMode.SELECT) {
-                int cx=width/2, cy=height/2;
-                interaction.activeAxis = gizmo.hit(selected, viewport.transform().mode(),
-                        new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
-                interaction.gizmoDragging = interaction.activeAxis != ViewportGizmo.Axis.NONE;
-                interaction.hoveredAxis = interaction.activeAxis;
-                if (interaction.gizmoDragging) {
-                    var t=selected.transform();
-                    interaction.dragOldX=t.x(); interaction.dragOldY=t.y(); interaction.dragOldZ=t.z();
-                    interaction.dragOldRx=t.rotationX(); interaction.dragOldRy=t.rotationY(); interaction.dragOldRz=t.rotationZ();
-                    interaction.dragOldSx=t.scaleX(); interaction.dragOldSy=t.scaleY(); interaction.dragOldSz=t.scaleZ();
+                if (transformGizmoInteraction.begin(
+                        core, interaction, selected, viewport, viewport.transform().mode(),
+                        mouseX, mouseY, width / 2, height / 2)) {
                     return true;
                 }
             }
