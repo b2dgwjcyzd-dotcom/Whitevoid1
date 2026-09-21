@@ -66,6 +66,7 @@ public final class ReparentNodeCommand implements Command, SelectionHistoryComma
             throw new IllegalStateException("Node parent changed outside this command");
         }
 
+        if (node.parent() != newParent) throw new IllegalStateException("Node parent changed outside this command");
         node.parent().removeChild(node);
         int index = Math.max(0, Math.min(oldIndex, oldParent.children().size()));
         oldParent.addChild(index, node);
