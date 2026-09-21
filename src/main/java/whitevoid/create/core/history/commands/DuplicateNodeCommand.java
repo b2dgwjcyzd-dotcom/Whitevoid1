@@ -34,6 +34,8 @@ public final class DuplicateNodeCommand implements Command, SelectionHistoryComm
                     source.transform().x() + 1.0,
                     source.transform().y(),
                     source.transform().z());
+        } else if (duplicate.parent() != null && duplicate.parent() != parent) {
+            throw new IllegalStateException("Duplicate node was reparented outside this command");
         }
 
         if (index < 0) index = parent.indexOfChild(source) + 1;
@@ -43,6 +45,8 @@ public final class DuplicateNodeCommand implements Command, SelectionHistoryComm
     @Override public void undo() {
         if (parent == null || duplicate == null)
             throw new IllegalStateException("Duplicate command has not been executed");
+        if (duplicate.parent() != parent)
+            throw new IllegalStateException("Duplicate node changed parent outside this command");
         parent.removeChild(duplicate);
     }
 
