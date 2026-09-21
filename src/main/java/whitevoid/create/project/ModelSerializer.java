@@ -34,7 +34,8 @@ public final class ModelSerializer {
         }
 
         Model model = new Model(root.id);
-        restoreChildren(model.root(), root.children);
+        restoreNodeData(model.root(), root);
+        return model;
         return model;
     }
 
@@ -83,33 +84,38 @@ public final class ModelSerializer {
             }
 
             ModelNode node = new ModelNode(data.name == null ? "Node" : data.name, data.id);
-            restoreTransform(node.transform(), data.transform);
-
-            if (data.cube != null) {
-                node.setGeometry(new CubeGeometry(
-                        data.cube.width, data.cube.height, data.cube.depth));
-            }
-
-            if (data.mesh != null) {
-                List<MeshGeometry.Vertex> vertices = new ArrayList<>();
-                if (data.mesh.vertices != null) {
-                    for (MeshVertexData vertex : data.mesh.vertices) {
-                        vertices.add(new MeshGeometry.Vertex(vertex.x, vertex.y, vertex.z));
-                    }
-                }
-
-                List<MeshGeometry.Face> faces = new ArrayList<>();
-                if (data.mesh.faces != null) {
-                    for (MeshFaceData face : data.mesh.faces) {
-                        faces.add(new MeshGeometry.Face(face.vertices));
-                    }
-                }
-                node.setMeshGeometry(new MeshGeometry(vertices, faces));
-            }
-
+            restoreNodeData(node, data);
             parent.addChild(node);
-            restoreChildren(node, data.children);
         }
+    }
+
+    private static void restoreNodeData(ModelNode node, NodeData data) {
+        if (data.name != null) node.setName(data.name);
+        restoreTransform(node.transform(), data.transform);
+
+        if (data.cube != null) {
+            node.setGeometry(new CubeGeometry(
+                    data.cube.width, data.cube.height, data.cube.depth));
+        }
+
+        if (data.mesh != null) {
+            List<MeshGeometry.Vertex> vertices = new ArrayList<>();
+            if (data.mesh.vertices != null) {
+                for (MeshVertexData vertex : data.mesh.vertices) {
+                    vertices.add(new MeshGeometry.Vertex(vertex.x, vertex.y, vertex.z));
+                }
+            }
+
+            List<MeshGeometry.Face> faces = new ArrayList<>();
+            if (data.mesh.faces != null) {
+                for (MeshFaceData face : data.mesh.faces) {
+                    faces.add(new MeshGeometry.Face(face.vertices));
+                }
+            }
+            node.setMeshGeometry(new MeshGeometry(vertices, faces));
+        }
+
+        restoreChildren(node, data.children);
     }
 
     private static void restoreTransform(Transform transform, TransformData data) {
