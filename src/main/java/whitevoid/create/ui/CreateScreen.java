@@ -799,14 +799,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                                 viewport.meshComponentSelection().faceIndices(),
                                 viewport.meshComponentSelection(), mouseX, mouseY);
                         componentDragging = componentTransform.dragging();
-                        componentDragStartX = mouseX;
-                        componentDragStartY = mouseY;
-                        componentDragLastX = mouseX;
-                        componentDragLastY = mouseY;
-                        componentDragOldMesh = selected.ensureMeshGeometry();
-                        if (componentDragOldMesh != null) componentDragOldMesh = componentDragOldMesh.copy();
-                        componentDragPivot = componentTransform.pivot();
-                        return true;
+                                                                                                                                                                                                return true;
                     }
                 }
                 MeshEditorController.PickResult meshPick = meshEditor.pickAndSelect(
