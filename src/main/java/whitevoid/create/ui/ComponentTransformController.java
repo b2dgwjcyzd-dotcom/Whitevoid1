@@ -136,6 +136,29 @@ public final class ComponentTransformController {
         return Math.round(value / increment) * increment;
     }
 
+    public MeshGeometry applyRotate(MeshGeometry source, java.util.Set<Integer> ids, ModelNode node,
+                                    ViewportProjector projector, double startX, double startY,
+                                    double mouseX, double mouseY, int viewportWidth, int viewportHeight,
+                                    ComponentTransformGizmo.Axis constraintAxis,
+                                    boolean proportional, double proportionalRadius,
+                                    boolean snap, double snapIncrement) {
+        if (!dragging || source == null || ids == null || ids.isEmpty() || node == null || pivot == null) {
+            return source;
+        }
+        ComponentTransformGizmo.Axis constrainedAxis =
+                constraintAxis != null && constraintAxis != ComponentTransformGizmo.Axis.NONE
+                        ? constraintAxis : axis;
+        int axisIndex = constrainedAxis == ComponentTransformGizmo.Axis.X ? 0
+                : constrainedAxis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
+        double degrees = gizmo.rotationAmount(constrainedAxis, node, pivot,
+                startX, startY, mouseX, mouseY, projector,
+                viewportWidth / 2, viewportHeight / 2);
+        if (snap) degrees = snap(degrees, snapIncrement);
+        return proportional
+                ? MeshComponentTransforms.rotateProportional(source, ids, pivot, proportionalRadius, axisIndex, degrees)
+                : MeshComponentTransforms.rotate(source, ids, pivot, axisIndex, degrees);
+    }
+
     public void updateMouse(double mouseX, double mouseY) {
         if (!dragging) return;
         lastX = mouseX;
