@@ -50,6 +50,26 @@ final class CreateTransformGizmoInteractionController {
         interaction.dragOldSz = transform.scaleZ();
         return true;
     }
+    /** Cancels a live gizmo drag and restores its captured state. */
+    void abort(CreateViewportInteractionState interaction, ModelNode node) {
+        if (!interaction.gizmoDragging) return;
+
+        if (node != null) {
+            var transform = node.transform();
+            transform.position(interaction.dragOldX, interaction.dragOldY, interaction.dragOldZ);
+            transform.rotation(interaction.dragOldRx, interaction.dragOldRy, interaction.dragOldRz);
+            transform.scale(interaction.dragOldSx, interaction.dragOldSy, interaction.dragOldSz);
+
+            if (interaction.dragOldGeometry != null) {
+                node.setGeometry(interaction.dragOldGeometry);
+            }
+        }
+
+        interaction.dragOldGeometry = null;
+        interaction.gizmoDragging = false;
+        interaction.activeAxis = ViewportGizmo.Axis.NONE;
+    }
+
     boolean finish(CreateCore core, CreateViewportInteractionState interaction, ModelNode node, TransformMode mode) {
         if (!interaction.gizmoDragging) return false;
 
