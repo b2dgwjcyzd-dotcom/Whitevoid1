@@ -6,7 +6,15 @@ import whitevoid.create.model.Model;
 
 /** Runtime state shared by CREATE editor systems. */
 public final class EditorContext {
-    private final CommandHistory history = new CommandHistory();
+    private final CommandHistory history;
+
+    public EditorContext() {
+        this(() -> {});
+    }
+
+    public EditorContext(Runnable historyMutationListener) {
+        this.history = new CommandHistory(historyMutationListener);
+    }
     private final ViewportContext viewport = new ViewportContext();
     private Model model = Model.withDefaultCube();
     private boolean editing;
