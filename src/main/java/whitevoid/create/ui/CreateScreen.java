@@ -762,7 +762,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                         && componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
                     componentTransform.setAxis(componentTransform.constraintAxis());
                     componentTransform.setOperation(componentTransform.operation());
-                    componentTransform.setAxis(componentAxis);
+                    componentTransform.setAxis(componentTransform.axis());
                     componentTransform.setConstraintMode(componentTransform.planeConstraint()
                             ? ComponentTransformController.ConstraintMode.PLANE
                             : ComponentTransformController.ConstraintMode.AXIS);
@@ -890,7 +890,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             componentKeyboardTransformArmed=false;
             componentTransform.constraintAxis()=ComponentTransformGizmo.Axis.NONE;
             componentTransform.planeConstraint()=false;
-            componentAxis=ComponentTransformGizmo.Axis.NONE;
+            componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE);
             hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
             return true;
         }
@@ -972,7 +972,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     var updated=node.ensureMeshGeometry().copy();
                     var pivot=componentTransform.pivot();
                     ComponentTransformGizmo.Axis constrainedAxis = componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE
-                            ? componentTransform.constraintAxis() : componentAxis;
+                            ? componentTransform.constraintAxis() : componentTransform.axis();
                     int axis=constrainedAxis==ComponentTransformGizmo.Axis.X?0
                             :constrainedAxis==ComponentTransformGizmo.Axis.Y?1:2;
                     double totalDx = mouseX - componentTransform.startX();
