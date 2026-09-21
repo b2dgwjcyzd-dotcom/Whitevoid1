@@ -132,7 +132,7 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
                 case GLFW.GLFW_KEY_Z -> ComponentTransformGizmo.Axis.Z;
                 default -> ComponentTransformGizmo.Axis.NONE;
             };
-            if (requested != ComponentTransformGizmo.Axis.NONE && componentKeyboardTransformArmed) {
+            if (requested != ComponentTransformGizmo.Axis.NONE && componentTransformInput.armed()) {
                 if (componentTransform.constraintAxis() == requested) {
                     componentTransform.setConstraintMode(hasShiftDown() ? ComponentTransformController.ConstraintMode.PLANE : ComponentTransformController.ConstraintMode.AXIS);
                     if (!hasShiftDown()) {
@@ -348,7 +348,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             }
         }
 
-        if (keyCode == 27) { resetThroughCycle(); componentKeyboardTransformArmed=false; componentTransform.constraintAxis()=ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint()=false; componentNumericEntry=false; componentNumericBuffer.setLength(0); componentNumericNegative=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
+        if (keyCode == 27) { resetThroughCycle(); componentTransformInput.disarm(); componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE); mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -1117,7 +1117,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             };
             String constraint = componentTransform.constraintAxis() == ComponentTransformGizmo.Axis.NONE ? "" : " • " + (componentTransform.planeConstraint() ? "PLANE " : "") + componentTransform.constraintAxis().name();
             String snap = hasControlDown() ? " • SNAP" : "";
-            String numeric = componentNumericEntry ? " • Value " + (componentNumericNegative ? "-" : "") + componentNumericBuffer : "";
+            String numeric = componentTransformInput.numericEntry() ? " • Value " + (componentTransformInput.numericNegative() ? "-" : "") + componentTransformInput.numericBuffer() : "";
             String proportional = proportionalEditing ? " • PROP " + String.format(java.util.Locale.ROOT, "%.1f", proportionalRadius) : "";
             String hover = hoveredMeshVertex >= 0 ? " • Hover V" + hoveredMeshVertex
                     : hoveredMeshEdgeA >= 0 ? " • Hover E" + hoveredMeshEdgeA + "-" + hoveredMeshEdgeB
@@ -1139,48 +1139,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             context.fill(right, top, right + 1, bottom, 0xFFFFFFFF);
         }
         super.render(context, mouseX, mouseY, delta);
-    }
-
-    private void applyNumericComponentTransform() {
-        ViewportContext viewport = core.editorContext().viewport();
-        ModelNode node = viewport.selection().first(core.editorContext().model());
-        if (node == null || componentTransform.constraintAxis() == ComponentTransformGizmo.Axis.NONE
-                || componentNumericBuffer.length() == 0) return;
-        double value;
-        try {
-            value = Double.parseDouble((componentNumericNegative ? "-" : "") + componentNumericBuffer);
-        } catch (NumberFormatException ignored) {
-            return;
-        }
-        var selection = viewport.meshComponentSelection();
-        var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        var ids = MeshComponentTransforms.affectedVertices(mesh, selection.mode(),
-                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices());
-        componentTransform.setOperation(componentTransform.operation());
-        componentTransform.setAxis(componentTransform.constraintAxis());
-        componentTransform.setConstraintMode(componentTransform.planeConstraint()
-                ? ComponentTransformController.ConstraintMode.PLANE
-                : ComponentTransformController.ConstraintMode.AXIS);
-        componentTransform.begin(node, selection.mode(),
-                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices(),
-                selection, 0.0, 0.0);
-        MeshGeometry before = mesh.copy();
-        MeshGeometry updated = componentTransform.applyNumeric(
-                mesh.copy(), ids, value, componentTransform.planeConstraint(),
-                proportionalEditing, proportionalRadius);
-        componentTransform.cancel();
-        if (!before.equals(updated)) {
-            node.setMeshGeometry(updated);
-            core.editorContext().history().recordExecuted(
-                    new SetMeshGeometryCommand(node, before, updated.copy()));
-        }
-        componentNumericEntry = false;
-        componentNumericBuffer.setLength(0);
-        componentNumericNegative = false;
-        componentKeyboardTransformArmed = false;
-        componentTransform.clearConstraint();
-        componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS);
     }
 
     private static String activeComponentLabel(whitevoid.create.editor.geometry.MeshComponentSelection selection) {
