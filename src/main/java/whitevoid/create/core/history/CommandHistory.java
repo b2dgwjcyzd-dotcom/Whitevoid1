@@ -12,12 +12,18 @@ public final class CommandHistory {
     private final Deque<Command> undoStack = new ArrayDeque<>();
     private final Deque<Command> redoStack = new ArrayDeque<>();
     private final int maxSize;
+    private final Runnable mutationListener;
 
-    public CommandHistory() { this(256); }
+    public CommandHistory() { this(256, () -> {}); }
 
-    public CommandHistory(int maxSize) {
+    public CommandHistory(int maxSize) { this(maxSize, () -> {}); }
+
+    public CommandHistory(Runnable mutationListener) { this(256, mutationListener); }
+
+    public CommandHistory(int maxSize, Runnable mutationListener) {
         if (maxSize < 1) throw new IllegalArgumentException("maxSize must be positive");
         this.maxSize = maxSize;
+        this.mutationListener = Objects.requireNonNull(mutationListener, "mutationListener");
     }
 
     public void execute(Command command) {
@@ -26,6 +32,7 @@ public final class CommandHistory {
         undoStack.push(command);
         redoStack.clear();
         trim();
+        mutationListener.run();
     }
 
     /** Records a command whose state change has already been applied by an interactive editor operation. */
@@ -34,6 +41,7 @@ public final class CommandHistory {
         undoStack.push(command);
         redoStack.clear();
         trim();
+        mutationListener.run();
     }
 
     public boolean undo() {
@@ -41,6 +49,7 @@ public final class CommandHistory {
         Command command = undoStack.pop();
         command.undo();
         redoStack.push(command);
+        mutationListener.run();
         return true;
     }
 
@@ -50,6 +59,7 @@ public final class CommandHistory {
         command.redo();
         undoStack.push(command);
         trim();
+        mutationListener.run();
         return true;
     }
 
