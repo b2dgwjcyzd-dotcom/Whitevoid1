@@ -69,7 +69,6 @@ public final class MeshOperations {
             return new SelectionHint(Set.of(), Set.of(), values, -1, -1L, active);
         }
     }
-    }
 
     public static OperationResult extrudeEdgesResult(
             MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
@@ -85,15 +84,15 @@ public final class MeshOperations {
         for (long key : selectedEdges) {
             int a = (int) (key >>> 32);
             int b = (int) key;
-            validateEdge(mesh, a, b);
-            if (adjacentFaces(mesh, a, b).isEmpty()) {
+            MeshOperationGeometry.validateEdge(mesh, a, b);
+            if (MeshOperationGeometry.adjacentFaces(mesh, a, b).isEmpty()) {
                 throw new IllegalArgumentException("Selected edge is not connected to a face");
             }
             valid.add(key);
             affected.add(a);
             affected.add(b);
-            for (int faceIndex : adjacentFaces(mesh, a, b)) {
-                double[] n = faceNormal(mesh, mesh.faces().get(faceIndex));
+            for (int faceIndex : MeshOperationGeometry.adjacentFaces(mesh, a, b)) {
+                double[] n = MeshOperationGeometry.faceNormal(mesh, mesh.faces().get(faceIndex));
                 for (int vertex : new int[]{a, b}) {
                     double[] sum = normals.computeIfAbsent(vertex, ignored -> new double[3]);
                     sum[0] += n[0]; sum[1] += n[1]; sum[2] += n[2];
@@ -135,9 +134,9 @@ public final class MeshOperations {
             int faceIndex = faces.size();
             faces.add(new MeshGeometry.Face(a, b, db, da));
             createdFaces.add(faceIndex);
-            createdEdges.add(MeshTopology.edgeKey(da, db));
-            createdEdges.add(MeshTopology.edgeKey(a, da));
-            createdEdges.add(MeshTopology.edgeKey(b, db));
+            createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(da, db));
+            createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(a, da));
+            createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(b, db));
         }
 
         java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
@@ -174,15 +173,15 @@ public final class MeshOperations {
     }
 
     public static MeshGeometry extrudeEdge(MeshGeometry mesh, int a, int b, double amount) {
-        validateEdge(mesh, a, b);
+        MeshOperationGeometry.validateEdge(mesh, a, b);
         if (amount == 0.0) return mesh.copy();
 
-        List<Integer> adjacent = adjacentFaces(mesh, a, b);
+        List<Integer> adjacent = MeshOperationGeometry.adjacentFaces(mesh, a, b);
         if (adjacent.isEmpty()) throw new IllegalArgumentException("Edge is not connected to a face");
 
         double nx = 0.0, ny = 0.0, nz = 0.0;
         for (int faceIndex : adjacent) {
-            double[] n = faceNormal(mesh, mesh.faces().get(faceIndex));
+            double[] n = MeshOperationGeometry.faceNormal(mesh, mesh.faces().get(faceIndex));
             nx += n[0]; ny += n[1]; nz += n[2];
         }
         double len = Math.sqrt(nx * nx + ny * ny + nz * nz);
@@ -203,15 +202,15 @@ public final class MeshOperations {
     }
 
     public static MeshGeometry bevelEdge(MeshGeometry mesh, int a, int b, double amount) {
-        validateEdge(mesh, a, b);
+        MeshOperationGeometry.validateEdge(mesh, a, b);
         if (amount <= 0.0) return mesh.copy();
 
-        List<Integer> adjacent = adjacentFaces(mesh, a, b);
+        List<Integer> adjacent = MeshOperationGeometry.adjacentFaces(mesh, a, b);
         if (adjacent.size() != 2) {
             throw new IllegalArgumentException("Bevel currently requires exactly two adjacent faces");
         }
 
-        double edgeLength = distance(mesh.vertices().get(a), mesh.vertices().get(b));
+        double edgeLength = MeshOperationGeometry.distance(mesh.vertices().get(a), mesh.vertices().get(b));
         double offset = Math.min(amount, edgeLength * 0.49);
 
         List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
@@ -220,14 +219,14 @@ public final class MeshOperations {
 
         for (int i = 0; i < 2; i++) {
             var face = mesh.faces().get(adjacent.get(i));
-            double[] ca = centroid(mesh, face);
+            double[] ca = MeshOperationGeometry.centroid(mesh, face);
             var va = mesh.vertices().get(a);
             var vb = mesh.vertices().get(b);
 
             newA[i] = vertices.size();
-            vertices.add(toward(va, ca, offset));
+            vertices.add(MeshOperationGeometry.toward(va, ca, offset));
             newB[i] = vertices.size();
-            vertices.add(toward(vb, ca, offset));
+            vertices.add(MeshOperationGeometry.toward(vb, ca, offset));
         }
 
         List<MeshGeometry.Face> faces = new ArrayList<>();
@@ -298,7 +297,7 @@ public final class MeshOperations {
         for (int faceIndex : createdFaces) {
             int[] ids = result.faces().get(faceIndex).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
 
@@ -316,8 +315,8 @@ public final class MeshOperations {
         for (long key : selectedEdges) {
             int a = (int) (key >>> 32);
             int b = (int) key;
-            validateEdge(mesh, a, b);
-            if (adjacentFaces(mesh, a, b).size() != 2) {
+            MeshOperationGeometry.validateEdge(mesh, a, b);
+            if (MeshOperationGeometry.adjacentFaces(mesh, a, b).size() != 2) {
                 throw new IllegalArgumentException("Bevel requires exactly two adjacent faces for every selected edge");
             }
             valid.add(key);
@@ -331,19 +330,19 @@ public final class MeshOperations {
         for (long key : valid) {
             int a = (int) (key >>> 32);
             int b = (int) key;
-            List<Integer> adjacent = adjacentFaces(mesh, a, b);
+            List<Integer> adjacent = MeshOperationGeometry.adjacentFaces(mesh, a, b);
             int[] copies = new int[4];
 
             for (int side = 0; side < 2; side++) {
                 MeshGeometry.Face face = mesh.faces().get(adjacent.get(side));
-                double[] center = centroid(mesh, face);
-                double edgeLength = distance(mesh.vertices().get(a), mesh.vertices().get(b));
+                double[] center = MeshOperationGeometry.centroid(mesh, face);
+                double edgeLength = MeshOperationGeometry.distance(mesh.vertices().get(a), mesh.vertices().get(b));
                 double offset = Math.min(amount, edgeLength * 0.49);
 
                 copies[side * 2] = vertices.size();
-                vertices.add(toward(mesh.vertices().get(a), center, offset));
+                vertices.add(MeshOperationGeometry.toward(mesh.vertices().get(a), center, offset));
                 copies[side * 2 + 1] = vertices.size();
-                vertices.add(toward(mesh.vertices().get(b), center, offset));
+                vertices.add(MeshOperationGeometry.toward(mesh.vertices().get(b), center, offset));
             }
             faceCopies.put(key, copies);
         }
@@ -356,11 +355,11 @@ public final class MeshOperations {
             for (int i = 0; i < original.length; i++) {
                 int a = original[i];
                 int b = original[(i + 1) % original.length];
-                long key = edgeKey(a, b);
+                long key = MeshOperationGeometry.edgeKey(a, b);
                 int[] copies = faceCopies.get(key);
                 if (copies == null) continue;
 
-                List<Integer> adjacent = adjacentFaces(mesh, a, b);
+                List<Integer> adjacent = MeshOperationGeometry.adjacentFaces(mesh, a, b);
                 int side = adjacent.indexOf(faceIndex);
                 if (side < 0) continue;
 
@@ -384,69 +383,6 @@ public final class MeshOperations {
         }
 
         return new MeshGeometry(vertices, faces);
-    }
-
-    private static long edgeKey(int a, int b) {
-        int lo = Math.min(a, b);
-        int hi = Math.max(a, b);
-        return ((long) lo << 32) | (hi & 0xffffffffL);
-    }
-
-    private static void validateEdge(MeshGeometry mesh, int a, int b) {
-        if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
-        if (a < 0 || b < 0 || a >= mesh.vertices().size() || b >= mesh.vertices().size() || a == b) {
-            throw new IllegalArgumentException("Invalid edge");
-        }
-    }
-
-    private static List<Integer> adjacentFaces(MeshGeometry mesh, int a, int b) {
-        List<Integer> result = new ArrayList<>();
-        for (int i = 0; i < mesh.faces().size(); i++) {
-            int[] indices = mesh.faces().get(i).vertices();
-            for (int j = 0; j < indices.length; j++) {
-                int next = indices[(j + 1) % indices.length];
-                if ((indices[j] == a && next == b) || (indices[j] == b && next == a)) {
-                    result.add(i);
-                    break;
-                }
-            }
-        }
-        return result;
-    }
-
-    private static double[] faceNormal(MeshGeometry mesh, MeshGeometry.Face face) {
-        int[] ids = face.vertices();
-        var a = mesh.vertices().get(ids[0]);
-        var b = mesh.vertices().get(ids[1]);
-        var c = mesh.vertices().get(ids[2]);
-        double ux = b.x() - a.x(), uy = b.y() - a.y(), uz = b.z() - a.z();
-        double vx = c.x() - a.x(), vy = c.y() - a.y(), vz = c.z() - a.z();
-        double nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-        double len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-        return len < 1e-9 ? new double[]{0, 0, 0} : new double[]{nx / len, ny / len, nz / len};
-    }
-
-    private static double[] centroid(MeshGeometry mesh, MeshGeometry.Face face) {
-        int[] ids = face.vertices();
-        double x = 0, y = 0, z = 0;
-        for (int id : ids) {
-            var v = mesh.vertices().get(id);
-            x += v.x(); y += v.y(); z += v.z();
-        }
-        return new double[]{x / ids.length, y / ids.length, z / ids.length};
-    }
-
-    private static MeshGeometry.Vertex toward(MeshGeometry.Vertex v, double[] target, double distance) {
-        double dx = target[0] - v.x(), dy = target[1] - v.y(), dz = target[2] - v.z();
-        double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (len < 1e-9) return v;
-        double factor = distance / len;
-        return new MeshGeometry.Vertex(v.x() + dx * factor, v.y() + dy * factor, v.z() + dz * factor);
-    }
-
-    private static double distance(MeshGeometry.Vertex a, MeshGeometry.Vertex b) {
-        double dx = a.x() - b.x(), dy = a.y() - b.y(), dz = a.z() - b.z();
-        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     public static OperationResult extrudeFacesResult(
@@ -481,7 +417,7 @@ public final class MeshOperations {
         for (int faceIndex : createdFaces) {
             int[] ids = result.faces().get(faceIndex).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
         java.util.Set<Integer> focusFaces = new java.util.LinkedHashSet<>();
@@ -528,7 +464,7 @@ public final class MeshOperations {
         for (int faceIndex : createdFaces) {
             int[] ids = result.faces().get(faceIndex).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
         java.util.Set<Integer> focusFaces = new java.util.LinkedHashSet<>();
@@ -572,7 +508,7 @@ public final class MeshOperations {
         for (int created : createdFaces) {
             int[] ids = result.faces().get(created).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
 
@@ -663,7 +599,7 @@ public final class MeshOperations {
         java.util.Set<Integer> affected = new java.util.LinkedHashSet<>();
         for (int faceIndex : valid) {
             MeshGeometry.Face face = mesh.faces().get(faceIndex);
-            double[] n = faceNormal(mesh, face);
+            double[] n = MeshOperationGeometry.faceNormal(mesh, face);
             for (int id : face.vertices()) {
                 affected.add(id);
                 double[] sum = normals.computeIfAbsent(id, ignored -> new double[3]);
@@ -694,7 +630,7 @@ public final class MeshOperations {
             int[] original = mesh.faces().get(faceIndex).vertices();
             int[] moved = new int[original.length];
             for (int i = 0; i < original.length; i++) moved[i] = duplicate.get(original[i]);
-            reverse(moved);
+            MeshOperationGeometry.reverse(moved);
             faces.add(new MeshGeometry.Face(moved));
         }
 
@@ -703,7 +639,7 @@ public final class MeshOperations {
             for (int i = 0; i < original.length; i++) {
                 int a = original[i];
                 int b = original[(i + 1) % original.length];
-                if (!isSelectedEdge(mesh, a, b, valid)) {
+                if (!MeshOperationGeometry.isSelectedEdge(mesh, a, b, valid)) {
                     faces.add(new MeshGeometry.Face(a, b, duplicate.get(b), duplicate.get(a)));
                 }
             }
@@ -711,13 +647,13 @@ public final class MeshOperations {
         return new MeshGeometry(vertices, faces);
     }
 
-    private static boolean isSelectedEdge(MeshGeometry mesh, int a, int b,
+    private static boolean MeshOperationGeometry.isSelectedEdge(MeshGeometry mesh, int a, int b,
                                            java.util.Set<Integer> selectedFaces) {
         int count = 0;
         for (int face : selectedFaces) {
             int[] ids = mesh.faces().get(face).vertices();
             for (int i = 0; i < ids.length; i++) {
-                if (sameEdge(ids[i], ids[(i + 1) % ids.length], a, b)) {
+                if (MeshOperationGeometry.sameEdge(ids[i], ids[(i + 1) % ids.length], a, b)) {
                     count++;
                     break;
                 }
@@ -726,11 +662,11 @@ public final class MeshOperations {
         return count >= 2;
     }
 
-    private static boolean sameEdge(int a, int b, int c, int d) {
+    private static boolean MeshOperationGeometry.sameEdge(int a, int b, int c, int d) {
         return (a == c && b == d) || (a == d && b == c);
     }
 
-    private static void reverse(int[] values) {
+    private static void MeshOperationGeometry.reverse(int[] values) {
         for (int i = 0, j = values.length - 1; i < j; i++, j--) {
             int temp = values[i]; values[i] = values[j]; values[j] = temp;
         }
@@ -759,7 +695,7 @@ public final class MeshOperations {
         // touching it. This preserves the local shape of a multi-face region.
         for (int faceIndex : valid) {
             MeshGeometry.Face face = mesh.faces().get(faceIndex);
-            double[] center = centroid(mesh, face);
+            double[] center = MeshOperationGeometry.centroid(mesh, face);
             for (int id : face.vertices()) {
                 double[] target = targets.computeIfAbsent(id, ignored -> new double[3]);
                 target[0] += center[0];
@@ -804,7 +740,7 @@ public final class MeshOperations {
             for (int i = 0; i < original.length; i++) {
                 int a = original[i];
                 int b = original[(i + 1) % original.length];
-                if (!isSelectedEdge(mesh, a, b, valid)) {
+                if (!MeshOperationGeometry.isSelectedEdge(mesh, a, b, valid)) {
                     faces.add(new MeshGeometry.Face(a, b, inner.get(b), inner.get(a)));
                 }
             }
@@ -842,7 +778,7 @@ public final class MeshOperations {
         for (int created : createdFaces) {
             int[] ids = result.faces().get(created).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
 
