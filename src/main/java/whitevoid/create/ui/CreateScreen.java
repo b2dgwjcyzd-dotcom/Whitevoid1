@@ -39,6 +39,8 @@ public final class CreateScreen extends Screen {
             new CreateTransformGizmoDragController(gizmo);
     private final CreateVertexDragController vertexDrag = new CreateVertexDragController();
     private final CreateEdgeDragController edgeDrag = new CreateEdgeDragController();
+    private final CreateMeshComponentDragFinishController meshComponentDragFinish =
+            new CreateMeshComponentDragFinishController();
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -755,20 +757,11 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
             interaction.componentBoxSelecting = false;
             return true;
         }
-        if (interaction.vertexDragging && button == 0) {
-            meshComponentDrag.finish(core, core.editorContext().viewport().selection().first(core.editorContext().model()));
-            interaction.vertexDragging = false;
-            interaction.activeVertex = -1;
-            interaction.vertexDragOldMesh = null;
-            return true;
-        }
-        if (interaction.edgeDragging && button == 0) {
-            meshComponentDrag.finish(core, core.editorContext().viewport().selection().first(core.editorContext().model()));
-            interaction.edgeDragging = false;
-            interaction.activeEdgeA = -1;
-            interaction.activeEdgeB = -1;
-            interaction.edgeDragOldMesh = null;
-            return true;
+        if ((interaction.vertexDragging || interaction.edgeDragging) && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (meshComponentDragFinish.finish(core, interaction, node, meshComponentDrag)) {
+                return true;
+            }
         }
         if (cubeFaceEditor.dragging() && button == 0) {
             cubeFaceEditor.finish(core);
