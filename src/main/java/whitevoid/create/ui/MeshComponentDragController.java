@@ -55,6 +55,15 @@ public final class MeshComponentDragController {
         cancel();
     }
 
+    /** Cancels the active component drag and restores the snapshot captured at begin(). */
+    public void abort(ModelNode node) {
+        if (!dragging()) return;
+        if (node != null && oldMesh != null) {
+            node.setMeshGeometry(oldMesh.copy());
+        }
+        cancel();
+    }
+
     public void cancel() {
         type = Type.NONE;
         oldMesh = null;
