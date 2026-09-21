@@ -1,6 +1,6 @@
 package whitevoid.create.core.history.commands;
 
-import java.util.Objects;
+import java.util.Objects;\nimport java.util.UUID;\nimport whitevoid.create.core.history.SelectionHistoryCommand;
 import whitevoid.create.core.history.Command;
 import whitevoid.create.model.ModelNode;
 
@@ -8,7 +8,7 @@ import whitevoid.create.model.ModelNode;
  * Reparents an existing node while preserving its object identity and child tree.
  * The operation is intentionally a history command so hierarchy changes are atomic.
  */
-public final class ReparentNodeCommand implements Command {
+public final class ReparentNodeCommand implements Command, SelectionHistoryCommand {
     private final ModelNode node;
     private final ModelNode newParent;
     private final int requestedIndex;
@@ -72,7 +72,7 @@ public final class ReparentNodeCommand implements Command {
         return "Reparent Node";
     }
 
-    public ModelNode node() {
+    @Override\n    public UUID selectionAfterUndo() { return node.id(); }\n\n    @Override\n    public UUID selectionAfterRedo() { return node.id(); }\n\n    public ModelNode node() {
         return node;
     }
 
