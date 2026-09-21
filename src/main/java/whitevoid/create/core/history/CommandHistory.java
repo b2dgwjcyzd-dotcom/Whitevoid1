@@ -51,8 +51,9 @@ public final class CommandHistory {
 
     public boolean undo() {
         if (undoStack.isEmpty()) return false;
-        Command command = undoStack.pop();
+        Command command = undoStack.peek();
         command.undo();
+        undoStack.pop();
         redoStack.push(command);
         lastUndone = command;
         lastRedone = null;
@@ -62,8 +63,9 @@ public final class CommandHistory {
 
     public boolean redo() {
         if (redoStack.isEmpty()) return false;
-        Command command = redoStack.pop();
+        Command command = redoStack.peek();
         command.redo();
+        redoStack.pop();
         undoStack.push(command);
         lastRedone = command;
         lastUndone = null;
