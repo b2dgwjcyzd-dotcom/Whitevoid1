@@ -97,8 +97,25 @@ public static MeshOperations.OperationResult extrudeEdgesResult(
                 focusEdges.add(edge);
             }
         }
+        java.util.Map<Integer, Integer> materialSources = new java.util.LinkedHashMap<>();
+        for (int createdFace : createdFaces) {
+            long edgeKey = valid.stream()
+                    .filter(key -> {
+                        int a = (int) (key >>> 32);
+                        int b = (int) key;
+                        return createdFace >= mesh.faces().size()
+                                && createdFace == mesh.faces().size()
+                                        + new java.util.ArrayList<>(valid).indexOf(key);
+                    })
+                    .findFirst().orElse(valid.iterator().next());
+            int a = (int) (edgeKey >>> 32);
+            int b = (int) edgeKey;
+            java.util.List<Integer> adjacent = MeshOperationGeometry.adjacentFaces(mesh, a, b);
+            if (!adjacent.isEmpty()) materialSources.put(createdFace, adjacent.get(0));
+        }
         return new MeshOperations.OperationResult(new MeshGeometry(vertices, faces),
                 createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
+                materialSources,
                 MeshOperations.SelectionHint.edges(focusEdges, focusEdges.isEmpty() ? -1L : focusEdges.iterator().next()));
     }
 
@@ -212,6 +229,17 @@ public static MeshOperations.OperationResult bevelEdgesResult(
         java.util.Set<Integer> createdFaces = new java.util.LinkedHashSet<>();
         for (int i = mesh.faces().size(); i < result.faces().size(); i++) {
             createdFaces.add(i);
+        }
+        java.util.Map<Integer, Integer> materialSources = new java.util.LinkedHashMap<>();
+        for (int createdFace : createdFaces) {
+            int edgeOrdinal = createdFace - mesh.faces().size();
+            if (edgeOrdinal >= 0 && edgeOrdinal < selectedEdges.size()) {
+                long key = new java.util.ArrayList<>(valid).get(edgeOrdinal);
+                int a = (int) (key >>> 32);
+                int b = (int) key;
+                java.util.List<Integer> adjacent = MeshOperationGeometry.adjacentFaces(mesh, a, b);
+                if (!adjacent.isEmpty()) materialSources.put(createdFace, adjacent.get(0));
+            }
         }
 
         java.util.Set<Long> createdEdges = new java.util.LinkedHashSet<>();
