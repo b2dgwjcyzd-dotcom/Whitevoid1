@@ -55,15 +55,14 @@ public final class CreateMeshModelingController {
         var oldMesh = node.ensureMeshGeometry();
         if (oldMesh == null) return;
 
-        LinkedHashSet<Integer> indices = new LinkedHashSet<>();
-        if (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
-            indices.addAll(viewport.meshComponentSelection().vertexIndices());
-        } else {
-            for (int[] edge : viewport.meshComponentSelection().edgeIndices()) {
-                indices.add(edge[0]);
-                indices.add(edge[1]);
-            }
-        }
+        var selection = viewport.meshComponentSelection();
+        LinkedHashSet<Integer> indices = new LinkedHashSet<>(
+                MeshComponentTransforms.affectedVertices(
+                        oldMesh,
+                        selection.mode(),
+                        selection.vertexIndices(),
+                        selection.edgeIndices(),
+                        selection.faceIndices()));
         if (indices.isEmpty()) return;
 
         var newMesh = oldMesh.copy();
