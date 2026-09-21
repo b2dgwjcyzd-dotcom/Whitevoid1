@@ -44,6 +44,7 @@ public final class CreateScreen extends Screen {
     private final CreateSelectionHotkeyController selectionHotkeys;
     private final CreateTransformHotkeyController transformHotkeys;
     private final CreateModelingHotkeyController modelingHotkeys;
+    private final CreateResetController resetController;
     private final CreateViewportHoverController hoverController =
             new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
@@ -74,6 +75,7 @@ public final class CreateScreen extends Screen {
         this.selectionHotkeys = new CreateSelectionHotkeyController(core, componentTransform);
         this.transformHotkeys = new CreateTransformHotkeyController(core, meshModeling);
         this.modelingHotkeys = new CreateModelingHotkeyController(core, meshModeling);
+        this.resetController = new CreateResetController(componentTransformInput, componentTransform);
         this.cubeFaceEditor = new CubeFaceEditorController(gizmo);
         this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
     }
@@ -99,10 +101,7 @@ public final class CreateScreen extends Screen {
         }
 
         if (componentTransformInput.armed() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            interaction.topologyPathPickArmed = false;
-            interaction.topologyPathSecondPick = false;
-            interaction.topologyPathHasStart = false;
-            interaction.topologyPathStartIndex = -1;
+            resetController.clearArmedTopology(interaction);
         }
 
         if (componentTransformInput.handleKey(keyCode, viewport, hasShiftDown(),
@@ -145,7 +144,10 @@ public final class CreateScreen extends Screen {
             return true;
         }
 
-        if (keyCode == 27) { resetThroughCycle(); componentTransformInput.disarm(); componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE); interaction.mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            resetController.resetOnEscape(interaction, viewport);
+            return true;
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
