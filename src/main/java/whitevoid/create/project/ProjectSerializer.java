@@ -58,9 +58,9 @@ public final class ProjectSerializer {
     public Model deserializeModel(String json) {
         JsonObject document = parseDocument(json);
         int version = readVersion(document);
-        if (version > CURRENT_FORMAT_VERSION) {
+        if (version < 0 || version > CURRENT_FORMAT_VERSION) {
             throw new IllegalArgumentException(
-                    "Unsupported CREATE model format version: " + version);
+                    "Invalid CREATE model format version: " + version);
         }
 
         if (document.has("model")) {
