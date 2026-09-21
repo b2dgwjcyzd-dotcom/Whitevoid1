@@ -1,8 +1,6 @@
 package whitevoid.create.editor.geometry;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.LinkedHashSet;
@@ -141,30 +139,6 @@ public final class MeshOperations {
         return MeshFaceOperations.extrudeFaces(mesh, selectedFaces, amount);
     }
 
-    private static boolean MeshOperationGeometry.isSelectedEdge(MeshGeometry mesh, int a, int b,
-                                           java.util.Set<Integer> selectedFaces) {
-        int count = 0;
-        for (int face : selectedFaces) {
-            int[] ids = mesh.faces().get(face).vertices();
-            for (int i = 0; i < ids.length; i++) {
-                if (MeshOperationGeometry.sameEdge(ids[i], ids[(i + 1) % ids.length], a, b)) {
-                    count++;
-                    break;
-                }
-            }
-        }
-        return count >= 2;
-    }
-
-    private static boolean MeshOperationGeometry.sameEdge(int a, int b, int c, int d) {
-        return (a == c && b == d) || (a == d && b == c);
-    }
-
-    private static void MeshOperationGeometry.reverse(int[] values) {
-        for (int i = 0, j = values.length - 1; i < j; i++, j--) {
-            int temp = values[i]; values[i] = values[j]; values[j] = temp;
-        }
-    }
 
     /**
      * Insets a connected face region as one operation. Shared vertices are
