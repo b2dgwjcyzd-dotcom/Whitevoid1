@@ -1,5 +1,6 @@
 package whitevoid.create.core.history.commands;
 
+import java.util.Objects;
 import java.util.UUID;
 import whitevoid.create.core.history.Command;
 import whitevoid.create.core.history.SelectionHistoryCommand;
@@ -18,10 +19,10 @@ public final class AddCubeCommand implements Command, SelectionHistoryCommand {
 
     public AddCubeCommand(Model model, ModelNode parent, String name,
                            CubeGeometry geometry, double x, double y, double z) {
-        this.model = model;
-        this.parent = parent;
-        this.name = name;
-        this.geometry = geometry;
+        this.model = Objects.requireNonNull(model, "model");
+        this.parent = Objects.requireNonNull(parent, "parent");
+        this.name = Objects.requireNonNull(name, "name");
+        this.geometry = Objects.requireNonNull(geometry, "geometry");
         this.x = x;
         this.y = y;
         this.z = z;
