@@ -53,6 +53,10 @@ public final class ProjectManager {
         return Optional.of(project);
     }
 
+    public void setActiveProject(CreateProject project) {
+        activeProject = project;
+    }
+
     public Optional<CreateProject> activeProject() {
         return Optional.ofNullable(activeProject);
     }
