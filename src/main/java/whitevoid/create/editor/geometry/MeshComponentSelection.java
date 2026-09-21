@@ -128,160 +128,25 @@ public final class MeshComponentSelection {
         if (isEmpty()) nodeId = null;
     }
 
-    /**
-     * Rebuilds this selection against a topology-changing operation.
-     * Components that no longer exist are dropped; surviving components are
-     * translated through the operation's explicit mappings.
-     */
-    public void remap(ModelNode node, MeshOperations.OperationResult result) {
-        if (node == null || result == null) {
-            clear();
-            return;
-        }
-
-        List<Integer> oldVertices = vertexIndices();
-        List<int[]> oldEdges = edgeIndices();
-        List<Integer> oldFaces = faceIndices();
-        int oldActiveVertex = activeVertex;
-        long oldActiveEdge = activeEdge;
-        int oldActiveFace = activeFace;
-        MeshSelectionMode oldMode = mode;
-
-        clear();
-        nodeId = node.id();
-        mode = oldMode;
-
-        if (oldMode == MeshSelectionMode.VERTEX) {
-            for (int index : oldVertices) {
-                Integer mapped = result.vertexMapping().get(index);
-                if (mapped != null && mapped >= 0 && mapped < result.mesh().vertices().size()) {
-                    addVertex(node, mapped);
-                }
-            }
-            Integer mappedActive = result.vertexMapping().get(oldActiveVertex);
-            if (mappedActive != null && vertices.contains(mappedActive)) activeVertex = mappedActive;
-        } else if (oldMode == MeshSelectionMode.EDGE) {
-            for (int[] edge : oldEdges) {
-                Integer a = result.vertexMapping().get(edge[0]);
-                Integer b = result.vertexMapping().get(edge[1]);
-                if (a != null && b != null && a != b
-                        && result.mesh().vertices().size() > Math.max(a, b)) {
-                    addEdge(node, a, b);
-                }
-            }
-            int activeA = oldActiveEdge < 0 ? -1 : (int) (oldActiveEdge >>> 32);
-            int activeB = oldActiveEdge < 0 ? -1 : (int) oldActiveEdge;
-            Integer mappedA = result.vertexMapping().get(activeA);
-            Integer mappedB = result.vertexMapping().get(activeB);
-            if (mappedA != null && mappedB != null) {
-                long mapped = edgeKey(mappedA, mappedB);
-                if (edges.contains(mapped)) activeEdge = mapped;
-            }
-        } else {
-            for (int index : oldFaces) {
-                Integer mapped = result.faceMapping().get(index);
-                if (mapped != null && mapped >= 0 && mapped < result.mesh().faces().size()) {
-                    addFace(node, mapped);
-                }
-            }
-            Integer mappedActive = result.faceMapping().get(oldActiveFace);
-            if (mappedActive != null && faces.contains(mappedActive)) activeFace = mappedActive;
-        }
-
-        if (isEmpty()) nodeId = null;
-    }
+    private final MeshComponentOperationSelectionController operationSelection =
+            new MeshComponentOperationSelectionController();
 
     public enum RemapPolicy {
         PRESERVE,
         CREATED
     }
 
-    /**
-     * Applies an operation result to the current component selection.
-     * PRESERVE follows explicit old-element mappings; CREATED selects the
-     * elements produced by the operation.
-     */
-    public void applyOperation(ModelNode node, MeshOperations.OperationResult result,
-                               RemapPolicy policy) {
-        if (node == null || result == null) {
-            clear();
-            return;
-        }
-
-        if (policy == RemapPolicy.CREATED) {
-            clear();
-            nodeId = node.id();
-            if (mode == MeshSelectionMode.VERTEX) {
-                for (int index : result.createdVertices()) addVertex(node, index);
-            } else if (mode == MeshSelectionMode.EDGE) {
-                for (long key : result.createdEdges()) {
-                    int a = MeshTopology.edgeA(key);
-                    int b = MeshTopology.edgeB(key);
-                    if (a < result.mesh().vertices().size() && b < result.mesh().vertices().size()) {
-                        addEdge(node, a, b);
-                    }
-                }
-            } else {
-                for (int index : result.createdFaces()) addFace(node, index);
-            }
-            return;
-        }
-
-        remap(node, result);
+    public void remap(ModelNode node, MeshOperations.OperationResult result) {
+        operationSelection.remap(this, node, result);
     }
 
-    /**
-     * Applies the operation-defined focus selection. The hint is intentionally
-     * separate from topology remapping: an operation can preserve old
-     * selection state and then explicitly focus its newly created region.
-     */
+    public void applyOperation(ModelNode node, MeshOperations.OperationResult result,
+                               RemapPolicy policy) {
+        operationSelection.applyOperation(this, node, result, policy);
+    }
+
     public void applySelectionHint(ModelNode node, MeshOperations.OperationResult result) {
-        if (node == null || result == null || result.selectionHint() == null) {
-            clear();
-            return;
-        }
-
-        MeshOperations.SelectionHint hint = result.selectionHint();
-        clear();
-        nodeId = node.id();
-
-        if (!hint.vertices().isEmpty()) {
-            mode = MeshSelectionMode.VERTEX;
-            for (int index : hint.vertices()) {
-                if (index >= 0 && index < result.mesh().vertices().size()) {
-                    addVertex(node, index);
-                }
-            }
-            if (hint.activeVertex() >= 0 && vertices.contains(hint.activeVertex())) {
-                activeVertex = hint.activeVertex();
-            }
-        } else if (!hint.edges().isEmpty()) {
-            mode = MeshSelectionMode.EDGE;
-            for (long key : hint.edges()) {
-                int a = MeshTopology.edgeA(key);
-                int b = MeshTopology.edgeB(key);
-                if (a >= 0 && b >= 0
-                        && a < result.mesh().vertices().size()
-                        && b < result.mesh().vertices().size()) {
-                    addEdge(node, a, b);
-                }
-            }
-            if (hint.activeEdge() >= 0 && edges.contains(hint.activeEdge())) {
-                activeEdge = hint.activeEdge();
-            }
-        } else if (!hint.faces().isEmpty()) {
-            mode = MeshSelectionMode.FACE;
-            for (int index : hint.faces()) {
-                if (index >= 0 && index < result.mesh().faces().size()) {
-                    addFace(node, index);
-                }
-            }
-            if (hint.activeFace() >= 0 && faces.contains(hint.activeFace())) {
-                activeFace = hint.activeFace();
-            }
-        } else {
-            clear();
-        }
+        operationSelection.applySelectionHint(this, node, result);
     }
 
     public void setMode(MeshSelectionMode mode) {
