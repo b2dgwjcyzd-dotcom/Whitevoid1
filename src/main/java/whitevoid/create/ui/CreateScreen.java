@@ -43,6 +43,7 @@ public final class CreateScreen extends Screen {
     private final CreateNodeActionController nodeActions;
     private final CreateSelectionHotkeyController selectionHotkeys;
     private final CreateTransformHotkeyController transformHotkeys;
+    private final CreateModelingHotkeyController modelingHotkeys;
     private final CreateViewportHoverController hoverController =
             new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
@@ -72,6 +73,7 @@ public final class CreateScreen extends Screen {
         this.nodeActions = new CreateNodeActionController(core);
         this.selectionHotkeys = new CreateSelectionHotkeyController(core, componentTransform);
         this.transformHotkeys = new CreateTransformHotkeyController(core, meshModeling);
+        this.modelingHotkeys = new CreateModelingHotkeyController(core, meshModeling);
         this.cubeFaceEditor = new CubeFaceEditorController(gizmo);
         this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
     }
@@ -113,119 +115,10 @@ public final class CreateScreen extends Screen {
             return true;
         }
 
-        // Mirror is a two-step operation: M arms it, then X/Y/Z chooses the axis.
-        if (keyCode == GLFW.GLFW_KEY_M && viewport.transform().mode() == TransformMode.GEOMETRY
-                && viewport.meshComponentSelection().size() > 0) {
-            interaction.mirrorArmed = true;
+        if (modelingHotkeys.handle(
+                interaction, viewport, keyCode, hasShiftDown(), hasControlDown())) {
             return true;
         }
-        if (interaction.mirrorArmed && viewport.transform().mode() == TransformMode.GEOMETRY
-                && viewport.meshComponentSelection().size() > 0) {
-            int axis = switch (keyCode) {
-                case GLFW.GLFW_KEY_X -> 0;
-                case GLFW.GLFW_KEY_Y -> 1;
-                case GLFW.GLFW_KEY_Z -> 2;
-                default -> -1;
-            };
-            if (axis >= 0) {
-                interaction.mirrorAxis = axis == 0 ? ComponentTransformGizmo.Axis.X
-                        : axis == 1 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
-                meshModeling.mirrorSelectedComponents(axis);
-                interaction.mirrorArmed = false;
-                return true;
-            }
-        }
-
-        if (keyCode == GLFW.GLFW_KEY_B && hasControlDown()
-                && viewport.transform().mode() == TransformMode.GEOMETRY
-                && viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
-            meshModeling.bevelSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_B
-                && viewport.transform().mode() == TransformMode.GEOMETRY
-                && viewport.meshComponentSelection().size() > 0) {
-            var boundaryNode = viewport.selection().first(core.editorContext().model());
-            if (boundaryNode != null) viewport.meshComponentSelection().selectBoundaryLoop(boundaryNode);
-            resetThroughCycle();
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_B) {
-            viewport.transform().setMode(TransformMode.GEOMETRY);
-            viewport.geometryFaceSelection().clear();
-            viewport.meshComponentSelection().clear();
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            if (viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
-                meshModeling.extrudeSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
-            } else if (viewport.meshComponentSelection().size() > 1
-                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE) {
-                meshModeling.extrudeSelectedFaces(hasShiftDown() ? 1.0 : 0.25);
-            } else {
-                meshModeling.extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
-            }
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_I && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            if (viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE
-                    && viewport.meshComponentSelection().size() > 1) {
-                meshModeling.insetSelectedFaces(hasShiftDown() ? 0.5 : 0.25);
-            } else {
-                meshModeling.insetSelectedFace(hasShiftDown() ? 0.5 : 0.25);
-            }
-            return true;
-        }
-
-        // Topology path selection: V = arm a second vertex pick, B = boundary.
-if (keyCode == GLFW.GLFW_KEY_V && viewport.transform().mode() == TransformMode.GEOMETRY
-        && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX
-        && viewport.meshComponentSelection().size() > 0) {
-    interaction.topologyPathPickArmed = true;
-    interaction.topologyPathSecondPick = true;
-    return true;
-}
-// Topology traversal: U = loop, K = ring.
-if (keyCode == GLFW.GLFW_KEY_U && viewport.transform().mode() == TransformMode.GEOMETRY
-        && viewport.meshComponentSelection().size() > 0) {
-    var selection = viewport.meshComponentSelection();
-    var selected = viewport.selection().first(core.editorContext().model());
-    if (selected != null) {
-        if (selection.mode() == MeshSelectionMode.EDGE && selection.activeEdgeA() >= 0) {
-            selection.selectEdgeLoop(selected, selection.activeEdgeA(), selection.activeEdgeB());
-        } else if (selection.mode() == MeshSelectionMode.FACE && selection.activeFace() >= 0) {
-            selection.selectFaceLoop(selected, selection.activeFace());
-        }
-    }
-    return true;
-}
-if (keyCode == GLFW.GLFW_KEY_K && viewport.transform().mode() == TransformMode.GEOMETRY
-        && viewport.meshComponentSelection().size() > 0) {
-    var selection = viewport.meshComponentSelection();
-    var selected = viewport.selection().first(core.editorContext().model());
-    if (selected != null) {
-        if (selection.mode() == MeshSelectionMode.EDGE && selection.activeEdgeA() >= 0) {
-            selection.selectEdgeRing(selected, selection.activeEdgeA(), selection.activeEdgeB());
-        } else if (selection.mode() == MeshSelectionMode.FACE && selection.activeFace() >= 0) {
-            selection.selectFaceRing(selected, selection.activeFace());
-        }
-    }
-    return true;
-}
-
-// Selection expansion/contraction.
-if (keyCode == GLFW.GLFW_KEY_PERIOD && viewport.transform().mode() == TransformMode.GEOMETRY
-        && viewport.meshComponentSelection().size() > 0) {
-    var selected = viewport.selection().first(core.editorContext().model());
-    if (selected != null) viewport.meshComponentSelection().extend(selected);
-    return true;
-}
-if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMode.GEOMETRY
-        && viewport.meshComponentSelection().size() > 0) {
-    var selected = viewport.selection().first(core.editorContext().model());
-    if (selected != null) viewport.meshComponentSelection().shrink(selected);
-    return true;
-}
 
         ModelNode node = viewport.selection().first(core.editorContext().model());
         if (transformHotkeys.handle(interaction, viewport, node, keyCode, hasShiftDown(), hasControlDown())) {
