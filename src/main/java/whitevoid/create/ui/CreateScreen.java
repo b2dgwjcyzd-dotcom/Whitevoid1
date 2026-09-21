@@ -43,6 +43,8 @@ public final class CreateScreen extends Screen {
             new CreateMeshComponentDragFinishController();
     private final CreateComponentBoxSelectionController componentBoxSelection =
             new CreateComponentBoxSelectionController();
+    private final CreateViewportNodeSelectionController nodeSelection =
+            new CreateViewportNodeSelectionController();
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -723,15 +725,8 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
                 return true;
             }
 
-            ModelNode hit = new ViewportPicker().pick(core.editorContext().model(), core.editorContext().viewport(), mouseX, mouseY, width, height);
-            if (hit != null) {
-                core.editorContext().viewport().selection().select(hit, SelectionMode.SINGLE);
-                core.editorContext().viewport().geometryFaceSelection().clear();
-            } else {
-                core.editorContext().viewport().selection().clear();
-                core.editorContext().viewport().geometryFaceSelection().clear();
-            }
-            return true;
+            return nodeSelection.selectAt(
+                    core, core.editorContext().viewport(), mouseX, mouseY, width, height);
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
