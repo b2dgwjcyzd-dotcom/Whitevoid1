@@ -2,6 +2,7 @@ package whitevoid.create.core;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Optional;
 import whitevoid.create.project.CreateProject;
 import whitevoid.create.project.ProjectType;
 import net.fabricmc.loader.api.FabricLoader;
@@ -32,14 +33,15 @@ public final class CreateCore {
     }
 
     public CreateProject ensureActiveProject() {
-        OptionalProject project = new OptionalProject(projectManager.activeProject());
-        if (project.value() != null) {
-            editorContext.setModel(project.value().model());
-            return project.value();
+        Optional<CreateProject> active = projectManager.activeProject();
+        if (active.isPresent()) {
+            CreateProject project = active.get();
+            editorContext.setModel(project.model());
+            return project;
         }
 
         try {
-            CreateProject created = projectManager.create("Untitled", ProjectType.MODEL);
+            CreateProject created = projectManager.create("Untitled", ProjectType.COSMETIC);
             editorContext.setModel(created.model());
             return created;
         } catch (IOException exception) {
@@ -62,5 +64,4 @@ public final class CreateCore {
     public EditorContext editorContext() { return editorContext; }
     public ProjectManager projectManager() { return projectManager; }
 
-    private record OptionalProject(CreateProject value) {}
 }
