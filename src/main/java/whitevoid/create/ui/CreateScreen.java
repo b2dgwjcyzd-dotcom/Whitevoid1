@@ -893,45 +893,12 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (componentDragging && button == 0) {
-            ModelNode node=core.editorContext().viewport().meshComponentSelection().node(core.editorContext().model());
-            if(node!=null){
-                var mesh=node.ensureMeshGeometry();
-                if(mesh!=null){
-                    var selection=core.editorContext().viewport().meshComponentSelection();
-                    java.util.Set<Integer> ids=MeshComponentTransforms.affectedVertices(mesh,selection.mode(),
-                            selection.vertexIndices(),selection.edgeIndices(),selection.faceIndices());
-                    var projector=new ViewportProjector(core.editorContext().viewport().viewport().camera());
-                    var updated=node.ensureMeshGeometry().copy();
-                    var pivot=componentTransform.pivot();
-                    ComponentTransformGizmo.Axis constrainedAxis = componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE
-                            ? componentTransform.constraintAxis() : componentTransform.axis();
-                    int axis=constrainedAxis==ComponentTransformGizmo.Axis.X?0
-                            :constrainedAxis==ComponentTransformGizmo.Axis.Y?1:2;
-                    double totalDx = mouseX - componentTransform.startX();
-                    double totalDy = mouseY - componentTransform.startY();
-
-                    if(componentTransform.operation()==ComponentTransformGizmo.Operation.MOVE){
-                        updated = componentTransform.applyMove(
-                                updated, ids, node, projector, totalDx, totalDy,
-                                width, height, componentTransform.constraintAxis(), componentTransform.planeConstraint(),
-                                proportionalEditing, proportionalRadius, hasControlDown(),
-                                MOVE_SNAP_INCREMENT);
-                    } else if(componentTransform.operation()==ComponentTransformGizmo.Operation.ROTATE){
-                        updated = componentTransform.applyRotate(
-                                updated, ids, node, projector,
-                                componentTransform.startX(), componentTransform.startY(), mouseX, mouseY,
-                                width, height, componentTransform.constraintAxis(),
-                                proportionalEditing, proportionalRadius, hasControlDown(),
-                                ROTATE_SNAP_INCREMENT);
-                    } else {
-                        updated = componentTransform.applyScale(
-                                updated, ids, node, projector, totalDx, totalDy,
-                                width, height, componentTransform.constraintAxis(), componentTransform.planeConstraint(),
-                                proportionalEditing, proportionalRadius, hasControlDown(),
-                                SCALE_SNAP_INCREMENT);
-                    }
-                    node.setMeshGeometry(updated);
-                }
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (node != null) {
+                componentTransformMouse.update(node, core.editorContext().viewport(),
+                        new ViewportProjector(core.editorContext().viewport().viewport().camera()),
+                        mouseX, mouseY, width, height,
+                        proportionalEditing, proportionalRadius, hasControlDown());
             }
             return true;
         }
