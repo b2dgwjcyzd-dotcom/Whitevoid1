@@ -20,11 +20,14 @@ public final class ReparentNodeCommand implements Command {
     public ReparentNodeCommand(ModelNode node, ModelNode newParent, int index) {
         this.node = Objects.requireNonNull(node, "node");
         this.newParent = Objects.requireNonNull(newParent, "newParent");
+        if (index < 0) throw new IllegalArgumentException("index must be non-negative");
         this.requestedIndex = index;
     }
 
     @Override
     public void execute() {
+        validateTarget();
+
         if (oldParent == null) {
             oldParent = node.parent();
             if (oldParent == null) {
@@ -34,14 +37,19 @@ public final class ReparentNodeCommand implements Command {
             if (oldIndex < 0) {
                 throw new IllegalStateException("Node is not attached to its parent");
             }
-            validateTarget();
         }
 
-        if (node.parent() != null) {
-            node.parent().removeChild(node);
+        ModelNode currentParent = node.parent();
+        if (currentParent != null) {
+            currentParent.removeChild(node);
         }
 
-        appliedIndex = Math.max(0, Math.min(requestedIndex, newParent.children().size()));
+        int targetIndex = requestedIndex;
+        if (currentParent == newParent && oldIndex < requestedIndex) {
+            targetIndex--;
+        }
+
+        appliedIndex = Math.max(0, Math.min(targetIndex, newParent.children().size()));
         newParent.addChild(appliedIndex, node);
     }
 
