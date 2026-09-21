@@ -35,12 +35,12 @@ public final class ProjectManager {
             throw new IllegalArgumentException("Project cannot be null");
         }
 
-        project.touch();
         ProjectMetadata metadata = project.metadata();
         Path directory = root.resolve(metadata.id().toString());
         Files.createDirectories(directory);
         Files.writeString(directory.resolve("project.json"), serializer.serializeMetadata(metadata));
         Files.writeString(directory.resolve("model.json"), serializer.serializeModel(project.model()));
+        project.markSaved();
     }
 
     public Optional<CreateProject> open(UUID id) throws IOException {
