@@ -38,6 +38,7 @@ public final class CreateScreen extends Screen {
     private final CreateTransformGizmoDragController transformGizmoDrag =
             new CreateTransformGizmoDragController(gizmo);
     private final CreateVertexDragController vertexDrag = new CreateVertexDragController();
+    private final CreateEdgeDragController edgeDrag = new CreateEdgeDragController();
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -803,6 +804,13 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
         if (interaction.vertexDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (vertexDrag.update(
+                    interaction, node, core.editorContext().viewport(), deltaX, deltaY)) {
+                return true;
+            }
+        }
+        if (interaction.edgeDragging && button == 0) {
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (edgeDrag.update(
                     interaction, node, core.editorContext().viewport(), deltaX, deltaY)) {
                 return true;
             }
