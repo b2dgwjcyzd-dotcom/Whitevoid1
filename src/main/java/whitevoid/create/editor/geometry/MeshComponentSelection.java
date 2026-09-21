@@ -393,43 +393,11 @@ public final class MeshComponentSelection {
         }
     }
 
+    private final MeshComponentBoundarySelectionController boundarySelection =
+            new MeshComponentBoundarySelectionController();
+
     public void selectBoundary(ModelNode node) {
-        if (node == null) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        prepareForMultiSelect(node, mode);
-        clearSelectionOnly();
-        nodeId = node.id();
-        if (mode == MeshSelectionMode.VERTEX) {
-            vertices.addAll(MeshTopologySelection.boundaryVertices(mesh));
-            activeVertex = first(vertices);
-        } else if (mode == MeshSelectionMode.EDGE) {
-            edges.addAll(MeshTopologySelection.boundaryEdges(mesh));
-            activeEdge = firstLong(edges);
-        } else {
-            for (long edge : MeshTopologySelection.boundaryEdges(mesh)) {
-                int a = (int)(edge >>> 32), b = (int)edge;
-                for (int i = 0; i < mesh.faces().size(); i++) {
-                    int[] f = mesh.faces().get(i).vertices();
-                    for (int j = 0; j < f.length; j++) {
-                        if (MeshTopologySelection.edgeKey(f[j], f[(j + 1) % f.length]) == edge) faces.add(i);
-                    }
-                }
-            }
-            activeFace = first(faces);
-        }
-        if (isEmpty()) nodeId = null;
-    }
-
-    private final MeshComponentSelectionExpansionController expansionSelection =
-            new MeshComponentSelectionExpansionController();
-
-    public void extend(ModelNode node) {
-        expansionSelection.extend(this, node);
-    }
-
-    public void shrink(ModelNode node) {
-        expansionSelection.shrink(this, node);
+        boundarySelection.selectBoundary(this, node);
     }
 
     public void selectShortestPathBetweenActiveAnd(ModelNode node, int targetIndex) {
@@ -445,21 +413,7 @@ public final class MeshComponentSelection {
     }
 
     public void selectBoundaryLoop(ModelNode node) {
-        if (node == null) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        if (mode == MeshSelectionMode.VERTEX) {
-            prepareForMultiSelect(node, mode);
-            vertices.clear();
-            vertices.addAll(MeshTopologySelection.boundaryVertices(mesh));
-            activeVertex = first(vertices);
-        } else if (mode == MeshSelectionMode.EDGE) {
-            prepareForMultiSelect(node, mode);
-            edges.clear();
-            edges.addAll(MeshTopologySelection.boundaryEdges(mesh));
-            activeEdge = firstLong(edges);
-        }
-        if (isEmpty()) nodeId = null;
+        boundarySelection.selectBoundaryLoop(this, node);
     }
 
     public void selectLinked(ModelNode node) {
