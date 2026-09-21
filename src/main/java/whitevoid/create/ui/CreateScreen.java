@@ -35,6 +35,8 @@ public final class CreateScreen extends Screen {
             new CreateMeshComponentInteractionController(meshEditor, meshComponentDrag);
     private final CreateTransformGizmoInteractionController transformGizmoInteraction =
             new CreateTransformGizmoInteractionController(gizmo);
+    private final CreateTransformGizmoDragController transformGizmoDrag =
+            new CreateTransformGizmoDragController(gizmo);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -829,57 +831,10 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
         }
         if (interaction.gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null) {
-                if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY) {
-                    var g = node.geometry();
-                    if (g != null) {
-                        double amount = gizmo.dragAmount(interaction.activeAxis,
-                                new ViewportProjector(core.editorContext().viewport().viewport().camera()),
-                                deltaX, deltaY);
-                        double width = g.width();
-                        double height = g.height();
-                        double depth = g.depth();
-                        double sign = (interaction.activeAxis == ViewportGizmo.Axis.NEG_X ||
-                                interaction.activeAxis == ViewportGizmo.Axis.NEG_Y ||
-                                interaction.activeAxis == ViewportGizmo.Axis.NEG_Z) ? -1.0 : 1.0;
-                        double move = amount * 2.0 * sign;
-
-                        if (interaction.activeAxis == ViewportGizmo.Axis.X || interaction.activeAxis == ViewportGizmo.Axis.NEG_X) {
-                            width = Math.max(0.1, width + move);
-                            node.transform().position(node.transform().x() + amount * sign,
-                                    node.transform().y(), node.transform().z());
-                        } else if (interaction.activeAxis == ViewportGizmo.Axis.Y || interaction.activeAxis == ViewportGizmo.Axis.NEG_Y) {
-                            height = Math.max(0.1, height + move);
-                            node.transform().position(node.transform().x(),
-                                    node.transform().y() + amount * sign, node.transform().z());
-                        } else if (interaction.activeAxis == ViewportGizmo.Axis.Z || interaction.activeAxis == ViewportGizmo.Axis.NEG_Z) {
-                            depth = Math.max(0.1, depth + move);
-                            node.transform().position(node.transform().x(),
-                                    node.transform().y(), node.transform().z() + amount * sign);
-                        }
-
-                        node.setGeometry(new CubeGeometry(width, height, depth));
-                    }
-                    return true;
-                } else if (core.editorContext().viewport().transform().mode() == TransformMode.MOVE) {
-                    double dx=interaction.activeAxis==ViewportGizmo.Axis.X?amount:0;
-                    double dy=interaction.activeAxis==ViewportGizmo.Axis.Y?amount:0;
-                    double dz=interaction.activeAxis==ViewportGizmo.Axis.Z?amount:0;
-                    core.editorContext().viewport().transform().translate(node,dx,dy,dz);
-                } else if (core.editorContext().viewport().transform().mode() == TransformMode.ROTATE) {
-                    double rx=interaction.activeAxis==ViewportGizmo.Axis.X?amount*10:0;
-                    double ry=interaction.activeAxis==ViewportGizmo.Axis.Y?amount*10:0;
-                    double rz=interaction.activeAxis==ViewportGizmo.Axis.Z?amount*10:0;
-                    core.editorContext().viewport().transform().rotateBy(node,rx,ry,rz);
-                } else if (core.editorContext().viewport().transform().mode() == TransformMode.SCALE) {
-                    double s=amount*0.1;
-                    core.editorContext().viewport().transform().scaleBy(node,
-                            interaction.activeAxis==ViewportGizmo.Axis.X?s:0,
-                            interaction.activeAxis==ViewportGizmo.Axis.Y?s:0,
-                            interaction.activeAxis==ViewportGizmo.Axis.Z?s:0);
-                }
+            if (transformGizmoDrag.update(
+                    core, interaction, node, core.editorContext().viewport(), deltaX, deltaY)) {
+                return true;
             }
-            return true;
         }
         if (viewportInput.mouseDragged(mouseX, mouseY, button, hasShiftDown())) return true;
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
