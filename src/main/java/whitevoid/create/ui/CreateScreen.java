@@ -28,6 +28,7 @@ import whitevoid.create.model.TransformMath;
 
 public final class CreateScreen extends Screen {
     private final CreateCore core;
+    private final CreateViewportInteractionState interaction = new CreateViewportInteractionState();
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -38,42 +39,9 @@ public final class CreateScreen extends Screen {
     private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
     private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
     private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
-    private ViewportGizmo.Axis activeAxis = ViewportGizmo.Axis.NONE;
-    private boolean gizmoDragging;
-    private ViewportGizmo.Axis hoveredAxis = ViewportGizmo.Axis.NONE;
-    private double dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz;
-    private CubeGeometry dragOldGeometry;
-    private GeometryFace hoveredFace = GeometryFace.NONE;
-    private final CubeFaceEditorController cubeFaceEditor;
-    private int hoveredMeshFace = -1;
-    private int hoveredMeshVertex = -1;
-    private int hoveredMeshEdgeA = -1;
-    private int hoveredMeshEdgeB = -1;
-    private boolean vertexDragging;
-    private int activeVertex = -1;
-    private MeshGeometry vertexDragOldMesh;
-    private boolean edgeDragging;
-    private int activeEdgeA = -1;
-    private int activeEdgeB = -1;
-    private MeshGeometry edgeDragOldMesh;
-    private boolean componentBoxSelecting;
-    private double boxStartX, boxStartY, boxCurrentX, boxCurrentY;
-    private boolean componentDragging;
-    private ComponentTransformGizmo.Axis hoveredComponentAxis = ComponentTransformGizmo.Axis.NONE;
-    private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
-    private boolean topologyPathPickArmed;
-    private boolean topologyPathSecondPick;
-    private boolean topologyPathHasStart;
-    private int topologyPathStartIndex = -1;
 
-    private boolean proportionalEditing;
-    private double proportionalRadius = 3.0;
-    private boolean mirrorArmed;
-    private boolean selectThrough;
-    private MeshSelectionMode throughLastMode;
-    private double throughLastX = Double.NaN;
-    private double throughLastY = Double.NaN;
-    private int throughLastIndex;
+    private final CubeFaceEditorController cubeFaceEditor;
+
     private static final double MOVE_SNAP_INCREMENT = 0.25;
     private static final double ROTATE_SNAP_INCREMENT = 5.0;
     private static final double SCALE_SNAP_INCREMENT = 0.05;
@@ -105,14 +73,14 @@ public final class CreateScreen extends Screen {
         }
 
         if (componentTransformInput.armed() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            topologyPathPickArmed = false;
-            topologyPathSecondPick = false;
-            topologyPathHasStart = false;
-            topologyPathStartIndex = -1;
+            interaction.topologyPathPickArmed = false;
+            interaction.topologyPathSecondPick = false;
+            interaction.topologyPathHasStart = false;
+            interaction.topologyPathStartIndex = -1;
         }
 
         if (componentTransformInput.handleKey(keyCode, viewport, hasShiftDown(),
-                proportionalEditing, proportionalRadius, core)) {
+                interaction.proportionalEditing, interaction.proportionalRadius, core)) {
             return true;
         }
 
@@ -167,10 +135,10 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
         // Mirror is a two-step operation: M arms it, then X/Y/Z chooses the axis.
         if (keyCode == GLFW.GLFW_KEY_M && viewport.transform().mode() == TransformMode.GEOMETRY
                 && viewport.meshComponentSelection().size() > 0) {
-            mirrorArmed = true;
+            interaction.mirrorArmed = true;
             return true;
         }
-        if (mirrorArmed && viewport.transform().mode() == TransformMode.GEOMETRY
+        if (interaction.mirrorArmed && viewport.transform().mode() == TransformMode.GEOMETRY
                 && viewport.meshComponentSelection().size() > 0) {
             int axis = switch (keyCode) {
                 case GLFW.GLFW_KEY_X -> 0;
@@ -179,10 +147,10 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
                 default -> -1;
             };
             if (axis >= 0) {
-                mirrorAxis = axis == 0 ? ComponentTransformGizmo.Axis.X
+                interaction.mirrorAxis = axis == 0 ? ComponentTransformGizmo.Axis.X
                         : axis == 1 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
                 mirrorSelectedComponents(axis);
-                mirrorArmed = false;
+                interaction.mirrorArmed = false;
                 return true;
             }
         }
@@ -232,8 +200,8 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
 if (keyCode == GLFW.GLFW_KEY_V && viewport.transform().mode() == TransformMode.GEOMETRY
         && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX
         && viewport.meshComponentSelection().size() > 0) {
-    topologyPathPickArmed = true;
-    topologyPathSecondPick = true;
+    interaction.topologyPathPickArmed = true;
+    interaction.topologyPathSecondPick = true;
     return true;
 }
 // Topology traversal: U = loop, K = ring.
@@ -289,10 +257,10 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         }
 
         if (keyCode == GLFW.GLFW_KEY_T && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            selectThrough = !selectThrough;
-            throughLastIndex = -1;
-            throughLastX = Double.NaN;
-            throughLastY = Double.NaN;
+            interaction.selectThrough = !interaction.selectThrough;
+            interaction.throughLastIndex = -1;
+            interaction.throughLastX = Double.NaN;
+            interaction.throughLastY = Double.NaN;
             return true;
         }
 
@@ -349,7 +317,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             }
         }
 
-        if (keyCode == 27) { resetThroughCycle(); componentTransformInput.disarm(); componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE); mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
+        if (keyCode == 27) { resetThroughCycle(); componentTransformInput.disarm(); componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE); interaction.mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -679,7 +647,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     private void viewportContextHistoryRedo() { core.editorContext().history().redo(); }
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && topologyPathPickArmed && topologyPathSecondPick) {
+        if (button == 0 && interaction.topologyPathPickArmed && interaction.topologyPathSecondPick) {
             ViewportContext viewport = core.editorContext().viewport();
             ModelNode node = viewport.selection().first(core.editorContext().model());
             if (node != null && viewport.transform().mode() == TransformMode.GEOMETRY
@@ -688,18 +656,18 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 if (mesh != null) {
                     int hit = hitTestMeshVertex(node, mesh, viewport, mouseX, mouseY);
                     if (hit >= 0) {
-                        if (!topologyPathHasStart) {
+                        if (!interaction.topologyPathHasStart) {
                             viewport.meshComponentSelection().selectVertex(node, hit);
-                            topologyPathHasStart = true;
-                            topologyPathStartIndex = hit;
+                            interaction.topologyPathHasStart = true;
+                            interaction.topologyPathStartIndex = hit;
                             return true;
                         }
                         viewport.meshComponentSelection().selectShortestVertexPath(
-                                node, topologyPathStartIndex, hit);
-                        topologyPathPickArmed = false;
-                        topologyPathSecondPick = false;
-                        topologyPathHasStart = false;
-                        topologyPathStartIndex = -1;
+                                node, interaction.topologyPathStartIndex, hit);
+                        interaction.topologyPathPickArmed = false;
+                        interaction.topologyPathSecondPick = false;
+                        interaction.topologyPathHasStart = false;
+                        interaction.topologyPathStartIndex = -1;
                         return true;
                     }
                 }
@@ -719,7 +687,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0
                         && componentTransformInput.armed()
                         && componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
-                    componentDragging = componentTransformMouse.beginKeyboardArmed(
+                    interaction.componentDragging = componentTransformMouse.beginKeyboardArmed(
                             selected, viewport, mouseX, mouseY);
                     componentTransformInput.disarm();
                     return true;
@@ -727,40 +695,40 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
                     if (componentTransformMouse.beginFromGizmo(
                             selected, viewport, projector, mouseX, mouseY, cx, cy)) {
-                        componentDragging = true;
+                        interaction.componentDragging = true;
                         return true;
                     }
                 }
                 MeshEditorController.PickResult meshPick = meshEditor.pickAndSelect(
                         selected, viewport, mouseX, mouseY, cx, cy,
-                        selectThrough, hasAltDown(), hasShiftDown(), hasControlDown());
+                        interaction.selectThrough, hasAltDown(), hasShiftDown(), hasControlDown());
                 if (meshPick.type() != MeshEditorController.PickType.NONE) {
                     viewport.geometryFaceSelection().clear();
                     switch (meshPick.type()) {
                         case VERTEX -> {
-                            activeVertex = meshPick.index();
+                            interaction.activeVertex = meshPick.index();
                             if (hasShiftDown() || hasAltDown() || hasControlDown()) return true;
                             var mesh = selected.ensureMeshGeometry();
                             if (mesh != null) {
-                                vertexDragOldMesh = mesh.copy();
+                                interaction.vertexDragOldMesh = mesh.copy();
                                 meshComponentDrag.beginVertex(selected);
-                                vertexDragging = true;
+                                interaction.vertexDragging = true;
                             }
                         }
                         case EDGE -> {
-                            activeEdgeA = meshPick.edgeA();
-                            activeEdgeB = meshPick.edgeB();
+                            interaction.activeEdgeA = meshPick.edgeA();
+                            interaction.activeEdgeB = meshPick.edgeB();
                             if (hasShiftDown() || hasAltDown()) return true;
                             var mesh = selected.ensureMeshGeometry();
                             if (mesh != null) {
-                                edgeDragOldMesh = mesh.copy();
+                                interaction.edgeDragOldMesh = mesh.copy();
                                 meshComponentDrag.beginEdge(selected, meshPick.edgeA(), meshPick.edgeB());
-                                edgeDragging = true;
+                                interaction.edgeDragging = true;
                             }
                         }
                         case FACE -> {
-                            hoveredMeshFace = meshPick.index();
-                            hoveredFace = GeometryFace.NONE;
+                            interaction.hoveredMeshFace = meshPick.index();
+                            interaction.hoveredFace = GeometryFace.NONE;
                         }
                         case NONE -> { }
                     }
@@ -769,37 +737,37 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
                     if (clickedFace != GeometryFace.NONE) {
                         viewport.geometryFaceSelection().select(selected, clickedFace);
-                        hoveredFace = clickedFace;
+                        interaction.hoveredFace = clickedFace;
                         cubeFaceEditor.begin(selected, clickedFace);
                         return true;
                     }
                     viewport.geometryFaceSelection().clear();
                 }
-                gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
-                hoveredAxis = activeAxis;
-                if (gizmoDragging) {
-                    dragOldGeometry = selected.geometry();
+                interaction.gizmoDragging = interaction.activeAxis != ViewportGizmo.Axis.NONE;
+                interaction.hoveredAxis = interaction.activeAxis;
+                if (interaction.gizmoDragging) {
+                    interaction.dragOldGeometry = selected.geometry();
                     return true;
                 }
             } else if (selected != null && viewport.transform().mode() != TransformMode.SELECT) {
                 int cx=width/2, cy=height/2;
-                activeAxis = gizmo.hit(selected, viewport.transform().mode(),
+                interaction.activeAxis = gizmo.hit(selected, viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()), mouseX, mouseY, cx, cy);
-                gizmoDragging = activeAxis != ViewportGizmo.Axis.NONE;
-                hoveredAxis = activeAxis;
-                if (gizmoDragging) {
+                interaction.gizmoDragging = interaction.activeAxis != ViewportGizmo.Axis.NONE;
+                interaction.hoveredAxis = interaction.activeAxis;
+                if (interaction.gizmoDragging) {
                     var t=selected.transform();
-                    dragOldX=t.x(); dragOldY=t.y(); dragOldZ=t.z();
-                    dragOldRx=t.rotationX(); dragOldRy=t.rotationY(); dragOldRz=t.rotationZ();
-                    dragOldSx=t.scaleX(); dragOldSy=t.scaleY(); dragOldSz=t.scaleZ();
+                    interaction.dragOldX=t.x(); interaction.dragOldY=t.y(); interaction.dragOldZ=t.z();
+                    interaction.dragOldRx=t.rotationX(); interaction.dragOldRy=t.rotationY(); interaction.dragOldRz=t.rotationZ();
+                    interaction.dragOldSx=t.scaleX(); interaction.dragOldSy=t.scaleY(); interaction.dragOldSz=t.scaleZ();
                     return true;
                 }
             }
             // Empty-space drag in geometry mode starts component box selection.
             if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
-                componentBoxSelecting = true;
-                boxStartX = boxCurrentX = mouseX;
-                boxStartY = boxCurrentY = mouseY;
+                interaction.componentBoxSelecting = true;
+                interaction.boxStartX = interaction.boxCurrentX = mouseX;
+                interaction.boxStartY = interaction.boxCurrentY = mouseY;
                 return true;
             }
 
@@ -817,74 +785,74 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (componentDragging && button == 0) {
+        if (interaction.componentDragging && button == 0) {
             ModelNode node=core.editorContext().viewport().selection().first(core.editorContext().model());
             componentTransformMouse.finish(core, node);
-            componentDragging=false;
+            interaction.componentDragging=false;
             componentTransformInput.disarm();
             componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE);
-            hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
+            interaction.hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
             return true;
         }
-        if (componentBoxSelecting && button == 0) {
-            boxCurrentX = mouseX;
-            boxCurrentY = mouseY;
+        if (interaction.componentBoxSelecting && button == 0) {
+            interaction.boxCurrentX = mouseX;
+            interaction.boxCurrentY = mouseY;
             selectComponentsInBox();
-            componentBoxSelecting = false;
+            interaction.componentBoxSelecting = false;
             return true;
         }
-        if (vertexDragging && button == 0) {
+        if (interaction.vertexDragging && button == 0) {
             meshComponentDrag.finish(core, core.editorContext().viewport().selection().first(core.editorContext().model()));
-            vertexDragging = false;
-            activeVertex = -1;
-            vertexDragOldMesh = null;
+            interaction.vertexDragging = false;
+            interaction.activeVertex = -1;
+            interaction.vertexDragOldMesh = null;
             return true;
         }
-        if (edgeDragging && button == 0) {
+        if (interaction.edgeDragging && button == 0) {
             meshComponentDrag.finish(core, core.editorContext().viewport().selection().first(core.editorContext().model()));
-            edgeDragging = false;
-            activeEdgeA = -1;
-            activeEdgeB = -1;
-            edgeDragOldMesh = null;
+            interaction.edgeDragging = false;
+            interaction.activeEdgeA = -1;
+            interaction.activeEdgeB = -1;
+            interaction.edgeDragOldMesh = null;
             return true;
         }
         if (cubeFaceEditor.dragging() && button == 0) {
             cubeFaceEditor.finish(core);
             return true;
         }
-        if (gizmoDragging && button == 0) {
+        if (interaction.gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
                 if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY
-                        && dragOldGeometry != null && node.geometry() != null) {
+                        && interaction.dragOldGeometry != null && node.geometry() != null) {
                     var t = node.transform();
-                    boolean geometryChanged = !dragOldGeometry.equals(node.geometry());
-                    boolean positionChanged = dragOldX != t.x() || dragOldY != t.y() || dragOldZ != t.z();
+                    boolean geometryChanged = !interaction.dragOldGeometry.equals(node.geometry());
+                    boolean positionChanged = interaction.dragOldX != t.x() || interaction.dragOldY != t.y() || interaction.dragOldZ != t.z();
                     if (geometryChanged || positionChanged) {
                         core.editorContext().history().recordExecuted(
                                 new ResizeCubeFaceCommand(node,
-                                        dragOldGeometry, node.geometry(),
-                                        dragOldX, dragOldY, dragOldZ,
+                                        interaction.dragOldGeometry, node.geometry(),
+                                        interaction.dragOldX, interaction.dragOldY, interaction.dragOldZ,
                                         t.x(), t.y(), t.z()));
                     }
-                    dragOldGeometry = null;
-                    gizmoDragging=false;
-                    activeAxis=ViewportGizmo.Axis.NONE;
+                    interaction.dragOldGeometry = null;
+                    interaction.gizmoDragging=false;
+                    interaction.activeAxis=ViewportGizmo.Axis.NONE;
                     return true;
                 }
 
                 var t=node.transform();
-                boolean changed = dragOldX!=t.x() || dragOldY!=t.y() || dragOldZ!=t.z() ||
-                        dragOldRx!=t.rotationX() || dragOldRy!=t.rotationY() || dragOldRz!=t.rotationZ() ||
-                        dragOldSx!=t.scaleX() || dragOldSy!=t.scaleY() || dragOldSz!=t.scaleZ();
+                boolean changed = interaction.dragOldX!=t.x() || interaction.dragOldY!=t.y() || interaction.dragOldZ!=t.z() ||
+                        interaction.dragOldRx!=t.rotationX() || interaction.dragOldRy!=t.rotationY() || interaction.dragOldRz!=t.rotationZ() ||
+                        interaction.dragOldSx!=t.scaleX() || interaction.dragOldSy!=t.scaleY() || interaction.dragOldSz!=t.scaleZ();
                 if (changed) {
                     core.editorContext().history().recordExecuted(new SetTransformCommand(node,
-                            dragOldX,dragOldY,dragOldZ,dragOldRx,dragOldRy,dragOldRz,dragOldSx,dragOldSy,dragOldSz,
+                            interaction.dragOldX,interaction.dragOldY,interaction.dragOldZ,interaction.dragOldRx,interaction.dragOldRy,interaction.dragOldRz,interaction.dragOldSx,interaction.dragOldSy,interaction.dragOldSz,
                             t.x(),t.y(),t.z(),t.rotationX(),t.rotationY(),t.rotationZ(),t.scaleX(),t.scaleY(),t.scaleZ(),true));
                 }
             }
-            gizmoDragging=false;
-            activeAxis=ViewportGizmo.Axis.NONE;
+            interaction.gizmoDragging=false;
+            interaction.activeAxis=ViewportGizmo.Axis.NONE;
             return true;
         }
         if (viewportInput.mouseReleased(mouseX, mouseY, button)) return true;
@@ -892,26 +860,26 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     }
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (componentDragging && button == 0) {
+        if (interaction.componentDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
                 componentTransformMouse.update(node, core.editorContext().viewport(),
                         new ViewportProjector(core.editorContext().viewport().viewport().camera()),
                         mouseX, mouseY, width, height,
-                        proportionalEditing, proportionalRadius, hasControlDown());
+                        interaction.proportionalEditing, interaction.proportionalRadius, hasControlDown());
             }
             return true;
         }
-        if (componentBoxSelecting && button == 0) {
-            boxCurrentX = mouseX;
-            boxCurrentY = mouseY;
+        if (interaction.componentBoxSelecting && button == 0) {
+            interaction.boxCurrentX = mouseX;
+            interaction.boxCurrentY = mouseY;
             return true;
         }
-        if (vertexDragging && button == 0) {
+        if (interaction.vertexDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null && activeVertex >= 0) {
+            if (node != null && interaction.activeVertex >= 0) {
                 var mesh = node.ensureMeshGeometry();
-                if (mesh != null && activeVertex < mesh.vertices().size()) {
+                if (mesh != null && interaction.activeVertex < mesh.vertices().size()) {
                     var camera = core.editorContext().viewport().viewport().camera();
                     double yaw = Math.toRadians(camera.yaw());
                     double pitch = Math.toRadians(camera.pitch());
@@ -928,7 +896,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     double dx = (deltaX * rightX - deltaY * upX) * worldPerPixel;
                     double dy = (-deltaY * upY) * worldPerPixel;
                     double dz = (deltaX * rightZ - deltaY * upZ) * worldPerPixel;
-                    node.setMeshGeometry(MeshOperations.moveVertex(mesh, activeVertex, dx, dy, dz));
+                    node.setMeshGeometry(MeshOperations.moveVertex(mesh, interaction.activeVertex, dx, dy, dz));
                 }
             }
             return true;
@@ -937,32 +905,32 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             cubeFaceEditor.update(core, deltaX, deltaY);
             return true;
         }
-        if (gizmoDragging && button == 0) {
+        if (interaction.gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
                 if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY) {
                     var g = node.geometry();
                     if (g != null) {
-                        double amount = gizmo.dragAmount(activeAxis,
+                        double amount = gizmo.dragAmount(interaction.activeAxis,
                                 new ViewportProjector(core.editorContext().viewport().viewport().camera()),
                                 deltaX, deltaY);
                         double width = g.width();
                         double height = g.height();
                         double depth = g.depth();
-                        double sign = (activeAxis == ViewportGizmo.Axis.NEG_X ||
-                                activeAxis == ViewportGizmo.Axis.NEG_Y ||
-                                activeAxis == ViewportGizmo.Axis.NEG_Z) ? -1.0 : 1.0;
+                        double sign = (interaction.activeAxis == ViewportGizmo.Axis.NEG_X ||
+                                interaction.activeAxis == ViewportGizmo.Axis.NEG_Y ||
+                                interaction.activeAxis == ViewportGizmo.Axis.NEG_Z) ? -1.0 : 1.0;
                         double move = amount * 2.0 * sign;
 
-                        if (activeAxis == ViewportGizmo.Axis.X || activeAxis == ViewportGizmo.Axis.NEG_X) {
+                        if (interaction.activeAxis == ViewportGizmo.Axis.X || interaction.activeAxis == ViewportGizmo.Axis.NEG_X) {
                             width = Math.max(0.1, width + move);
                             node.transform().position(node.transform().x() + amount * sign,
                                     node.transform().y(), node.transform().z());
-                        } else if (activeAxis == ViewportGizmo.Axis.Y || activeAxis == ViewportGizmo.Axis.NEG_Y) {
+                        } else if (interaction.activeAxis == ViewportGizmo.Axis.Y || interaction.activeAxis == ViewportGizmo.Axis.NEG_Y) {
                             height = Math.max(0.1, height + move);
                             node.transform().position(node.transform().x(),
                                     node.transform().y() + amount * sign, node.transform().z());
-                        } else if (activeAxis == ViewportGizmo.Axis.Z || activeAxis == ViewportGizmo.Axis.NEG_Z) {
+                        } else if (interaction.activeAxis == ViewportGizmo.Axis.Z || interaction.activeAxis == ViewportGizmo.Axis.NEG_Z) {
                             depth = Math.max(0.1, depth + move);
                             node.transform().position(node.transform().x(),
                                     node.transform().y(), node.transform().z() + amount * sign);
@@ -972,21 +940,21 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     }
                     return true;
                 } else if (core.editorContext().viewport().transform().mode() == TransformMode.MOVE) {
-                    double dx=activeAxis==ViewportGizmo.Axis.X?amount:0;
-                    double dy=activeAxis==ViewportGizmo.Axis.Y?amount:0;
-                    double dz=activeAxis==ViewportGizmo.Axis.Z?amount:0;
+                    double dx=interaction.activeAxis==ViewportGizmo.Axis.X?amount:0;
+                    double dy=interaction.activeAxis==ViewportGizmo.Axis.Y?amount:0;
+                    double dz=interaction.activeAxis==ViewportGizmo.Axis.Z?amount:0;
                     core.editorContext().viewport().transform().translate(node,dx,dy,dz);
                 } else if (core.editorContext().viewport().transform().mode() == TransformMode.ROTATE) {
-                    double rx=activeAxis==ViewportGizmo.Axis.X?amount*10:0;
-                    double ry=activeAxis==ViewportGizmo.Axis.Y?amount*10:0;
-                    double rz=activeAxis==ViewportGizmo.Axis.Z?amount*10:0;
+                    double rx=interaction.activeAxis==ViewportGizmo.Axis.X?amount*10:0;
+                    double ry=interaction.activeAxis==ViewportGizmo.Axis.Y?amount*10:0;
+                    double rz=interaction.activeAxis==ViewportGizmo.Axis.Z?amount*10:0;
                     core.editorContext().viewport().transform().rotateBy(node,rx,ry,rz);
                 } else if (core.editorContext().viewport().transform().mode() == TransformMode.SCALE) {
                     double s=amount*0.1;
                     core.editorContext().viewport().transform().scaleBy(node,
-                            activeAxis==ViewportGizmo.Axis.X?s:0,
-                            activeAxis==ViewportGizmo.Axis.Y?s:0,
-                            activeAxis==ViewportGizmo.Axis.Z?s:0);
+                            interaction.activeAxis==ViewportGizmo.Axis.X?s:0,
+                            interaction.activeAxis==ViewportGizmo.Axis.Y?s:0,
+                            interaction.activeAxis==ViewportGizmo.Axis.Z?s:0);
                 }
             }
             return true;
@@ -1001,36 +969,36 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     }
 
     @Override public void mouseMoved(double mouseX, double mouseY) {
-        if (!gizmoDragging && !componentDragging) {
+        if (!interaction.gizmoDragging && !interaction.componentDragging) {
             ViewportContext viewport=core.editorContext().viewport();
             ModelNode selected=viewport.selection().first(core.editorContext().model());
             if(selected!=null && viewport.transform().mode()==TransformMode.GEOMETRY) {
-                hoveredAxis=gizmo.geometryHit(selected,new ViewportProjector(viewport.viewport().camera()),
+                interaction.hoveredAxis=gizmo.geometryHit(selected,new ViewportProjector(viewport.viewport().camera()),
                         mouseX,mouseY,width/2,height/2);
                 if (viewport.meshComponentSelection().matches(selected) && viewport.meshComponentSelection().size()>0) {
                     var projector=new ViewportProjector(viewport.viewport().camera());
-                    hoveredComponentAxis=componentGizmo.hover(selected,
+                    interaction.hoveredComponentAxis=componentGizmo.hover(selected,
                             viewport.meshComponentSelection().mode(),
                             viewport.meshComponentSelection().vertexIndices(),
                             viewport.meshComponentSelection().edgeIndices(),
                             viewport.meshComponentSelection().faceIndices(),
                             projector,mouseX,mouseY,width/2,height/2,componentTransform.operation(),componentTransform.pivotMode(),
                             viewport.meshComponentSelection());
-                } else hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
+                } else interaction.hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
                 MeshEditorHoverController.HoverResult meshHover = meshEditorHover.resolve(
                         selected, viewport, mouseX, mouseY, width / 2, height / 2,
-                        hoveredAxis, hoveredComponentAxis);
-                hoveredMeshFace = meshHover.face();
-                hoveredMeshVertex = meshHover.vertex();
-                hoveredMeshEdgeA = meshHover.edgeA();
-                hoveredMeshEdgeB = meshHover.edgeB();
-                hoveredFace = meshEditorHover.primitiveFace(
+                        interaction.hoveredAxis, interaction.hoveredComponentAxis);
+                interaction.hoveredMeshFace = meshHover.face();
+                interaction.hoveredMeshVertex = meshHover.vertex();
+                interaction.hoveredMeshEdgeA = meshHover.edgeA();
+                interaction.hoveredMeshEdgeB = meshHover.edgeB();
+                interaction.hoveredFace = meshEditorHover.primitiveFace(
                         selected, viewport, mouseX, mouseY, width / 2, height / 2,
-                        hoveredAxis, hoveredComponentAxis);
+                        interaction.hoveredAxis, interaction.hoveredComponentAxis);
             } else if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
-                hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
+                interaction.hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
                         new ViewportProjector(viewport.viewport().camera()),mouseX,mouseY,width/2,height/2);
-            } else hoveredAxis=ViewportGizmo.Axis.NONE;
+            } else interaction.hoveredAxis=ViewportGizmo.Axis.NONE;
         }
         super.mouseMoved(mouseX, mouseY);
     }
@@ -1039,9 +1007,9 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         renderBackground(context, mouseX, mouseY, delta);
         GeometryFace selectedFace = core.editorContext().viewport().geometryFaceSelection().face();
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
-                core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace,
-                hoveredMeshVertex, hoveredMeshEdgeA, hoveredMeshEdgeB,
-                hoveredComponentAxis, componentTransform.operation(), componentTransform.pivotMode(), selectThrough);
+                core.editorContext().model(), interaction.hoveredAxis, interaction.hoveredFace, selectedFace, interaction.hoveredMeshFace,
+                interaction.hoveredMeshVertex, interaction.hoveredMeshEdgeA, interaction.hoveredMeshEdgeB,
+                interaction.hoveredComponentAxis, componentTransform.operation(), componentTransform.pivotMode(), interaction.selectThrough);
 
         ViewportContext activeViewport = core.editorContext().viewport();
         if (activeViewport.transform().mode() == TransformMode.GEOMETRY
@@ -1050,8 +1018,8 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             String mode = activeViewport.meshComponentSelection().mode().name();
             String operation = componentTransform.operation().name();
             String axis = componentTransform.axis() == ComponentTransformGizmo.Axis.NONE
-                    ? (hoveredComponentAxis == ComponentTransformGizmo.Axis.NONE
-                    ? "" : " " + hoveredComponentAxis.name())
+                    ? (interaction.hoveredComponentAxis == ComponentTransformGizmo.Axis.NONE
+                    ? "" : " " + interaction.hoveredComponentAxis.name())
                     : " " + componentTransform.axis().name();
             String pivot = componentTransform.pivotMode().name().replace('_', ' ');
             String active = switch (activeComponentLabel(activeViewport.meshComponentSelection())) {
@@ -1061,21 +1029,21 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             String constraint = componentTransform.constraintAxis() == ComponentTransformGizmo.Axis.NONE ? "" : " • " + (componentTransform.planeConstraint() ? "PLANE " : "") + componentTransform.constraintAxis().name();
             String snap = hasControlDown() ? " • SNAP" : "";
             String numeric = componentTransformInput.numericEntry() ? " • Value " + (componentTransformInput.numericNegative() ? "-" : "") + componentTransformInput.numericBuffer() : "";
-            String proportional = proportionalEditing ? " • PROP " + String.format(java.util.Locale.ROOT, "%.1f", proportionalRadius) : "";
-            String hover = hoveredMeshVertex >= 0 ? " • Hover V" + hoveredMeshVertex
-                    : hoveredMeshEdgeA >= 0 ? " • Hover E" + hoveredMeshEdgeA + "-" + hoveredMeshEdgeB
-                    : hoveredMeshFace >= 0 ? " • Hover F" + hoveredMeshFace : "";
-            String xray = selectThrough ? " • X-RAY" : "";
-            String topology = topologyPathPickArmed ? " • PATH: " + (topologyPathHasStart ? "pick target" : "pick start") : "";
+            String proportional = interaction.proportionalEditing ? " • PROP " + String.format(java.util.Locale.ROOT, "%.1f", interaction.proportionalRadius) : "";
+            String hover = interaction.hoveredMeshVertex >= 0 ? " • Hover V" + interaction.hoveredMeshVertex
+                    : interaction.hoveredMeshEdgeA >= 0 ? " • Hover E" + interaction.hoveredMeshEdgeA + "-" + interaction.hoveredMeshEdgeB
+                    : interaction.hoveredMeshFace >= 0 ? " • Hover F" + interaction.hoveredMeshFace : "";
+            String xray = interaction.selectThrough ? " • X-RAY" : "";
+            String topology = interaction.topologyPathPickArmed ? " • PATH: " + (interaction.topologyPathHasStart ? "pick target" : "pick start") : "";
             context.drawTextWithShadow(textRenderer,
                     operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap + numeric + proportional + hover + xray + topology,
                     26, height - 30, 0xFFE8E8E8);
         }
-        if (componentBoxSelecting) {
-            int left = (int) Math.round(Math.min(boxStartX, boxCurrentX));
-            int top = (int) Math.round(Math.min(boxStartY, boxCurrentY));
-            int right = (int) Math.round(Math.max(boxStartX, boxCurrentX));
-            int bottom = (int) Math.round(Math.max(boxStartY, boxCurrentY));
+        if (interaction.componentBoxSelecting) {
+            int left = (int) Math.round(Math.min(interaction.boxStartX, interaction.boxCurrentX));
+            int top = (int) Math.round(Math.min(interaction.boxStartY, interaction.boxCurrentY));
+            int right = (int) Math.round(Math.max(interaction.boxStartX, interaction.boxCurrentX));
+            int bottom = (int) Math.round(Math.max(interaction.boxStartY, interaction.boxCurrentY));
             context.fill(left, top, right, top + 1, 0xFFFFFFFF);
             context.fill(left, bottom, right, bottom + 1, 0xFFFFFFFF);
             context.fill(left, top, left + 1, bottom, 0xFFFFFFFF);
@@ -1110,10 +1078,10 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         var mesh = node.ensureMeshGeometry();
         if (mesh == null) return;
 
-        int left=(int)Math.round(Math.min(boxStartX,boxCurrentX));
-        int right=(int)Math.round(Math.max(boxStartX,boxCurrentX));
-        int top=(int)Math.round(Math.min(boxStartY,boxCurrentY));
-        int bottom=(int)Math.round(Math.max(boxStartY,boxCurrentY));
+        int left=(int)Math.round(Math.min(interaction.boxStartX,interaction.boxCurrentX));
+        int right=(int)Math.round(Math.max(interaction.boxStartX,interaction.boxCurrentX));
+        int top=(int)Math.round(Math.min(interaction.boxStartY,interaction.boxCurrentY));
+        int bottom=(int)Math.round(Math.max(interaction.boxStartY,interaction.boxCurrentY));
         if (right-left < 3 && bottom-top < 3) return;
 
         ViewportProjector projector=new ViewportProjector(viewport.viewport().camera());
