@@ -15,11 +15,11 @@ import whitevoid.create.model.MeshGeometry;
 public final class MeshEdgeOperations {
     private MeshEdgeOperations() {}
 
-public static OperationResult extrudeEdgesResult(
+public static MeshOperations.OperationResult extrudeEdgesResult(
             MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (selectedEdges == null || selectedEdges.isEmpty() || amount == 0.0) {
-            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of(), Map.of(), Map.of());
+            return new MeshOperations.OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of(), Map.of(), Map.of());
         }
 
         java.util.Set<Long> valid = new java.util.LinkedHashSet<>();
@@ -97,9 +97,9 @@ public static OperationResult extrudeEdgesResult(
                 focusEdges.add(edge);
             }
         }
-        return new OperationResult(new MeshGeometry(vertices, faces),
+        return new MeshOperations.OperationResult(new MeshGeometry(vertices, faces),
                 createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
-                SelectionHint.edges(focusEdges, focusEdges.isEmpty() ? -1L : focusEdges.iterator().next()));
+                MeshOperations.SelectionHint.edges(focusEdges, focusEdges.isEmpty() ? -1L : focusEdges.iterator().next()));
     }
 
 public static MeshGeometry extrudeEdge(MeshGeometry mesh, int a, int b, double amount) {
@@ -191,11 +191,11 @@ public static MeshGeometry extrudeEdges(MeshGeometry mesh, java.util.Set<Long> s
         return extrudeEdgesResult(mesh, selectedEdges, amount).mesh();
     }
 
-public static OperationResult bevelEdgesResult(
+public static MeshOperations.OperationResult bevelEdgesResult(
             MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (selectedEdges == null || selectedEdges.isEmpty() || amount <= 0.0) {
-            return new OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
+            return new MeshOperations.OperationResult(mesh.copy(), Set.of(), Set.of(), Set.of());
         }
 
         MeshGeometry result = bevelEdges(mesh, selectedEdges, amount);
@@ -224,8 +224,8 @@ public static OperationResult bevelEdgesResult(
 
         java.util.Set<Long> focusEdges = new java.util.LinkedHashSet<>(createdEdges);
         long activeEdge = focusEdges.isEmpty() ? -1L : focusEdges.iterator().next();
-        return new OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
-                SelectionHint.edges(focusEdges, activeEdge));
+        return new MeshOperations.OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
+                MeshOperations.SelectionHint.edges(focusEdges, activeEdge));
     }
 
 public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
