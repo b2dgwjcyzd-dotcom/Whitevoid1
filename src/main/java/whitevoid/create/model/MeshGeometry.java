@@ -19,6 +19,12 @@ public final class MeshGeometry {
             if (vertices == null || vertices.length < 3) {
                 throw new IllegalArgumentException("A face needs at least three vertices");
             }
+            java.util.Set<Integer> unique = new java.util.HashSet<>();
+            for (int vertex : vertices) {
+                if (!unique.add(vertex)) {
+                    throw new IllegalArgumentException("A face cannot reference the same vertex more than once");
+                }
+            }
             vertices = vertices.clone();
         }
 
