@@ -1,5 +1,6 @@
 package whitevoid.create.core.history.commands;
 
+import java.util.Objects;
 import java.util.UUID;
 import whitevoid.create.core.history.Command;
 import whitevoid.create.core.history.SelectionHistoryCommand;
@@ -13,16 +14,20 @@ public final class DeleteNodeCommand implements Command, SelectionHistoryCommand
     private int index = -1;
 
     public DeleteNodeCommand(Model model, ModelNode node) {
-        this.model = model;
-        this.node = node;
+        this.model = Objects.requireNonNull(model, "model");
+        this.node = Objects.requireNonNull(node, "node");
     }
 
     @Override public void execute() {
-        parent = node.parent();
-        if (parent == null) throw new IllegalStateException("Cannot delete the model root");
-        index = parent.indexOfChild(node);
-        if (index < 0) throw new IllegalStateException("Node is not attached to its parent");
-        if (node.parent() != parent) throw new IllegalStateException("Node changed parent outside this command");
+        if (parent == null) {
+            parent = node.parent();
+            if (parent == null) throw new IllegalStateException("Cannot delete the model root");
+            index = parent.indexOfChild(node);
+            if (index < 0) throw new IllegalStateException("Node is not attached to its parent");
+        } else if (node.parent() != null) {
+            throw new IllegalStateException("Deleted node is already attached");
+        }
+
         parent.removeChild(node);
     }
 
