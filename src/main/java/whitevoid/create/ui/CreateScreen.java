@@ -29,6 +29,7 @@ import whitevoid.create.model.TransformMath;
 public final class CreateScreen extends Screen {
     private final CreateCore core;
     private final CreateViewportInteractionState interaction = new CreateViewportInteractionState();
+    private final CreateViewportSelectionController selectionController = new CreateViewportSelectionController();
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -654,7 +655,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
                 MeshGeometry mesh = node.ensureMeshGeometry();
                 if (mesh != null) {
-                    int hit = hitTestMeshVertex(node, mesh, viewport, mouseX, mouseY);
+                    int hit = selectionController.hitTestMeshVertex(node, mesh, viewport, mouseX, mouseY, width, height);
                     if (hit >= 0) {
                         if (!interaction.topologyPathHasStart) {
                             viewport.meshComponentSelection().selectVertex(node, hit);
@@ -797,7 +798,10 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         if (interaction.componentBoxSelecting && button == 0) {
             interaction.boxCurrentX = mouseX;
             interaction.boxCurrentY = mouseY;
-            selectComponentsInBox();
+            selectionController.selectComponentsInBox(core.editorContext().viewport(),
+                    core.editorContext().viewport().selection().first(core.editorContext().model()),
+                    interaction.boxStartX, interaction.boxStartY, interaction.boxCurrentX, interaction.boxCurrentY,
+                    width, height, hasAltDown(), hasShiftDown());
             interaction.componentBoxSelecting = false;
             return true;
         }
@@ -1069,108 +1073,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         if (increment <= 0.0) return Math.max(0.01, factor);
         double delta = factor - 1.0;
         return Math.max(0.01, 1.0 + Math.rint(delta / increment) * increment);
-    }
-
-    private void selectComponentsInBox() {
-        ViewportContext viewport = core.editorContext().viewport();
-        ModelNode node = viewport.selection().first(core.editorContext().model());
-        if (node == null || viewport.transform().mode() != TransformMode.GEOMETRY) return;
-        var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-
-        int left=(int)Math.round(Math.min(interaction.boxStartX,interaction.boxCurrentX));
-        int right=(int)Math.round(Math.max(interaction.boxStartX,interaction.boxCurrentX));
-        int top=(int)Math.round(Math.min(interaction.boxStartY,interaction.boxCurrentY));
-        int bottom=(int)Math.round(Math.max(interaction.boxStartY,interaction.boxCurrentY));
-        if (right-left < 3 && bottom-top < 3) return;
-
-        ViewportProjector projector=new ViewportProjector(viewport.viewport().camera());
-        int cx=width/2, cy=height/2;
-        var selection=viewport.meshComponentSelection();
-
-        if (selection.mode() == MeshSelectionMode.VERTEX) {
-            java.util.Set<Integer> hits = new java.util.LinkedHashSet<>();
-            for (int i=0;i<mesh.vertices().size();i++) {
-                var v=mesh.vertices().get(i);
-                var w=whitevoid.create.model.TransformMath.applyHierarchy(
-                        new whitevoid.create.model.TransformMath.Point(v.x(),v.y(),v.z()),node);
-                var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
-                if(p!=null && p.x()>=left && p.x()<=right && p.y()>=top && p.y()<=bottom) hits.add(i);
-            }
-            if (hasAltDown()) {
-                for (int i : hits) selection.removeVertex(node, i);
-            } else if (hasShiftDown()) {
-                for (int i : hits) selection.addVertex(node, i);
-            } else {
-                selection.clear();
-                for (int i : hits) selection.addVertex(node, i);
-            }
-        } else if (selection.mode() == MeshSelectionMode.EDGE) {
-            java.util.List<int[]> hits = new java.util.ArrayList<>();
-            for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
-                var a=mesh.vertices().get(edge[0]); var b=mesh.vertices().get(edge[1]);
-                var wa=whitevoid.create.model.TransformMath.applyHierarchy(
-                        new whitevoid.create.model.TransformMath.Point(a.x(),a.y(),a.z()),node);
-                var wb=whitevoid.create.model.TransformMath.applyHierarchy(
-                        new whitevoid.create.model.TransformMath.Point(b.x(),b.y(),b.z()),node);
-                var pa=projector.project(wa.x(),wa.y(),wa.z(),cx,cy,300);
-                var pb=projector.project(wb.x(),wb.y(),wb.z(),cx,cy,300);
-                if(pa!=null && pb!=null && pointInsideBox(pa.x(),pa.y(),left,top,right,bottom)) {
-                    hits.add(new int[]{edge[0], edge[1]});
-                }
-            }
-            if (hasAltDown()) {
-                for (int[] edge : hits) selection.removeEdge(node, edge[0], edge[1]);
-            } else {
-                if (!hasShiftDown()) selection.clear();
-                for (int[] edge : hits) selection.addEdge(node, edge[0], edge[1]);
-            }
-        } else {
-            java.util.Set<Integer> hits = new java.util.LinkedHashSet<>();
-            for (int i=0;i<mesh.faces().size();i++) {
-                int[] ids=mesh.faces().get(i).vertices();
-                double sx=0,sy=0; int count=0;
-                for(int id:ids) {
-                    var v=mesh.vertices().get(id);
-                    var w=whitevoid.create.model.TransformMath.applyHierarchy(
-                            new whitevoid.create.model.TransformMath.Point(v.x(),v.y(),v.z()),node);
-                    var p=projector.project(w.x(),w.y(),w.z(),cx,cy,300);
-                    if(p!=null){sx+=p.x();sy+=p.y();count++;}
-                }
-                if(count>0 && pointInsideBox(sx/count,sy/count,left,top,right,bottom)) hits.add(i);
-            }
-            if (hasAltDown()) {
-                for (int i : hits) selection.removeFace(node, i);
-            } else {
-                if (!hasShiftDown()) selection.clear();
-                for (int i : hits) selection.addFace(node, i);
-            }
-        }
-    }
-    private boolean pointInsideBox(double x,double y,int left,int top,int right,int bottom) {
-        return x>=left && x<=right && y>=top && y<=bottom;
-    }
-
-
-    private int hitTestMeshVertex(ModelNode node, MeshGeometry mesh, ViewportContext viewport,
-                                   double mouseX, double mouseY) {
-        ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
-        int cx = width / 2, cy = height / 2;
-        int best = -1;
-        double bestDistance = 10.0;
-        for (int i = 0; i < mesh.vertices().size(); i++) {
-            var v = mesh.vertices().get(i);
-            var world = whitevoid.create.model.TransformMath.applyHierarchy(
-                    new whitevoid.create.model.TransformMath.Point(v.x(), v.y(), v.z()), node);
-            var p = projector.project(world.x(), world.y(), world.z(), cx, cy, 300);
-            if (p == null) continue;
-            double distance = Math.hypot(p.x() - mouseX, p.y() - mouseY);
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = i;
-            }
-        }
-        return best;
     }
 
     @Override public boolean shouldPause() { return false; }
