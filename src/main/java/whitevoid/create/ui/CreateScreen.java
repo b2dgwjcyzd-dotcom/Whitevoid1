@@ -108,7 +108,9 @@ public final class CreateScreen extends Screen {
 
     @Override public void close() {
         viewportInput.cancelDrag();
-        componentTransform.cancel();
+        ModelNode selectedNode = core.editorContext().viewport().selection().first(core.editorContext().model());
+        meshComponentDrag.abort(selectedNode);
+        componentTransform.abort(core, selectedNode);
         core.editorContext().setEditing(false);
         core.saveActiveProject();
         super.close();
@@ -130,6 +132,16 @@ public final class CreateScreen extends Screen {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && cubeFaceEditor.dragging()) {
             cubeFaceEditor.abort(core);
             viewport.geometryFaceSelection().clear();
+            return true;
+        }
+
+        if ((interaction.vertexDragging || interaction.edgeDragging) && meshComponentDrag.dragging()) {
+            meshComponentDrag.abort(viewport.selection().first(core.editorContext().model()));
+            interaction.vertexDragging = false;
+            interaction.edgeDragging = false;
+            interaction.activeVertex = -1;
+            interaction.activeEdgeA = -1;
+            interaction.activeEdgeB = -1;
             return true;
         }
 
