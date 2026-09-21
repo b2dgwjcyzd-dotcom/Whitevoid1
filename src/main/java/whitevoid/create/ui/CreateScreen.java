@@ -56,6 +56,7 @@ public final class CreateScreen extends Screen {
     private final CreateModelingHotkeyController modelingHotkeys;
     private final CreateResetController resetController;
     private final CreateViewportReleaseController viewportReleaseController;
+    private final CreateViewportDragController viewportDragController;
 
     private final CubeFaceEditorController cubeFaceEditor;
 
@@ -78,6 +79,14 @@ public final class CreateScreen extends Screen {
                 selectionController,
                 meshComponentDrag);
         this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
+        this.viewportDragController = new CreateViewportDragController(
+                componentTransformInteraction,
+                componentBoxSelection,
+                vertexDrag,
+                edgeDrag,
+                cubeFaceEditor,
+                transformGizmoDrag,
+                viewportInput);
     }
 
     @Override protected void init() {
@@ -236,52 +245,21 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (interaction.componentDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null) {
-                componentTransformInteraction.update(
-                        node,
-                        core.editorContext().viewport(),
-                        mouseX,
-                        mouseY,
-                        width,
-                        height,
-                        interaction.proportionalEditing,
-                        interaction.proportionalRadius,
-                        hasControlDown()
-                );
-            }
+        if (viewportDragController.handle(
+                core,
+                interaction,
+                core.editorContext().viewport(),
+                mouseX,
+                mouseY,
+                button,
+                deltaX,
+                deltaY,
+                width,
+                height,
+                hasShiftDown(),
+                hasControlDown())) {
             return true;
         }
-        if (interaction.componentBoxSelecting && button == 0) {
-            if (componentBoxSelection.update(interaction, mouseX, mouseY)) return true;
-        }
-        if (interaction.vertexDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (vertexDrag.update(
-                    interaction, node, core.editorContext().viewport(), deltaX, deltaY)) {
-                return true;
-            }
-        }
-        if (interaction.edgeDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (edgeDrag.update(
-                    interaction, node, core.editorContext().viewport(), deltaX, deltaY)) {
-                return true;
-            }
-        }
-        if (cubeFaceEditor.dragging()) {
-            cubeFaceEditor.update(core, deltaX, deltaY);
-            return true;
-        }
-        if (interaction.gizmoDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (transformGizmoDrag.update(
-                    core, interaction, node, core.editorContext().viewport(), deltaX, deltaY)) {
-                return true;
-            }
-        }
-        if (viewportInput.mouseDragged(mouseX, mouseY, button, hasShiftDown())) return true;
         return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
     }
 
