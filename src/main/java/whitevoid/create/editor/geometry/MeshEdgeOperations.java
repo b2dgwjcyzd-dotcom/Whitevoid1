@@ -79,7 +79,7 @@ public static MeshOperations.OperationResult extrudeEdgesResult(
             int faceIndex = faces.size();
             faces.add(new MeshGeometry.Face(a, b, db, da));
             createdFaces.add(faceIndex);
-            createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(da, db));
+            createdEdges.add(MeshTopology.edgeKey(da, db));
             createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(a, da));
             createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(b, db));
         }
