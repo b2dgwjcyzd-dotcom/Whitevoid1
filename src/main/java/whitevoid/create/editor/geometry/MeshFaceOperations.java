@@ -57,8 +57,23 @@ public static MeshOperations.OperationResult extrudeFacesResult(
             focusFaces.add(faceIndex);
         }
         int activeFace = focusFaces.isEmpty() ? -1 : focusFaces.iterator().next();
+        java.util.Map<Integer, Integer> materialSources = new java.util.LinkedHashMap<>();
+        int createdCursor = baseFaceCount;
+        for (int sourceFace : valid) {
+            materialSources.put(createdCursor++, sourceFace);
+        }
+        for (int sourceFace : valid) {
+            int[] original = mesh.faces().get(sourceFace).vertices();
+            for (int i = 0; i < original.length; i++) {
+                int a = original[i];
+                int b = original[(i + 1) % original.length];
+                if (!MeshOperationGeometry.isSelectedEdge(mesh, a, b, valid)) {
+                    materialSources.put(createdCursor++, sourceFace);
+                }
+            }
+        }
         return new MeshOperations.OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
-                MeshOperations.SelectionHint.faces(focusFaces, activeFace));
+                materialSources, MeshOperations.SelectionHint.faces(focusFaces, activeFace));
     }
 
 public static MeshOperations.OperationResult insetFacesResult(
@@ -104,8 +119,23 @@ public static MeshOperations.OperationResult insetFacesResult(
             focusFaces.add(faceIndex);
         }
         int activeFace = focusFaces.isEmpty() ? -1 : focusFaces.iterator().next();
+        java.util.Map<Integer, Integer> materialSources = new java.util.LinkedHashMap<>();
+        int createdCursor = baseFaceCount;
+        for (int sourceFace : valid) {
+            materialSources.put(createdCursor++, sourceFace);
+        }
+        for (int sourceFace : valid) {
+            int[] original = mesh.faces().get(sourceFace).vertices();
+            for (int i = 0; i < original.length; i++) {
+                int a = original[i];
+                int b = original[(i + 1) % original.length];
+                if (!MeshOperationGeometry.isSelectedEdge(mesh, a, b, valid)) {
+                    materialSources.put(createdCursor++, sourceFace);
+                }
+            }
+        }
         return new MeshOperations.OperationResult(result, createdVertices, createdFaces, createdEdges, vertexMapping, faceMapping,
-                MeshOperations.SelectionHint.faces(focusFaces, activeFace));
+                materialSources, MeshOperations.SelectionHint.faces(focusFaces, activeFace));
     }
 
 public static MeshOperations.OperationResult extrudeFaceResult(MeshGeometry mesh, int faceIndex, double amount) {
@@ -143,8 +173,10 @@ public static MeshOperations.OperationResult extrudeFaceResult(MeshGeometry mesh
 
         int activeFace = result.faces().isEmpty() ? -1 : result.faces().size() - 1;
         Set<Integer> focus = activeFace >= 0 ? Set.of(activeFace) : Set.of();
+        java.util.Map<Integer, Integer> materialSources = new java.util.LinkedHashMap<>();
+        for (int created : createdFaces) materialSources.put(created, faceIndex);
         return new MeshOperations.OperationResult(result, createdVertices, createdFaces, createdEdges,
-                vertexMapping, faceMapping, MeshOperations.SelectionHint.faces(focus, activeFace));
+                vertexMapping, faceMapping, materialSources, MeshOperations.SelectionHint.faces(focus, activeFace));
     }
 
 public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
@@ -382,8 +414,10 @@ public static MeshOperations.OperationResult insetFaceResult(MeshGeometry mesh, 
 
         int activeFace = result.faces().isEmpty() ? -1 : result.faces().size() - 1;
         Set<Integer> focus = activeFace >= 0 ? Set.of(activeFace) : Set.of();
+        java.util.Map<Integer, Integer> materialSources = new java.util.LinkedHashMap<>();
+        for (int created : createdFaces) materialSources.put(created, faceIndex);
         return new MeshOperations.OperationResult(result, createdVertices, createdFaces, createdEdges,
-                vertexMapping, faceMapping, MeshOperations.SelectionHint.faces(focus, activeFace));
+                vertexMapping, faceMapping, materialSources, MeshOperations.SelectionHint.faces(focus, activeFace));
     }
 
 public static MeshGeometry insetFace(MeshGeometry mesh, int faceIndex, double amount) {
