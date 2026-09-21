@@ -41,6 +41,8 @@ public final class CreateScreen extends Screen {
     private final CreateEdgeDragController edgeDrag = new CreateEdgeDragController();
     private final CreateMeshComponentDragFinishController meshComponentDragFinish =
             new CreateMeshComponentDragFinishController();
+    private final CreateComponentBoxSelectionController componentBoxSelection =
+            new CreateComponentBoxSelectionController();
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -717,10 +719,7 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
                 }
             }
             // Empty-space drag in geometry mode starts component box selection.
-            if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
-                interaction.componentBoxSelecting = true;
-                interaction.boxStartX = interaction.boxCurrentX = mouseX;
-                interaction.boxStartY = interaction.boxCurrentY = mouseY;
+            if (componentBoxSelection.begin(core, interaction, selected, viewport, mouseX, mouseY)) {
                 return true;
             }
 
@@ -748,14 +747,14 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
             return true;
         }
         if (interaction.componentBoxSelecting && button == 0) {
-            interaction.boxCurrentX = mouseX;
-            interaction.boxCurrentY = mouseY;
-            selectionController.selectComponentsInBox(core.editorContext().viewport(),
+            if (componentBoxSelection.finish(
+                    core, interaction,
                     core.editorContext().viewport().selection().first(core.editorContext().model()),
-                    interaction.boxStartX, interaction.boxStartY, interaction.boxCurrentX, interaction.boxCurrentY,
-                    width, height, hasAltDown(), hasShiftDown());
-            interaction.componentBoxSelecting = false;
-            return true;
+                    core.editorContext().viewport(),
+                    mouseX, mouseY, width, height, hasAltDown(), hasShiftDown(),
+                    selectionController)) {
+                return true;
+            }
         }
         if ((interaction.vertexDragging || interaction.edgeDragging) && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
@@ -790,9 +789,7 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
             return true;
         }
         if (interaction.componentBoxSelecting && button == 0) {
-            interaction.boxCurrentX = mouseX;
-            interaction.boxCurrentY = mouseY;
-            return true;
+            if (componentBoxSelection.update(interaction, mouseX, mouseY)) return true;
         }
         if (interaction.vertexDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
