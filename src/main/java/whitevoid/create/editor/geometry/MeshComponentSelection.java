@@ -335,50 +335,15 @@ public final class MeshComponentSelection {
                 : mode == MeshSelectionMode.EDGE ? edges.size() : faces.size();
     }
 
-    /** Selects every component of the current mode on the given mesh. */
+    private final MeshComponentBulkSelectionController bulkSelection =
+            new MeshComponentBulkSelectionController();
+
     public void selectAll(ModelNode node) {
-        if (node == null) return;
-        var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        clearSelectionOnly();
-        nodeId = node.id();
-        if (mode == MeshSelectionMode.VERTEX) {
-            for (int i = 0; i < mesh.vertices().size(); i++) vertices.add(i);
-            activeVertex = first(vertices);
-        } else if (mode == MeshSelectionMode.EDGE) {
-            for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
-                edges.add(edgeKey(edge[0], edge[1]));
-            }
-            activeEdge = firstLong(edges);
-        } else {
-            for (int i = 0; i < mesh.faces().size(); i++) faces.add(i);
-            activeFace = first(faces);
-        }
+        bulkSelection.selectAll(this, node);
     }
 
-    /** Inverts the current component selection against the node's topology. */
     public void invert(ModelNode node) {
-        if (node == null) return;
-        var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        nodeId = node.id();
-        if (mode == MeshSelectionMode.VERTEX) {
-            Set<Integer> next = new LinkedHashSet<>();
-            for (int i = 0; i < mesh.vertices().size(); i++) if (!vertices.contains(i)) next.add(i);
-            vertices.clear(); vertices.addAll(next); activeVertex = first(vertices);
-        } else if (mode == MeshSelectionMode.EDGE) {
-            Set<Long> next = new LinkedHashSet<>();
-            for (int[] edge : whitevoid.create.model.ModelRenderer.meshEdges(mesh)) {
-                long key = edgeKey(edge[0], edge[1]);
-                if (!edges.contains(key)) next.add(key);
-            }
-            edges.clear(); edges.addAll(next); activeEdge = firstLong(edges);
-        } else {
-            Set<Integer> next = new LinkedHashSet<>();
-            for (int i = 0; i < mesh.faces().size(); i++) if (!faces.contains(i)) next.add(i);
-            faces.clear(); faces.addAll(next); activeFace = first(faces);
-        }
-        if (isEmpty()) nodeId = null;
+        bulkSelection.invert(this, node);
     }
     private final MeshComponentTopologySelectionController topologySelection =
             new MeshComponentTopologySelectionController();
