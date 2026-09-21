@@ -15,8 +15,11 @@ public final class CommandHistory {
     private final Runnable mutationListener;
     private Command lastUndone;
     private Command lastRedone;
-    private java.util.List<Command> savedUndo = java.util.List.of();
-    private java.util.List<Command> savedRedo = java.util.List.of();
+    private final Deque<Long> undoStateIds = new ArrayDeque<>();
+    private final Deque<Long> redoStateIds = new ArrayDeque<>();
+    private long nextStateId = 1L;
+    private long currentStateId = 0L;
+    private long savedStateId = 0L;
 
     public CommandHistory() { this(256, () -> {}); }
     public CommandHistory(int maxSize) { this(maxSize, () -> {}); }
@@ -32,9 +35,12 @@ public final class CommandHistory {
         Objects.requireNonNull(command, "command");
         command.execute();
         undoStack.push(command);
+        undoStateIds.push(nextStateId++);
         redoStack.clear();
+        redoStateIds.clear();
         lastUndone = null;
         lastRedone = null;
+        currentStateId = undoStateIds.peek();
         trim();
         mutationListener.run();
     }
@@ -42,9 +48,12 @@ public final class CommandHistory {
     public void recordExecuted(Command command) {
         Objects.requireNonNull(command, "command");
         undoStack.push(command);
+        undoStateIds.push(nextStateId++);
         redoStack.clear();
+        redoStateIds.clear();
         lastUndone = null;
         lastRedone = null;
+        currentStateId = undoStateIds.peek();
         trim();
         mutationListener.run();
     }
@@ -54,9 +63,12 @@ public final class CommandHistory {
         Command command = undoStack.peek();
         command.undo();
         undoStack.pop();
+        long stateId = undoStateIds.pop();
         redoStack.push(command);
+        redoStateIds.push(stateId);
         lastUndone = command;
         lastRedone = null;
+        currentStateId = undoStateIds.isEmpty() ? 0L : undoStateIds.peek();
         mutationListener.run();
         return true;
     }
@@ -66,9 +78,12 @@ public final class CommandHistory {
         Command command = redoStack.peek();
         command.redo();
         redoStack.pop();
+        long stateId = redoStateIds.pop();
         undoStack.push(command);
+        undoStateIds.push(stateId);
         lastRedone = command;
         lastUndone = null;
+        currentStateId = stateId;
         trim();
         mutationListener.run();
         return true;
@@ -80,21 +95,21 @@ public final class CommandHistory {
     public void clear() {
         undoStack.clear();
         redoStack.clear();
+        undoStateIds.clear();
+        redoStateIds.clear();
         lastUndone = null;
         lastRedone = null;
-        savedUndo = java.util.List.of();
-        savedRedo = java.util.List.of();
+        currentStateId = 0L;
+        savedStateId = 0L;
     }
 
     /** Captures the current history position as the persisted state. */
     public void markSaved() {
-        savedUndo = java.util.List.copyOf(undoStack);
-        savedRedo = java.util.List.copyOf(redoStack);
+        savedStateId = currentStateId;
     }
 
     public boolean isAtSavedState() {
-        return savedUndo.equals(java.util.List.copyOf(undoStack))
-                && savedRedo.equals(java.util.List.copyOf(redoStack));
+        return currentStateId == savedStateId;
     }
 
     public boolean canUndo() { return !undoStack.isEmpty(); }
@@ -103,6 +118,9 @@ public final class CommandHistory {
     public int redoSize() { return redoStack.size(); }
 
     private void trim() {
-        while (undoStack.size() > maxSize) undoStack.removeLast();
+        while (undoStack.size() > maxSize) {
+            undoStack.removeLast();
+            undoStateIds.removeLast();
+        }
     }
 }
