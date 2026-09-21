@@ -38,7 +38,7 @@ public final class CreateViewportGridRenderer {
         return 1;
     }
 
-    public void renderAxes(ViewportProjector projector, DrawContext context,
+    public void renderAxes(DrawContext context, ViewportProjector projector,
                            int centerX, int centerY, int left, int top, int right, int bottom) {
         Point origin = projector.project(0, 0, 0, centerX, centerY, 300);
         Point x = projector.project(3, 0, 0, centerX, centerY, 300);
@@ -70,7 +70,7 @@ public final class CreateViewportGridRenderer {
             }
             if (e2 < dx) {
                 err += dx;
-                y0 += dy;
+                y0 += sy;
             }
         }
     }
