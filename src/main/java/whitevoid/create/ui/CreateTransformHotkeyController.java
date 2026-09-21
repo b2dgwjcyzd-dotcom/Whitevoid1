@@ -120,7 +120,7 @@ public final class CreateTransformHotkeyController {
         var t = node.transform();
         core.editorContext().history().execute(new SetTransformCommand(node,
                 t.x(), t.y(), t.z(),
-                t.rotationX(), t.rotationY(), t.rotationZ(),
+                t.rotationX() + dx, t.rotationY() + dy, t.rotationZ() + dz,
                 t.scaleX(), t.scaleY(), t.scaleZ()));
         return true;
     }
@@ -131,7 +131,7 @@ public final class CreateTransformHotkeyController {
         core.editorContext().history().execute(new SetTransformCommand(node,
                 t.x(), t.y(), t.z(),
                 t.rotationX(), t.rotationY(), t.rotationZ(),
-                t.scaleX(), t.scaleY(), t.scaleZ()));
+                scale, scale, scale));
         return true;
     }
 }
