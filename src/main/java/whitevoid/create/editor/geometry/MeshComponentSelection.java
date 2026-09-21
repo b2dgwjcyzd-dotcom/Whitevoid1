@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import whitevoid.create.model.Model;
-import whitevoid.create.model.ModelNode;\nimport whitevoid.create.model.MeshGeometry;
+import whitevoid.create.model.ModelNode;
+import whitevoid.create.model.MeshGeometry;
 
 public final class MeshComponentSelection {
     private UUID nodeId;
