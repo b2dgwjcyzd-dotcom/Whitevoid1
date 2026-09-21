@@ -57,13 +57,8 @@ public final class CreateScreen extends Screen {
     private boolean componentBoxSelecting;
     private double boxStartX, boxStartY, boxCurrentX, boxCurrentY;
     private boolean componentDragging;
-    private ComponentTransformGizmo.Axis componentAxis = ComponentTransformGizmo.Axis.NONE;
-    private ComponentTransformGizmo.Operation componentOperation = ComponentTransformGizmo.Operation.MOVE;
-    private ComponentTransformGizmo.PivotMode componentPivotMode = ComponentTransformGizmo.PivotMode.MEDIAN;
     private ComponentTransformGizmo.Axis hoveredComponentAxis = ComponentTransformGizmo.Axis.NONE;
     private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
-    private ComponentTransformGizmo.Axis componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
-    private boolean componentPlaneConstraint;
     private boolean componentKeyboardTransformArmed;
     private boolean componentNumericEntry;
     private boolean topologyPathPickArmed;
@@ -119,8 +114,8 @@ public final class CreateScreen extends Screen {
             topologyPathHasStart = false;
             topologyPathStartIndex = -1;
                 componentKeyboardTransformArmed = false;
-                componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
-                componentPlaneConstraint = false;
+                componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE;
+                componentTransform.planeConstraint() = false;
                 componentNumericEntry = false;
                 componentNumericBuffer.setLength(0);
                 return true;
@@ -168,9 +163,9 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             }
             return true;
         }
-        if (keyCode == 71) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
-        if (keyCode == 82) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
-        if (keyCode == 83) { componentConstraintAxis = ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentOperation=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == 71) { componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint() = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.operation()=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
+        if (keyCode == 82) { componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint() = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.operation()=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
+        if (keyCode == 83) { componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint() = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.operation()=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
 
         if (viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
             ComponentTransformGizmo.Axis requested = switch (keyCode) {
@@ -180,21 +175,21 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
                 default -> ComponentTransformGizmo.Axis.NONE;
             };
             if (requested != ComponentTransformGizmo.Axis.NONE && componentKeyboardTransformArmed) {
-                if (componentConstraintAxis == requested) {
-                    componentPlaneConstraint = !componentPlaneConstraint && hasShiftDown();
+                if (componentTransform.constraintAxis() == requested) {
+                    componentTransform.planeConstraint() = !componentTransform.planeConstraint() && hasShiftDown();
                     if (!hasShiftDown()) {
-                        componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
-                        componentPlaneConstraint = false;
+                        componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE;
+                        componentTransform.planeConstraint() = false;
                     }
                 } else {
-                    componentConstraintAxis = requested;
-                    componentPlaneConstraint = hasShiftDown();
+                    componentTransform.constraintAxis() = requested;
+                    componentTransform.planeConstraint() = hasShiftDown();
                 }
                 return true;
             }
         }
         if (keyCode == 80 && viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
-            componentPivotMode = componentPivotMode.next();
+            componentTransform.pivotMode() = componentTransform.pivotMode().next();
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_1 && viewport.transform().mode() == TransformMode.GEOMETRY) {
@@ -395,7 +390,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             }
         }
 
-        if (keyCode == 27) { resetThroughCycle(); componentKeyboardTransformArmed=false; componentConstraintAxis=ComponentTransformGizmo.Axis.NONE; componentPlaneConstraint=false; componentNumericEntry=false; componentNumericBuffer.setLength(0); componentNumericNegative=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
+        if (keyCode == 27) { resetThroughCycle(); componentKeyboardTransformArmed=false; componentTransform.constraintAxis()=ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint()=false; componentNumericEntry=false; componentNumericBuffer.setLength(0); componentNumericNegative=false; mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -419,7 +414,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         if (ids.isEmpty()) return;
 
         var pivot = componentGizmo.localPivot(node, selection.mode(),
-                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices(), componentPivotMode);
+                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices(), componentTransform.pivotMode());
         var newMesh = MeshComponentTransforms.mirror(oldMesh, ids, pivot, axis);
         if (newMesh.equals(oldMesh)) return;
 
@@ -764,11 +759,11 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
 
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0
                         && componentKeyboardTransformArmed
-                        && componentConstraintAxis != ComponentTransformGizmo.Axis.NONE) {
-                    componentAxis = componentConstraintAxis;
-                    componentTransform.setOperation(componentOperation);
+                        && componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
+                    componentTransform.setAxis(componentTransform.constraintAxis());
+                    componentTransform.setOperation(componentTransform.operation());
                     componentTransform.setAxis(componentAxis);
-                    componentTransform.setConstraintMode(componentPlaneConstraint
+                    componentTransform.setConstraintMode(componentTransform.planeConstraint()
                             ? ComponentTransformController.ConstraintMode.PLANE
                             : ComponentTransformController.ConstraintMode.AXIS);
                     componentTransform.begin(selected, meshMode,
@@ -781,16 +776,16 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     return true;
                 }
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
-                    componentAxis = componentGizmo.hover(selected, meshMode,
+                    componentTransform.setAxis(componentGizmo.hover(selected, meshMode,
                             viewport.meshComponentSelection().vertexIndices(),
                             viewport.meshComponentSelection().edgeIndices(),
                             viewport.meshComponentSelection().faceIndices(),
-                            projector, mouseX, mouseY, cx, cy, componentOperation, componentPivotMode,
+                            projector, mouseX, mouseY, cx, cy, componentTransform.operation(), componentTransform.pivotMode(),
                             viewport.meshComponentSelection());
-                    if (componentAxis != ComponentTransformGizmo.Axis.NONE) {
-                        componentTransform.setOperation(componentOperation);
+                    if (componentTransform.axis() != ComponentTransformGizmo.Axis.NONE) {
+                        componentTransform.setOperation(componentTransform.operation());
                         componentTransform.setAxis(componentAxis);
-                        componentTransform.setConstraintMode(componentPlaneConstraint
+                        componentTransform.setConstraintMode(componentTransform.planeConstraint()
                                 ? ComponentTransformController.ConstraintMode.PLANE
                                 : ComponentTransformController.ConstraintMode.AXIS);
                         componentTransform.begin(selected, meshMode,
@@ -893,8 +888,8 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             componentTransform.finish(core, node);
             componentDragging=false;
             componentKeyboardTransformArmed=false;
-            componentConstraintAxis=ComponentTransformGizmo.Axis.NONE;
-            componentPlaneConstraint=false;
+            componentTransform.constraintAxis()=ComponentTransformGizmo.Axis.NONE;
+            componentTransform.planeConstraint()=false;
             componentAxis=ComponentTransformGizmo.Axis.NONE;
             hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
             return true;
@@ -976,30 +971,30 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     var projector=new ViewportProjector(core.editorContext().viewport().viewport().camera());
                     var updated=node.ensureMeshGeometry().copy();
                     var pivot=componentTransform.pivot();
-                    ComponentTransformGizmo.Axis constrainedAxis = componentConstraintAxis != ComponentTransformGizmo.Axis.NONE
-                            ? componentConstraintAxis : componentAxis;
+                    ComponentTransformGizmo.Axis constrainedAxis = componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE
+                            ? componentTransform.constraintAxis() : componentAxis;
                     int axis=constrainedAxis==ComponentTransformGizmo.Axis.X?0
                             :constrainedAxis==ComponentTransformGizmo.Axis.Y?1:2;
                     double totalDx = mouseX - componentTransform.startX();
                     double totalDy = mouseY - componentTransform.startY();
 
-                    if(componentOperation==ComponentTransformGizmo.Operation.MOVE){
+                    if(componentTransform.operation()==ComponentTransformGizmo.Operation.MOVE){
                         updated = componentTransform.applyMove(
                                 updated, ids, node, projector, totalDx, totalDy,
-                                width, height, componentConstraintAxis, componentPlaneConstraint,
+                                width, height, componentTransform.constraintAxis(), componentTransform.planeConstraint(),
                                 proportionalEditing, proportionalRadius, hasControlDown(),
                                 MOVE_SNAP_INCREMENT);
-                    } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
+                    } else if(componentTransform.operation()==ComponentTransformGizmo.Operation.ROTATE){
                         updated = componentTransform.applyRotate(
                                 updated, ids, node, projector,
                                 componentTransform.startX(), componentTransform.startY(), mouseX, mouseY,
-                                width, height, componentConstraintAxis,
+                                width, height, componentTransform.constraintAxis(),
                                 proportionalEditing, proportionalRadius, hasControlDown(),
                                 ROTATE_SNAP_INCREMENT);
                     } else {
                         updated = componentTransform.applyScale(
                                 updated, ids, node, projector, totalDx, totalDy,
-                                width, height, componentConstraintAxis, componentPlaneConstraint,
+                                width, height, componentTransform.constraintAxis(), componentTransform.planeConstraint(),
                                 proportionalEditing, proportionalRadius, hasControlDown(),
                                 SCALE_SNAP_INCREMENT);
                     }
@@ -1120,7 +1115,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             viewport.meshComponentSelection().vertexIndices(),
                             viewport.meshComponentSelection().edgeIndices(),
                             viewport.meshComponentSelection().faceIndices(),
-                            projector,mouseX,mouseY,width/2,height/2,componentOperation,componentPivotMode,
+                            projector,mouseX,mouseY,width/2,height/2,componentTransform.operation(),componentTransform.pivotMode(),
                             viewport.meshComponentSelection());
                 } else hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
                 MeshEditorHoverController.HoverResult meshHover = meshEditorHover.resolve(
@@ -1147,24 +1142,24 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         viewportRenderer.render(context, width, height, core.editorContext().viewport(),
                 core.editorContext().model(), hoveredAxis, hoveredFace, selectedFace, hoveredMeshFace,
                 hoveredMeshVertex, hoveredMeshEdgeA, hoveredMeshEdgeB,
-                hoveredComponentAxis, componentOperation, componentPivotMode, selectThrough);
+                hoveredComponentAxis, componentTransform.operation(), componentTransform.pivotMode(), selectThrough);
 
         ViewportContext activeViewport = core.editorContext().viewport();
         if (activeViewport.transform().mode() == TransformMode.GEOMETRY
                 && activeViewport.meshComponentSelection().size() > 0) {
             var textRenderer = MinecraftClient.getInstance().textRenderer;
             String mode = activeViewport.meshComponentSelection().mode().name();
-            String operation = componentOperation.name();
-            String axis = componentAxis == ComponentTransformGizmo.Axis.NONE
+            String operation = componentTransform.operation().name();
+            String axis = componentTransform.axis() == ComponentTransformGizmo.Axis.NONE
                     ? (hoveredComponentAxis == ComponentTransformGizmo.Axis.NONE
                     ? "" : " " + hoveredComponentAxis.name())
-                    : " " + componentAxis.name();
-            String pivot = componentPivotMode.name().replace('_', ' ');
+                    : " " + componentTransform.axis().name();
+            String pivot = componentTransform.pivotMode().name().replace('_', ' ');
             String active = switch (activeComponentLabel(activeViewport.meshComponentSelection())) {
                 case null -> "";
                 case String value -> " • Active " + value;
             };
-            String constraint = componentConstraintAxis == ComponentTransformGizmo.Axis.NONE ? "" : " • " + (componentPlaneConstraint ? "PLANE " : "") + componentConstraintAxis.name();
+            String constraint = componentTransform.constraintAxis() == ComponentTransformGizmo.Axis.NONE ? "" : " • " + (componentTransform.planeConstraint() ? "PLANE " : "") + componentTransform.constraintAxis().name();
             String snap = hasControlDown() ? " • SNAP" : "";
             String numeric = componentNumericEntry ? " • Value " + (componentNumericNegative ? "-" : "") + componentNumericBuffer : "";
             String proportional = proportionalEditing ? " • PROP " + String.format(java.util.Locale.ROOT, "%.1f", proportionalRadius) : "";
@@ -1193,7 +1188,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     private void applyNumericComponentTransform() {
         ViewportContext viewport = core.editorContext().viewport();
         ModelNode node = viewport.selection().first(core.editorContext().model());
-        if (node == null || componentConstraintAxis == ComponentTransformGizmo.Axis.NONE
+        if (node == null || componentTransform.constraintAxis() == ComponentTransformGizmo.Axis.NONE
                 || componentNumericBuffer.length() == 0) return;
         double value;
         try {
@@ -1206,9 +1201,9 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         if (mesh == null) return;
         var ids = MeshComponentTransforms.affectedVertices(mesh, selection.mode(),
                 selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices());
-        componentTransform.setOperation(componentOperation);
-        componentTransform.setAxis(componentConstraintAxis);
-        componentTransform.setConstraintMode(componentPlaneConstraint
+        componentTransform.setOperation(componentTransform.operation());
+        componentTransform.setAxis(componentTransform.constraintAxis());
+        componentTransform.setConstraintMode(componentTransform.planeConstraint()
                 ? ComponentTransformController.ConstraintMode.PLANE
                 : ComponentTransformController.ConstraintMode.AXIS);
         componentTransform.begin(node, selection.mode(),
@@ -1216,7 +1211,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 selection, 0.0, 0.0);
         MeshGeometry before = mesh.copy();
         MeshGeometry updated = componentTransform.applyNumeric(
-                mesh.copy(), ids, value, componentPlaneConstraint,
+                mesh.copy(), ids, value, componentTransform.planeConstraint(),
                 proportionalEditing, proportionalRadius);
         componentTransform.cancel();
         if (!before.equals(updated)) {
@@ -1228,8 +1223,8 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         componentNumericBuffer.setLength(0);
         componentNumericNegative = false;
         componentKeyboardTransformArmed = false;
-        componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
-        componentPlaneConstraint = false;
+        componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE;
+        componentTransform.planeConstraint() = false;
     }
 
     private static String activeComponentLabel(whitevoid.create.editor.geometry.MeshComponentSelection selection) {
