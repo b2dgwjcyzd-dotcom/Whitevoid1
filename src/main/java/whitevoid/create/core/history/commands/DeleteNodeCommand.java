@@ -1,10 +1,12 @@
 package whitevoid.create.core.history.commands;
 
+import java.util.UUID;
 import whitevoid.create.core.history.Command;
+import whitevoid.create.core.history.SelectionHistoryCommand;
 import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
 
-public final class DeleteNodeCommand implements Command {
+public final class DeleteNodeCommand implements Command, SelectionHistoryCommand {
     private final Model model;
     private final ModelNode node;
     private ModelNode parent;
@@ -29,6 +31,10 @@ public final class DeleteNodeCommand implements Command {
     }
 
     @Override public String name() { return "Delete Node"; }
+
+    @Override public UUID selectionAfterUndo() { return node.id(); }
+
+    @Override public UUID selectionAfterRedo() { return null; }
 
     public ModelNode deletedNode() { return node; }
 }
