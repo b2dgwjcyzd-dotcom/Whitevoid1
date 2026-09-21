@@ -3,10 +3,11 @@ package whitevoid.create.model;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class ModelNode {
-    private final UUID id = UUID.randomUUID();
+    private final UUID id;
     private String name;
     private ModelNode parent;
     private final List<ModelNode> children = new ArrayList<>();
@@ -15,7 +16,12 @@ public final class ModelNode {
     private MeshGeometry meshGeometry;
 
     public ModelNode(String name) {
-        this.name = name;
+        this(name, UUID.randomUUID());
+    }
+
+    public ModelNode(String name, UUID id) {
+        this.name = Objects.requireNonNull(name, "name");
+        this.id = Objects.requireNonNull(id, "id");
     }
 
     public UUID id() { return id; }
