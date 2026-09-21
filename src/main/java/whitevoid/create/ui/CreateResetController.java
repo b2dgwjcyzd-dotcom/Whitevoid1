@@ -24,14 +24,19 @@ public final class CreateResetController {
         interaction.topologyPathStartIndex = -1;
     }
 
-    public boolean resetOnEscape(CreateViewportInteractionState interaction, ViewportContext viewport) {
-        reset(interaction, viewport);
+    public boolean resetOnEscape(CreateCore core, CreateViewportInteractionState interaction, ViewportContext viewport) {
+        reset(core, interaction, viewport);
         return true;
     }
 
     public void reset(
+            CreateCore core,
             CreateViewportInteractionState interaction,
             ViewportContext viewport) {
+        if (componentTransform.dragging()) {
+            ModelNode node = viewport.selection().first(core.editorContext().model());
+            componentTransform.abort(core, node);
+        }
         resetThroughCycle(interaction);
         componentTransformInput.disarm();
         componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE);
