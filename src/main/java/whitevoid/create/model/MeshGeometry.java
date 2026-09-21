@@ -3,9 +3,17 @@ package whitevoid.create.model;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public final class MeshGeometry {
-    public record Vertex(double x, double y, double z) {}
+    public record Vertex(double x, double y, double z) {
+        public Vertex {
+            requireFinite(x, "x");
+            requireFinite(y, "y");
+            requireFinite(z, "z");
+        }
+    }
+
     public record Face(int... vertices) {
         public Face {
             if (vertices == null || vertices.length < 3) {
@@ -24,18 +32,28 @@ public final class MeshGeometry {
     private final List<Face> faces;
 
     public MeshGeometry(List<Vertex> vertices, List<Face> faces) {
-        if (vertices == null || faces == null) throw new NullPointerException();
-        this.vertices = List.copyOf(vertices);
-        List<Face> copy = new ArrayList<>(faces.size());
+        Objects.requireNonNull(vertices, "vertices");
+        Objects.requireNonNull(faces, "faces");
+
+        List<Vertex> vertexCopy = List.copyOf(vertices);
+        List<Face> faceCopy = new ArrayList<>(faces.size());
+
         for (Face face : faces) {
-            for (int index : face.vertices()) {
-                if (index < 0 || index >= this.vertices.size()) {
-                    throw new IllegalArgumentException("Face references invalid vertex: " + index);
+            Objects.requireNonNull(face, "face");
+            int[] indices = face.vertices();
+
+            for (int index : indices) {
+                if (index < 0 || index >= vertexCopy.size()) {
+                    throw new IllegalArgumentException(
+                            "Face references invalid vertex: " + index);
                 }
             }
-            copy.add(face);
+
+            faceCopy.add(face);
         }
-        this.faces = Collections.unmodifiableList(copy);
+
+        this.vertices = vertexCopy;
+        this.faces = Collections.unmodifiableList(faceCopy);
     }
 
     public List<Vertex> vertices() { return vertices; }
@@ -56,6 +74,8 @@ public final class MeshGeometry {
     }
 
     public static MeshGeometry fromCube(CubeGeometry cube) {
+        Objects.requireNonNull(cube, "cube");
+
         double hx = cube.width() * 0.5;
         double hy = cube.height() * 0.5;
         double hz = cube.depth() * 0.5;
@@ -85,5 +105,11 @@ public final class MeshGeometry {
 
     public MeshGeometry copy() {
         return new MeshGeometry(vertices, faces);
+    }
+
+    private static void requireFinite(double value, String name) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite");
+        }
     }
 }
