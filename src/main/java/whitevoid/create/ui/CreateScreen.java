@@ -31,6 +31,8 @@ public final class CreateScreen extends Screen {
     private final CreateViewportInteractionState interaction = new CreateViewportInteractionState();
     private final CreateViewportSelectionController selectionController = new CreateViewportSelectionController();
     private final CreateTopologyPathInteractionController topologyPathController = new CreateTopologyPathInteractionController(selectionController);
+    private final CreateMeshComponentInteractionController meshComponentInteraction =
+            new CreateMeshComponentInteractionController(meshEditor, meshComponentDrag);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -679,39 +681,9 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
                         return true;
                     }
                 }
-                MeshEditorController.PickResult meshPick = meshEditor.pickAndSelect(
-                        selected, viewport, mouseX, mouseY, cx, cy,
-                        interaction.selectThrough, hasAltDown(), hasShiftDown(), hasControlDown());
-                if (meshPick.type() != MeshEditorController.PickType.NONE) {
-                    viewport.geometryFaceSelection().clear();
-                    switch (meshPick.type()) {
-                        case VERTEX -> {
-                            interaction.activeVertex = meshPick.index();
-                            if (hasShiftDown() || hasAltDown() || hasControlDown()) return true;
-                            var mesh = selected.ensureMeshGeometry();
-                            if (mesh != null) {
-                                interaction.vertexDragOldMesh = mesh.copy();
-                                meshComponentDrag.beginVertex(selected);
-                                interaction.vertexDragging = true;
-                            }
-                        }
-                        case EDGE -> {
-                            interaction.activeEdgeA = meshPick.edgeA();
-                            interaction.activeEdgeB = meshPick.edgeB();
-                            if (hasShiftDown() || hasAltDown()) return true;
-                            var mesh = selected.ensureMeshGeometry();
-                            if (mesh != null) {
-                                interaction.edgeDragOldMesh = mesh.copy();
-                                meshComponentDrag.beginEdge(selected, meshPick.edgeA(), meshPick.edgeB());
-                                interaction.edgeDragging = true;
-                            }
-                        }
-                        case FACE -> {
-                            interaction.hoveredMeshFace = meshPick.index();
-                            interaction.hoveredFace = GeometryFace.NONE;
-                        }
-                        case NONE -> { }
-                    }
+                if (meshComponentInteraction.handleClick(
+                        core, interaction, selected, viewport, mouseX, mouseY, cx, cy,
+                        interaction.selectThrough, hasAltDown(), hasShiftDown(), hasControlDown())) {
                     return true;
                 }
                     GeometryFace clickedFace = gizmo.faceHit(selected, projector, mouseX, mouseY, cx, cy);
