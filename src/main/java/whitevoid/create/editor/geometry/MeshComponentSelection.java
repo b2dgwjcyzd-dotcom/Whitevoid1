@@ -380,42 +380,23 @@ public final class MeshComponentSelection {
         }
         if (isEmpty()) nodeId = null;
     }
+    private final MeshComponentTopologySelectionController topologySelection =
+            new MeshComponentTopologySelectionController();
+
     public void selectEdgeLoop(ModelNode node, int a, int b) {
-        if (node == null) return;
-        prepareForMultiSelect(node, MeshSelectionMode.EDGE);
-        edges.clear();
-        edges.addAll(MeshTopologySelection.edgeLoop(node.ensureMeshGeometry(), a, b));
-        activeEdge = edgeKey(a,b);
+        topologySelection.selectEdgeLoop(this, node, a, b);
     }
 
     public void selectFaceLoop(ModelNode node, int faceIndex) {
-        if (node == null) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        prepareForMultiSelect(node, MeshSelectionMode.FACE);
-        faces.clear();
-        faces.addAll(MeshTopologySelection.faceLoop(mesh, faceIndex));
-        activeFace = faceIndex;
+        topologySelection.selectFaceLoop(this, node, faceIndex);
     }
 
     public void selectEdgeRing(ModelNode node, int a, int b) {
-        if (node == null) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        prepareForMultiSelect(node, MeshSelectionMode.EDGE);
-        edges.clear();
-        edges.addAll(MeshTopologySelection.edgeRing(mesh, a, b));
-        activeEdge = MeshTopologySelection.edgeKey(a, b);
+        topologySelection.selectEdgeRing(this, node, a, b);
     }
 
     public void selectFaceRing(ModelNode node, int faceIndex) {
-        if (node == null) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        prepareForMultiSelect(node, MeshSelectionMode.FACE);
-        faces.clear();
-        faces.addAll(MeshTopologySelection.faceRing(mesh, faceIndex));
-        activeFace = faceIndex;
+        topologySelection.selectFaceRing(this, node, faceIndex);
     }
 
     /** Selects the shortest vertex path between two vertices. */
