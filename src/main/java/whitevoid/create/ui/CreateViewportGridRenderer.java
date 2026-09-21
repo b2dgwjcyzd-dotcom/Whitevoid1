@@ -6,14 +6,16 @@ import whitevoid.create.ui.ViewportProjector.Point;
 /**
  * Renders the modeling grid and world axes for the CREATE viewport.
  *
- * <p>The grid expands with camera distance so the workspace does not
- * visually disappear when the user zooms out.</p>
+ * <p>Grid spacing grows with camera distance so the workspace keeps a
+ * readable number of lines instead of becoming a dense wall of pixels.</p>
  */
 public final class CreateViewportGridRenderer {
     public void renderGrid(DrawContext context, ViewportProjector projector,
                            int centerX, int centerY, int left, int top, int right, int bottom) {
-        int extent = gridExtent(projector.cameraDistance());
-        for (int i = -extent; i <= extent; i++) {
+        int step = gridStep(projector.cameraDistance());
+        int extent = step * 8;
+
+        for (int i = -extent; i <= extent; i += step) {
             Point a = projector.project(i, 0, -extent, centerX, centerY, 300);
             Point b = projector.project(i, 0, extent, centerX, centerY, 300);
             if (a != null && b != null) {
@@ -28,15 +30,15 @@ public final class CreateViewportGridRenderer {
         }
     }
 
-    private int gridExtent(double distance) {
-        if (distance >= 96.0) return 128;
-        if (distance >= 48.0) return 64;
-        if (distance >= 24.0) return 32;
-        if (distance >= 12.0) return 16;
-        return 8;
+    private int gridStep(double distance) {
+        if (distance >= 128.0) return 16;
+        if (distance >= 64.0) return 8;
+        if (distance >= 32.0) return 4;
+        if (distance >= 16.0) return 2;
+        return 1;
     }
 
-    public void renderAxes(DrawContext context, ViewportProjector projector,
+    public void renderAxes(ViewportProjector projector, DrawContext context,
                            int centerX, int centerY, int left, int top, int right, int bottom) {
         Point origin = projector.project(0, 0, 0, centerX, centerY, 300);
         Point x = projector.project(3, 0, 0, centerX, centerY, 300);
@@ -68,7 +70,7 @@ public final class CreateViewportGridRenderer {
             }
             if (e2 < dx) {
                 err += dx;
-                y0 += sy;
+                y0 += dy;
             }
         }
     }
