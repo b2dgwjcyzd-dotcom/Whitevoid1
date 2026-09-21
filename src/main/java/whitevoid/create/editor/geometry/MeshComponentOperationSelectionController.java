@@ -57,7 +57,9 @@ public final class MeshComponentOperationSelectionController {
                 for (int[] edge : edges) {
                     Integer ea = result.vertexMapping().get(edge[0]);
                     Integer eb = result.vertexMapping().get(edge[1]);
-                    if (ea != null && eb != null && ea != a && eb != b) selection.addEdge(node, ea, eb);
+                    if (ea != null && eb != null && ea != a || ea != null && eb != null && eb != b) {
+                        selection.addEdge(node, ea, eb);
+                    }
                 }
             }
         } else {
