@@ -18,14 +18,26 @@ public final class SelectionController {
     }
 
     public ModelNode first(Model model) {
+        if (model == null) return null;
+
         for (UUID id : selection.ids()) {
             for (ModelNode node : model.allNodes()) {
                 if (node.id().equals(id)) return node;
             }
         }
+
+        // Undoing a structural command can detach the selected node while
+        // keeping its UUID in the selection set. Purge such stale IDs.
+        var liveIds = model.allNodes().stream()
+                .map(ModelNode::id)
+                .collect(java.util.stream.Collectors.toSet());
+        selection.ids().stream()
+                .filter(id -> !liveIds.contains(id))
+                .toList()
+                .forEach(selection::remove);
+
         return null;
     }
-
     public void clear() { selection.clear(); }
     public SelectionSet selection() { return selection; }
 }
