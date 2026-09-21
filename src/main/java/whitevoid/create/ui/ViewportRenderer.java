@@ -16,6 +16,7 @@ import whitevoid.create.ui.ViewportProjector.Point;
 
 public final class ViewportRenderer {
     private final ModelRenderer modelRenderer = new ModelRenderer();
+    private final CreateViewportGridRenderer gridRenderer = new CreateViewportGridRenderer();
 
     public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model,
                        ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace,
@@ -29,9 +30,9 @@ public final class ViewportRenderer {
 
         ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
         if (viewport.viewport().gridVisible()) {
-            drawGrid(context, projector, centerX, centerY, left, top, right, bottom);
+            gridRenderer.renderGrid(context, projector, centerX, centerY, left, top, right, bottom);
         }
-        drawAxes(context, projector, centerX, centerY, left, top, right, bottom);
+        gridRenderer.renderAxes(context, projector, centerX, centerY, left, top, right, bottom);
 
         modelRenderer.renderMesh(model, (node, mesh) ->
                 drawModelMesh(context, projector, node, mesh, viewport,
@@ -625,27 +626,6 @@ public final class ViewportRenderer {
         }
     }
 
-    private void drawAxes(DrawContext context, ViewportProjector projector, int cx, int cy,
-                          int left, int top, int right, int bottom) {
-        Point origin = projector.project(0,0,0,cx,cy,300);
-        Point x = projector.project(3,0,0,cx,cy,300);
-        Point y = projector.project(0,3,0,cx,cy,300);
-        Point z = projector.project(0,0,3,cx,cy,300);
-        if (origin == null) return;
-        if (x != null) drawLine(context,origin,x,left,top,right,bottom,0xFFB96B6B);
-        if (y != null) drawLine(context,origin,y,left,top,right,bottom,0xFF78B978);
-        if (z != null) drawLine(context,origin,z,left,top,right,bottom,0xFF6B88C8);
-    }
-
-    private void drawGrid(DrawContext context, ViewportProjector projector, int cx, int cy,
-                          int left, int top, int right, int bottom) {
-        for (int i=-8;i<=8;i++) {
-            Point a=projector.project(i,0,-8,cx,cy,300), b=projector.project(i,0,8,cx,cy,300);
-            if(a!=null&&b!=null) drawLine(context,a,b,left,top,right,bottom,0xFF24262C);
-            a=projector.project(-8,0,i,cx,cy,300); b=projector.project(8,0,i,cx,cy,300);
-            if(a!=null&&b!=null) drawLine(context,a,b,left,top,right,bottom,0xFF24262C);
-        }
-    }
 
     private void drawLine(DrawContext context, Point a, Point b, int left, int top,
                           int right, int bottom, int color) {
