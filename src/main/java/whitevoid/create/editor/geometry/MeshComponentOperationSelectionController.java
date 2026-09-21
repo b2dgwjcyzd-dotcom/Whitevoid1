@@ -122,33 +122,46 @@ public final class MeshComponentOperationSelectionController {
 
         if (!hint.vertices().isEmpty()) {
             selection.setMode(MeshSelectionMode.VERTEX);
-            for (int index : hint.vertices()) {
-                if (index >= 0 && index < result.mesh().vertices().size()) selection.addVertex(node, index);
-            }
-            if (hint.activeVertex() >= 0 && selection.containsVertex(hint.activeVertex())) {
+            if (hint.activeVertex() >= 0
+                    && hint.activeVertex() < result.mesh().vertices().size()) {
                 selection.selectVertex(node, hint.activeVertex());
+            }
+            for (int index : hint.vertices()) {
+                if (index >= 0 && index < result.mesh().vertices().size()
+                        && index != hint.activeVertex()) {
+                    selection.addVertex(node, index);
+                }
             }
         } else if (!hint.edges().isEmpty()) {
             selection.setMode(MeshSelectionMode.EDGE);
-            for (long key : hint.edges()) {
-                int a = (int)(key >>> 32);
-                int b = (int)key;
-                if (a >= 0 && b >= 0 && Math.max(a, b) < result.mesh().vertices().size()) {
-                    selection.addEdge(node, a, b);
-                }
-            }
             if (hint.activeEdge() >= 0) {
                 int a = (int)(hint.activeEdge() >>> 32);
                 int b = (int)hint.activeEdge();
-                if (selection.containsEdge(a, b)) selection.selectEdge(node, a, b);
+                if (a >= 0 && b >= 0 && a != b
+                        && Math.max(a, b) < result.mesh().vertices().size()) {
+                    selection.selectEdge(node, a, b);
+                }
+            }
+            for (long key : hint.edges()) {
+                int a = (int)(key >>> 32);
+                int b = (int)key;
+                if (a >= 0 && b >= 0 && a != b
+                        && Math.max(a, b) < result.mesh().vertices().size()
+                        && key != hint.activeEdge()) {
+                    selection.addEdge(node, a, b);
+                }
             }
         } else if (!hint.faces().isEmpty()) {
             selection.setMode(MeshSelectionMode.FACE);
-            for (int index : hint.faces()) {
-                if (index >= 0 && index < result.mesh().faces().size()) selection.addFace(node, index);
-            }
-            if (hint.activeFace() >= 0 && selection.containsFace(hint.activeFace())) {
+            if (hint.activeFace() >= 0
+                    && hint.activeFace() < result.mesh().faces().size()) {
                 selection.selectFace(node, hint.activeFace());
+            }
+            for (int index : hint.faces()) {
+                if (index >= 0 && index < result.mesh().faces().size()
+                        && index != hint.activeFace()) {
+                    selection.addFace(node, index);
+                }
             }
         }
     }
