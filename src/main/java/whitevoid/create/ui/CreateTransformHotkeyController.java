@@ -1,11 +1,15 @@
 package whitevoid.create.ui;
 
+import java.util.UUID;
 import org.lwjgl.glfw.GLFW;
 import whitevoid.create.core.CreateCore;
+import whitevoid.create.core.history.Command;
+import whitevoid.create.core.history.SelectionHistoryCommand;
 import whitevoid.create.core.history.commands.SetTransformCommand;
 import whitevoid.create.editor.geometry.MeshSelectionMode;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
+import whitevoid.create.editor.selection.SelectionMode;
 import whitevoid.create.model.ModelNode;
 
 public final class CreateTransformHotkeyController {
@@ -20,12 +24,12 @@ public final class CreateTransformHotkeyController {
     public boolean handle(CreateViewportInteractionState interaction, ViewportContext viewport,
                           ModelNode node, int keyCode, boolean shiftDown, boolean controlDown) {
         if (controlDown && keyCode == GLFW.GLFW_KEY_Z) {
-            if (shiftDown) core.editorContext().history().redo();
-            else core.editorContext().history().undo();
+            if (shiftDown) redoWithSelection(viewport);
+            else undoWithSelection(viewport);
             return true;
         }
         if (controlDown && keyCode == GLFW.GLFW_KEY_Y) {
-            core.editorContext().history().redo();
+            redoWithSelection(viewport);
             return true;
         }
 
@@ -67,6 +71,37 @@ public final class CreateTransformHotkeyController {
         return false;
     }
 
+    private void undoWithSelection(ViewportContext viewport) {
+        var history = core.editorContext().history();
+        if (!history.undo()) return;
+        applySelection(viewport, history.lastUndone(), true);
+    }
+
+    private void redoWithSelection(ViewportContext viewport) {
+        var history = core.editorContext().history();
+        if (!history.redo()) return;
+        applySelection(viewport, history.lastRedone(), false);
+    }
+
+    private void applySelection(ViewportContext viewport, Command command, boolean undo) {
+        if (!(command instanceof SelectionHistoryCommand selectionCommand)) return;
+
+        UUID id = undo ? selectionCommand.selectionAfterUndo() : selectionCommand.selectionAfterRedo();
+        if (id == null) {
+            viewport.selection().clear();
+            return;
+        }
+
+        var model = core.editorContext().model();
+        for (var candidate : model.allNodes()) {
+            if (candidate.id().equals(id)) {
+                viewport.selection().select(candidate, SelectionMode.SINGLE);
+                return;
+            }
+        }
+        viewport.selection().clear();
+    }
+
     private boolean moveComponents(ModelNode node, double dx, double dy, double dz) {
         meshModeling.moveSelectedComponents(dx, dy, dz);
         return true;
@@ -85,7 +120,7 @@ public final class CreateTransformHotkeyController {
         var t = node.transform();
         core.editorContext().history().execute(new SetTransformCommand(node,
                 t.x(), t.y(), t.z(),
-                t.rotationX() + dx, t.rotationY() + dy, t.rotationZ() + dz,
+                t.rotationX(), t.rotationY(), t.rotationZ(),
                 t.scaleX(), t.scaleY(), t.scaleZ()));
         return true;
     }
@@ -96,7 +131,7 @@ public final class CreateTransformHotkeyController {
         core.editorContext().history().execute(new SetTransformCommand(node,
                 t.x(), t.y(), t.z(),
                 t.rotationX(), t.rotationY(), t.rotationZ(),
-                scale, scale, scale));
+                t.scaleX(), t.scaleY(), t.scaleZ()));
         return true;
     }
 }
