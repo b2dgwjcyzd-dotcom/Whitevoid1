@@ -39,6 +39,8 @@ public final class ComponentTransformController {
     public ConstraintMode constraintMode() { return constraintMode; }
     public TransformMath.Point pivot() { return pivot; }
     public boolean dragging() { return dragging; }
+    public double startX() { return lastX; }
+    public double startY() { return lastY; }
 
     public void setOperation(ComponentTransformGizmo.Operation operation) {
         if (operation != null) this.operation = operation;
