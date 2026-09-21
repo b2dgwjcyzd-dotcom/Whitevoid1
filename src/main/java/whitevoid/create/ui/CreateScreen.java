@@ -45,6 +45,7 @@ public final class CreateScreen extends Screen {
             new CreateComponentBoxSelectionController();
     private final CreateViewportNodeSelectionController nodeSelection =
             new CreateViewportNodeSelectionController();
+    private final CreateMeshModelingController meshModeling;
     private final CreateViewportHoverController hoverController =
             new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
@@ -70,6 +71,7 @@ public final class CreateScreen extends Screen {
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
         this.core = core;
+        this.meshModeling = new CreateMeshModelingController(core, componentGizmo, componentTransform);
         this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
     }
 
@@ -170,7 +172,7 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             if (axis >= 0) {
                 interaction.mirrorAxis = axis == 0 ? ComponentTransformGizmo.Axis.X
                         : axis == 1 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
-                mirrorSelectedComponents(axis);
+                meshModeling.mirrorSelectedComponents(axis);
                 interaction.mirrorArmed = false;
                 return true;
             }
@@ -179,7 +181,7 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
         if (keyCode == GLFW.GLFW_KEY_B && hasControlDown()
                 && viewport.transform().mode() == TransformMode.GEOMETRY
                 && viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
-            bevelSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
+            meshModeling.bevelSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_B
@@ -198,21 +200,21 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
         }
         if (keyCode == GLFW.GLFW_KEY_E && viewport.transform().mode() == TransformMode.GEOMETRY) {
             if (viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE) {
-                extrudeSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
+                meshModeling.extrudeSelectedEdge(hasShiftDown() ? 1.0 : 0.25);
             } else if (viewport.meshComponentSelection().size() > 1
                     && viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE) {
-                extrudeSelectedFaces(hasShiftDown() ? 1.0 : 0.25);
+                meshModeling.extrudeSelectedFaces(hasShiftDown() ? 1.0 : 0.25);
             } else {
-                extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
+                meshModeling.extrudeSelectedFace(hasShiftDown() ? 1.0 : 0.25);
             }
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_I && viewport.transform().mode() == TransformMode.GEOMETRY) {
             if (viewport.meshComponentSelection().mode() == MeshSelectionMode.FACE
                     && viewport.meshComponentSelection().size() > 1) {
-                insetSelectedFaces(hasShiftDown() ? 0.5 : 0.25);
+                meshModeling.insetSelectedFaces(hasShiftDown() ? 0.5 : 0.25);
             } else {
-                insetSelectedFace(hasShiftDown() ? 0.5 : 0.25);
+                meshModeling.insetSelectedFace(hasShiftDown() ? 0.5 : 0.25);
             }
             return true;
         }
@@ -312,11 +314,11 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     && (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX
                         || viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE)) {
                 double step = hasShiftDown() ? 0.1 : 0.25;
-                if (keyCode == GLFW.GLFW_KEY_LEFT) { moveSelectedComponents(-step, 0, 0); return true; }
-                if (keyCode == GLFW.GLFW_KEY_RIGHT) { moveSelectedComponents(step, 0, 0); return true; }
-                if (keyCode == GLFW.GLFW_KEY_DOWN) { moveSelectedComponents(0, 0, step); return true; }
-                if (keyCode == GLFW.GLFW_KEY_UP) { moveSelectedComponents(0, 0, -step); return true; }
-                if (keyCode == GLFW.GLFW_KEY_SPACE) { moveSelectedComponents(0, step, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_LEFT) { meshModeling.moveSelectedComponents(-step, 0, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_RIGHT) { meshModeling.moveSelectedComponents(step, 0, 0); return true; }
+                if (keyCode == GLFW.GLFW_KEY_DOWN) { meshModeling.moveSelectedComponents(0, 0, step); return true; }
+                if (keyCode == GLFW.GLFW_KEY_UP) { meshModeling.moveSelectedComponents(0, 0, -step); return true; }
+                if (keyCode == GLFW.GLFW_KEY_SPACE) { meshModeling.moveSelectedComponents(0, step, 0); return true; }
             }
             double step = hasShiftDown() ? 0.1 : 1.0;
             if (viewport.transform().mode() == TransformMode.MOVE) {
@@ -347,233 +349,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         selection.clear();
         resetThroughCycle();
         selection.setMode(mode);
-    }
-
-    private void mirrorSelectedComponents(int axis) {
-        var viewport = core.editorContext().viewport();
-        var node = viewport.meshComponentSelection().node(core.editorContext().model());
-        if (node == null) return;
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null) return;
-
-        var selection = viewport.meshComponentSelection();
-        var ids = MeshComponentTransforms.affectedVertices(oldMesh, selection.mode(),
-                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices());
-        if (ids.isEmpty()) return;
-
-        var pivot = componentGizmo.localPivot(node, selection.mode(),
-                selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices(), componentTransform.pivotMode());
-        var newMesh = MeshComponentTransforms.mirror(oldMesh, ids, pivot, axis);
-        if (newMesh.equals(oldMesh)) return;
-
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-    }
-
-private void moveSelectedComponents(double dx, double dy, double dz) {
-        var viewport = core.editorContext().viewport();
-        var node = viewport.meshComponentSelection().node(core.editorContext().model());
-        if (node == null) return;
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null) return;
-
-        java.util.LinkedHashSet<Integer> indices = new java.util.LinkedHashSet<>();
-        if (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
-            indices.addAll(viewport.meshComponentSelection().vertexIndices());
-        } else {
-            for (int[] edge : viewport.meshComponentSelection().edgeIndices()) {
-                indices.add(edge[0]);
-                indices.add(edge[1]);
-            }
-        }
-        if (indices.isEmpty()) return;
-
-        var newMesh = oldMesh.copy();
-        for (int index : indices) {
-            newMesh = MeshOperations.moveVertex(newMesh, index, dx, dy, dz);
-        }
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-    }
-
-    private void moveSelectedVertex(double dx, double dy, double dz) {
-        var viewport = core.editorContext().viewport();
-        var node = viewport.meshComponentSelection().node(core.editorContext().model());
-        if (node == null || viewport.meshComponentSelection().mode() != MeshSelectionMode.VERTEX) return;
-        int index = viewport.meshComponentSelection().indexA();
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null) return;
-        var newMesh = MeshOperations.moveVertex(oldMesh, index, dx, dy, dz);
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-        viewport.meshComponentSelection().selectVertex(node, index);
-    }
-
-    private void extrudeSelectedEdge(double amount) {
-        var viewport = core.editorContext().viewport();
-        var model = core.editorContext().model();
-        var selection = viewport.meshComponentSelection();
-        var node = selection.node(model);
-        if (node == null || selection.size() == 0) return;
-
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null) return;
-
-        if (selection.size() > 1) {
-            var selected = new java.util.LinkedHashSet<Long>();
-            for (int[] edge : selection.edgeIndices()) {
-                selected.add(MeshTopologySelection.edgeKey(edge[0], edge[1]));
-            }
-
-            MeshOperations.OperationResult result =
-                    MeshOperations.extrudeEdgesResult(oldMesh, selected, amount);
-            var newMesh = result.mesh();
-            core.editorContext().history().execute(
-                    new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-
-            selection.applySelectionHint(node, result);
-            return;
-        }
-
-        int a = selection.indexA();
-        int b = selection.indexB();
-        if (a < 0 || b < 0) return;
-
-        var newMesh = MeshOperations.extrudeEdge(oldMesh, a, b, amount);
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-        int newA = newMesh.vertices().size() - 2;
-        int newB = newMesh.vertices().size() - 1;
-        selection.selectEdge(node, newA, newB);
-    }
-
-    private void bevelSelectedEdge(double amount) {
-        var viewport = core.editorContext().viewport();
-        var model = core.editorContext().model();
-        var selection = viewport.meshComponentSelection();
-        var node = selection.node(model);
-        if (node == null || selection.size() == 0) return;
-
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null) return;
-
-        try {
-            if (selection.size() > 1) {
-                var selected = new java.util.LinkedHashSet<Long>();
-                for (int[] edge : selection.edgeIndices()) {
-                    selected.add(MeshTopologySelection.edgeKey(edge[0], edge[1]));
-                }
-
-                MeshOperations.OperationResult result =
-                        MeshOperations.bevelEdgesResult(oldMesh, selected, amount);
-                var newMesh = result.mesh();
-                if (result.createdFaces().isEmpty()) return;
-
-                core.editorContext().history().execute(
-                        new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-
-                selection.applySelectionHint(node, result);
-            } else {
-                int a = selection.indexA();
-                int b = selection.indexB();
-                if (a < 0 || b < 0) return;
-
-                var newMesh = MeshOperations.bevelEdge(oldMesh, a, b, amount);
-                core.editorContext().history().execute(
-                        new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-                selection.clear();
-            }
-        } catch (IllegalArgumentException ignored) {
-            // Bevel requires manifold selected edges with exactly two adjacent faces.
-        }
-    }
-
-    private void insetSelectedFaces(double amount) {
-        var viewport = core.editorContext().viewport();
-        var model = core.editorContext().model();
-        var selection = viewport.meshComponentSelection();
-        var node = selection.node(model);
-        if (node == null || selection.faceIndices().isEmpty()) return;
-
-        var selected = new java.util.LinkedHashSet<>(selection.faceIndices());
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null) return;
-
-        MeshOperations.OperationResult result =
-                MeshOperations.insetFacesResult(oldMesh, selected, amount);
-        if (result.createdFaces().isEmpty()) return;
-
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
-
-        selection.applySelectionHint(node, result);
-        viewport.geometryFaceSelection().clear();
-    }
-
-    private void extrudeSelectedFaces(double amount) {
-        var viewport = core.editorContext().viewport();
-        var model = core.editorContext().model();
-        var selection = viewport.meshComponentSelection();
-        var node = selection.node(model);
-        if (node == null || selection.faceIndices().isEmpty()) return;
-
-        var selected = new java.util.LinkedHashSet<>(selection.faceIndices());
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null) return;
-
-        MeshOperations.OperationResult result =
-                MeshOperations.extrudeFacesResult(oldMesh, selected, amount);
-        if (result.createdFaces().isEmpty()) return;
-
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
-
-        selection.applySelectionHint(node, result);
-        viewport.geometryFaceSelection().clear();
-    }
-
-    private void insetSelectedFace(double amount) {
-        var viewport = core.editorContext().viewport();
-        var model = core.editorContext().model();
-        var selection = viewport.meshComponentSelection();
-        var node = selection.node(model);
-        int faceIndex = selection.activeFace();
-        if (node == null || faceIndex < 0 || !selection.containsFace(faceIndex)) return;
-
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null || faceIndex >= oldMesh.faces().size()) return;
-
-        MeshOperations.OperationResult result =
-                MeshOperations.insetFaceResult(oldMesh, faceIndex, amount);
-        if (result.createdFaces().isEmpty()) return;
-
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
-
-        selection.applySelectionHint(node, result);
-        viewport.geometryFaceSelection().clear();
-    }
-
-    private void extrudeSelectedFace(double amount) {
-        var viewport = core.editorContext().viewport();
-        var model = core.editorContext().model();
-        var selection = viewport.meshComponentSelection();
-        var node = selection.node(model);
-        int faceIndex = selection.activeFace();
-        if (node == null || faceIndex < 0 || !selection.containsFace(faceIndex)) return;
-
-        var oldMesh = node.ensureMeshGeometry();
-        if (oldMesh == null || faceIndex >= oldMesh.faces().size()) return;
-
-        MeshOperations.OperationResult result =
-                MeshOperations.extrudeFaceResult(oldMesh, faceIndex, amount);
-        if (result.createdFaces().isEmpty()) return;
-
-        core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
-
-        selection.applySelectionHint(node, result);
-        viewport.geometryFaceSelection().clear();
     }
 
     private void addCube() {
