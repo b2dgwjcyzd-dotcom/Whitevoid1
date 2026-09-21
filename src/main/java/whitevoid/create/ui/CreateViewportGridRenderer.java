@@ -3,22 +3,37 @@ package whitevoid.create.ui;
 import net.minecraft.client.gui.DrawContext;
 import whitevoid.create.ui.ViewportProjector.Point;
 
+/**
+ * Renders the modeling grid and world axes for the CREATE viewport.
+ *
+ * <p>The grid expands with camera distance so the workspace does not
+ * visually disappear when the user zooms out.</p>
+ */
 public final class CreateViewportGridRenderer {
     public void renderGrid(DrawContext context, ViewportProjector projector,
                            int centerX, int centerY, int left, int top, int right, int bottom) {
-        for (int i = -8; i <= 8; i++) {
-            Point a = projector.project(i, 0, -8, centerX, centerY, 300);
-            Point b = projector.project(i, 0, 8, centerX, centerY, 300);
+        int extent = gridExtent(projector.cameraDistance());
+        for (int i = -extent; i <= extent; i++) {
+            Point a = projector.project(i, 0, -extent, centerX, centerY, 300);
+            Point b = projector.project(i, 0, extent, centerX, centerY, 300);
             if (a != null && b != null) {
                 drawLine(context, a, b, left, top, right, bottom, 0xFF24262C);
             }
 
-            a = projector.project(-8, 0, i, centerX, centerY, 300);
-            b = projector.project(8, 0, i, centerX, centerY, 300);
+            a = projector.project(-extent, 0, i, centerX, centerY, 300);
+            b = projector.project(extent, 0, i, centerX, centerY, 300);
             if (a != null && b != null) {
                 drawLine(context, a, b, left, top, right, bottom, 0xFF24262C);
             }
         }
+    }
+
+    private int gridExtent(double distance) {
+        if (distance >= 96.0) return 128;
+        if (distance >= 48.0) return 64;
+        if (distance >= 24.0) return 32;
+        if (distance >= 12.0) return 16;
+        return 8;
     }
 
     public void renderAxes(DrawContext context, ViewportProjector projector,
