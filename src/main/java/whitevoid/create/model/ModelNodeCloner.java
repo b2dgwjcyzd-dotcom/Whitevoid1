@@ -6,6 +6,9 @@ public final class ModelNodeCloner {
     public static ModelNode deepCopy(ModelNode source) {
         ModelNode copy = new ModelNode(source.name());
         copy.setGeometry(source.geometry());
+        if (source.meshGeometry() != null) {
+            copy.setMeshGeometry(source.meshGeometry().copy());
+        }
 
         copy.transform().position(
                 source.transform().x(), source.transform().y(), source.transform().z());
