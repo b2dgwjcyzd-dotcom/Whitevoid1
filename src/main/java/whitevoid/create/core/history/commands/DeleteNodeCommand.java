@@ -22,11 +22,13 @@ public final class DeleteNodeCommand implements Command, SelectionHistoryCommand
         if (parent == null) throw new IllegalStateException("Cannot delete the model root");
         index = parent.indexOfChild(node);
         if (index < 0) throw new IllegalStateException("Node is not attached to its parent");
+        if (node.parent() != parent) throw new IllegalStateException("Node changed parent outside this command");
         parent.removeChild(node);
     }
 
     @Override public void undo() {
         if (parent == null) throw new IllegalStateException("Delete command has not been executed");
+        if (node.parent() != null) throw new IllegalStateException("Deleted node is already attached");
         parent.addChild(Math.min(index, parent.children().size()), node);
     }
 
