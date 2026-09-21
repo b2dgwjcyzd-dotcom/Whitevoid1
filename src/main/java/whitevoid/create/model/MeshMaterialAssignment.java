@@ -72,6 +72,10 @@ public final class MeshMaterialAssignment {
         return new MeshMaterialAssignment(palette, updated);
     }
 
+    public MeshMaterialAssignment withFaceMaterials(List<Integer> newFaceMaterials) {
+        return new MeshMaterialAssignment(palette, newFaceMaterials);
+    }
+
     public MeshMaterialAssignment withPalette(MaterialPalette newPalette) {
         return new MeshMaterialAssignment(newPalette, faceMaterials);
     }
