@@ -93,4 +93,3 @@ public final class MeshVertexOperations {
         return MeshFaceOperations.insetFace(mesh, faceIndex, amount);
     }
 }
-}
