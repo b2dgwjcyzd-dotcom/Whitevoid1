@@ -68,14 +68,30 @@ public final class CreateProjectScreen extends Screen {
             }
         }
 
+        int newTop = top + projects.size() * ROW_HEIGHT + 12;
         if (mouseX >= left && mouseX <= left + PANEL_WIDTH
-                && mouseY >= top + projects.size() * ROW_HEIGHT + 12
-                && mouseY <= top + projects.size() * ROW_HEIGHT + 38) {
+                && mouseY >= newTop && mouseY <= newTop + 30) {
+            client.setScreen(new CreateNewProjectScreen(core, this));
+            return true;
+        }
+
+        int backTop = newTop + 36;
+        if (mouseX >= left && mouseX <= left + PANEL_WIDTH
+                && mouseY >= backTop && mouseY <= backTop + 30) {
             close();
             return true;
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    private void drawButton(DrawContext context, int left, int top, String label, int mouseX, int mouseY) {
+        boolean hovered = mouseX >= left && mouseX <= left + PANEL_WIDTH
+                && mouseY >= top && mouseY <= top + 30;
+        context.fill(left, top, left + PANEL_WIDTH, top + 30,
+                hovered ? 0xFF303030 : 0xFF202020);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal(label),
+                left + PANEL_WIDTH / 2, top + 10, 0xFFFFFF);
     }
 
     @Override
@@ -102,10 +118,10 @@ public final class CreateProjectScreen extends Screen {
                     left + PANEL_WIDTH - 90, rowTop + 8, 0x888888);
         }
 
-        int buttonTop = top + projects.size() * ROW_HEIGHT + 12;
-        context.fill(left, buttonTop, left + PANEL_WIDTH, buttonTop + 26, 0xFF202020);
-        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Back"),
-                width / 2, buttonTop + 8, 0xFFFFFF);
+        int newTop = top + projects.size() * ROW_HEIGHT + 12;
+        drawButton(context, left, newTop, "New Project", mouseX, mouseY);
+        int backTop = newTop + 36;
+        drawButton(context, left, backTop, "Back", mouseX, mouseY);
 
         if (projects.isEmpty() && error == null) {
             context.drawCenteredTextWithShadow(textRenderer, Text.literal("No saved projects"),
