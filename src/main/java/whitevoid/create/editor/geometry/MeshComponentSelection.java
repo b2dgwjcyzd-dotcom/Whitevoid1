@@ -240,6 +240,9 @@ public final class MeshComponentSelection {
         pathSelection.selectShortestEdgePath(this, node, start, goal);
     }
 
+    private final MeshComponentSelectionExpansionController expansionSelection =
+            new MeshComponentSelectionExpansionController();
+
     private final MeshComponentBoundarySelectionController boundarySelection =
             new MeshComponentBoundarySelectionController();
 
