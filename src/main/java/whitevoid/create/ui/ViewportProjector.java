@@ -1,6 +1,7 @@
 package whitevoid.create.ui;
 
 import whitevoid.create.editor.viewport.ViewportCamera;
+import whitevoid.create.editor.viewport.ViewportMode;
 
 public final class ViewportProjector {
     private final ViewportCamera camera;
@@ -24,11 +25,14 @@ public final class ViewportProjector {
         double z2 = y * sp + z1 * cp;
 
         double depth = z2 + camera.distance();
-        if (depth <= 0.05) {
+        if (camera.mode() == ViewportMode.PERSPECTIVE && depth <= 0.05) {
             return null;
         }
 
-        double scale = focalLength / depth;
+        double scale = camera.mode() == ViewportMode.ORTHOGRAPHIC
+                ? focalLength / camera.distance()
+                : focalLength / depth;
+
         double screenX = centerX + camera.panX() * 18.0 + x1 * scale;
         double screenY = centerY - camera.panY() * 18.0 - y2 * scale;
         return new Point(screenX, screenY, depth);
