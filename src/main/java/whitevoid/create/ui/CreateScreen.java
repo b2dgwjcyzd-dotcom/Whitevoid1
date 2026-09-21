@@ -178,7 +178,7 @@ public final class CreateScreen extends Screen {
         }
 
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            resetController.resetOnEscape(interaction, viewport);
+            resetController.resetOnEscape(core, interaction, viewport);
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
