@@ -1,11 +1,13 @@
 package whitevoid.create.core.history.commands;
 
+import java.util.UUID;
 import whitevoid.create.core.history.Command;
+import whitevoid.create.core.history.SelectionHistoryCommand;
 import whitevoid.create.model.CubeGeometry;
 import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
 
-public final class AddCubeCommand implements Command {
+public final class AddCubeCommand implements Command, SelectionHistoryCommand {
     private final Model model;
     private final ModelNode parent;
     private final String name;
@@ -40,6 +42,10 @@ public final class AddCubeCommand implements Command {
     }
 
     @Override public String name() { return "Add Cube"; }
+
+    @Override public UUID selectionAfterUndo() { return null; }
+
+    @Override public UUID selectionAfterRedo() { return created.id(); }
 
     public ModelNode createdNode() { return created; }
 }
