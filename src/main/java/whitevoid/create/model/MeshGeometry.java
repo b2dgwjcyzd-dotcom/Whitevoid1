@@ -4,12 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Editable polygon mesh used by CREATE geometry tools.
- *
- * The first implementation stores indexed vertices and polygon faces.
- * Faces reference vertex indices in counter-clockwise order.
- */
 public final class MeshGeometry {
     public record Vertex(double x, double y, double z) {}
     public record Face(int... vertices) {
@@ -47,29 +41,43 @@ public final class MeshGeometry {
     public List<Vertex> vertices() { return vertices; }
     public List<Face> faces() { return faces; }
 
+    /** Returns whether this mesh is exactly the canonical cube topology for the given dimensions. */
+    public boolean matchesCube(CubeGeometry cube) {
+        if (cube == null) return false;
+        MeshGeometry expected = fromCube(cube);
+        if (!vertices.equals(expected.vertices) || faces.size() != expected.faces.size()) return false;
+
+        for (int i = 0; i < faces.size(); i++) {
+            if (!java.util.Arrays.equals(faces.get(i).vertices(), expected.faces.get(i).vertices())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static MeshGeometry fromCube(CubeGeometry cube) {
         double hx = cube.width() * 0.5;
         double hy = cube.height() * 0.5;
         double hz = cube.depth() * 0.5;
 
         List<Vertex> vertices = List.of(
-                new Vertex(-hx, -hy, -hz), // 0
-                new Vertex( hx, -hy, -hz), // 1
-                new Vertex( hx,  hy, -hz), // 2
-                new Vertex(-hx,  hy, -hz), // 3
-                new Vertex(-hx, -hy,  hz), // 4
-                new Vertex( hx, -hy,  hz), // 5
-                new Vertex( hx,  hy,  hz), // 6
-                new Vertex(-hx,  hy,  hz)  // 7
+                new Vertex(-hx, -hy, -hz),
+                new Vertex( hx, -hy, -hz),
+                new Vertex( hx,  hy, -hz),
+                new Vertex(-hx,  hy, -hz),
+                new Vertex(-hx, -hy,  hz),
+                new Vertex( hx, -hy,  hz),
+                new Vertex( hx,  hy,  hz),
+                new Vertex(-hx,  hy,  hz)
         );
 
         List<Face> faces = List.of(
-                new Face(1, 5, 6, 2), // +X
-                new Face(4, 0, 3, 7), // -X
-                new Face(3, 2, 6, 7), // +Y
-                new Face(4, 5, 1, 0), // -Y
-                new Face(5, 4, 7, 6), // +Z
-                new Face(0, 1, 2, 3)  // -Z
+                new Face(1, 5, 6, 2),
+                new Face(4, 0, 3, 7),
+                new Face(3, 2, 6, 7),
+                new Face(4, 5, 1, 0),
+                new Face(5, 4, 7, 6),
+                new Face(0, 1, 2, 3)
         );
 
         return new MeshGeometry(vertices, faces);
