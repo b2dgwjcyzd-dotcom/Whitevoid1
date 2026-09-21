@@ -284,7 +284,8 @@ public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> sel
                 int side = adjacent.indexOf(faceIndex);
                 if (side < 0) continue;
 
-                // Preserve the winding of the face edge.
+                // Preserve the winding of the face edge. The edge key is normalized,
+                // so the original face direction must determine whether the copies swap.
                 int na = copies[side * 2];
                 int nb = copies[side * 2 + 1];
                 if (a > b) {
