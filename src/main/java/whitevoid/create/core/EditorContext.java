@@ -31,5 +31,9 @@ public final class EditorContext {
     public CommandHistory history() { return history; }
     public ViewportContext viewport() { return viewport; }
     public Model model() { return model; }
-    public void setModel(Model model) { this.model = model; }
+    public void setModel(Model model) {
+        this.model = java.util.Objects.requireNonNull(model, "model");
+        history.clear();
+        viewport.reset();
+    }
 }
