@@ -115,6 +115,16 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (hasControlDown() && keyCode == GLFW.GLFW_KEY_S) {
+            core.saveActiveProject();
+            return true;
+        }
+
+        if (hasControlDown() && keyCode == GLFW.GLFW_KEY_O) {
+            client.setScreen(new CreateProjectScreen(core, this));
+            return true;
+        }
+
         ViewportContext viewport = core.editorContext().viewport();
 
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && cubeFaceEditor.dragging()) {
