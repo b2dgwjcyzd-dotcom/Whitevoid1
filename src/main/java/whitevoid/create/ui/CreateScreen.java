@@ -52,6 +52,8 @@ public final class CreateScreen extends Screen {
     private final ComponentTransformController componentTransform = new ComponentTransformController(componentGizmo);
     private final ComponentTransformInputController componentTransformInput = new ComponentTransformInputController(componentTransform);
     private final ComponentTransformMouseController componentTransformMouse = new ComponentTransformMouseController(componentTransform);
+    private final CreateComponentTransformInteractionController componentTransformInteraction =
+            new CreateComponentTransformInteractionController(componentTransformMouse, componentTransformInput, componentTransform);
     private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
     private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
     private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
@@ -681,13 +683,12 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0
                         && componentTransformInput.armed()
                         && componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
-                    interaction.componentDragging = componentTransformMouse.beginKeyboardArmed(
+                    interaction.componentDragging = componentTransformInteraction.beginKeyboardArmed(
                             selected, viewport, mouseX, mouseY);
-                    componentTransformInput.disarm();
                     return true;
                 }
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
-                    if (componentTransformMouse.beginFromGizmo(
+                    if (componentTransformInteraction.beginFromGizmo(
                             selected, viewport, projector, mouseX, mouseY, cx, cy)) {
                         interaction.componentDragging = true;
                         return true;
@@ -733,13 +734,11 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (interaction.componentDragging && button == 0) {
-            ModelNode node=core.editorContext().viewport().selection().first(core.editorContext().model());
-            componentTransformMouse.finish(core, node);
-            interaction.componentDragging=false;
-            componentTransformInput.disarm();
-            componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE);
-            interaction.hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
-            return true;
+            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
+            if (componentTransformInteraction.finish(
+                    core, interaction, node, core.editorContext().viewport().transform().mode())) {
+                return true;
+            }
         }
         if (interaction.componentBoxSelecting && button == 0) {
             if (componentBoxSelection.finish(
@@ -776,10 +775,17 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
         if (interaction.componentDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
             if (node != null) {
-                componentTransformMouse.update(node, core.editorContext().viewport(),
-                        new ViewportProjector(core.editorContext().viewport().viewport().camera()),
-                        mouseX, mouseY, width, height,
-                        interaction.proportionalEditing, interaction.proportionalRadius, hasControlDown());
+                componentTransformInteraction.update(
+                        node,
+                        core.editorContext().viewport(),
+                        mouseX,
+                        mouseY,
+                        width,
+                        height,
+                        interaction.proportionalEditing,
+                        interaction.proportionalRadius,
+                        hasControlDown()
+                );
             }
             return true;
         }
