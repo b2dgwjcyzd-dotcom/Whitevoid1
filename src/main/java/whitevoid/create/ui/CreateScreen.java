@@ -987,8 +987,8 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             ? componentConstraintAxis : componentAxis;
                     int axis=constrainedAxis==ComponentTransformGizmo.Axis.X?0
                             :constrainedAxis==ComponentTransformGizmo.Axis.Y?1:2;
-                    double totalDx = mouseX - componentDragStartX;
-                    double totalDy = mouseY - componentDragStartY;
+                    double totalDx = mouseX - componentTransform.startX();
+                    double totalDy = mouseY - componentTransform.startY();
 
                     if(componentOperation==ComponentTransformGizmo.Operation.MOVE){
                         updated = componentTransform.applyMove(
