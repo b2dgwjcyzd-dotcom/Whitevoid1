@@ -1206,49 +1206,19 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         if (mesh == null) return;
         var ids = MeshComponentTransforms.affectedVertices(mesh, selection.mode(),
                 selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices());
-        var pivot = componentGizmo.localPivot(node, selection.mode(),
+        componentTransform.setOperation(componentOperation);
+        componentTransform.setAxis(componentConstraintAxis);
+        componentTransform.setConstraintMode(componentPlaneConstraint
+                ? ComponentTransformController.ConstraintMode.PLANE
+                : ComponentTransformController.ConstraintMode.AXIS);
+        componentTransform.begin(node, selection.mode(),
                 selection.vertexIndices(), selection.edgeIndices(), selection.faceIndices(),
-                componentPivotMode, selection);
+                selection, 0.0, 0.0);
         MeshGeometry before = mesh.copy();
-        MeshGeometry updated = mesh.copy();
-        int axis = componentConstraintAxis == ComponentTransformGizmo.Axis.X ? 0
-                : componentConstraintAxis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
-        if (componentOperation == ComponentTransformGizmo.Operation.MOVE) {
-            if (componentPlaneConstraint) {
-                ComponentTransformGizmo.Axis a1 = axis == 0 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
-                ComponentTransformGizmo.Axis a2 = axis == 2 ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
-                updated = MeshComponentTransforms.translate(updated, ids,
-                        a1 == ComponentTransformGizmo.Axis.X ? value : 0,
-                        a1 == ComponentTransformGizmo.Axis.Y ? value : 0,
-                        a1 == ComponentTransformGizmo.Axis.Z ? value : 0);
-                updated = MeshComponentTransforms.translate(updated, ids,
-                        a2 == ComponentTransformGizmo.Axis.X ? value : 0,
-                        a2 == ComponentTransformGizmo.Axis.Y ? value : 0,
-                        a2 == ComponentTransformGizmo.Axis.Z ? value : 0);
-            } else {
-                updated = proportionalEditing
-                        ? MeshComponentTransforms.translateProportional(updated, ids, pivot, proportionalRadius,
-                            axis == 0 ? value : 0, axis == 1 ? value : 0, axis == 2 ? value : 0)
-                        : MeshComponentTransforms.translate(updated, ids,
-                            axis == 0 ? value : 0, axis == 1 ? value : 0, axis == 2 ? value : 0);
-            }
-        } else if (componentOperation == ComponentTransformGizmo.Operation.ROTATE) {
-            updated = proportionalEditing
-                    ? MeshComponentTransforms.rotateProportional(updated, ids, pivot, proportionalRadius, axis, value)
-                    : MeshComponentTransforms.rotate(updated, ids, pivot, axis, value);
-        } else {
-            double factor = Math.max(0.01, value);
-            if (componentPlaneConstraint) {
-                int a1 = axis == 0 ? 1 : 0;
-                int a2 = axis == 2 ? 1 : 2;
-                updated = MeshComponentTransforms.scale(updated, ids, pivot, a1, factor);
-                updated = MeshComponentTransforms.scale(updated, ids, pivot, a2, factor);
-            } else {
-                updated = proportionalEditing
-                        ? MeshComponentTransforms.scaleProportional(updated, ids, pivot, proportionalRadius, axis, factor)
-                        : MeshComponentTransforms.scale(updated, ids, pivot, axis, factor);
-            }
-        }
+        MeshGeometry updated = componentTransform.applyNumeric(
+                mesh.copy(), ids, value, componentPlaneConstraint,
+                proportionalEditing, proportionalRadius);
+        componentTransform.cancel();
         if (!before.equals(updated)) {
             node.setMeshGeometry(updated);
             core.editorContext().history().recordExecuted(
