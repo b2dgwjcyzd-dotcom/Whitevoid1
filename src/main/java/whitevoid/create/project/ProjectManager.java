@@ -27,16 +27,25 @@ public final class ProjectManager {
     }
 
     public void save(CreateProject project) throws IOException {
+        project.touch();
         ProjectMetadata metadata = project.metadata();
         Path directory = root.resolve(metadata.id().toString());
         Files.createDirectories(directory);
         Files.writeString(directory.resolve("project.json"), serializer.serializeMetadata(metadata));
+        Files.writeString(directory.resolve("model.json"), serializer.serializeModel(project.model()));
     }
 
     public Optional<CreateProject> open(java.util.UUID id) throws IOException {
         Path file = root.resolve(id.toString()).resolve("project.json");
         if (!Files.exists(file)) return Optional.empty();
-        CreateProject project = new CreateProject(serializer.deserializeMetadata(Files.readString(file)));
+        ProjectMetadata metadata = serializer.deserializeMetadata(Files.readString(file));
+        Path modelFile = file.getParent().resolve("model.json");
+        if (!Files.exists(modelFile)) {
+            throw new IOException("CREATE project is missing model.json: " + id);
+        }
+        CreateProject project = new CreateProject(
+                metadata,
+                serializer.deserializeModel(Files.readString(modelFile)));
         activeProject = project;
         return Optional.of(project);
     }
