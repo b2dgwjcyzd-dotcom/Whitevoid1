@@ -7,6 +7,7 @@ import whitevoid.create.editor.geometry.MeshComponentSelection;
 import whitevoid.create.model.MeshGeometry;
 import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.TransformMath;
+import whitevoid.create.editor.geometry.MeshComponentTransforms;
 
 import java.util.List;
 
@@ -72,6 +73,67 @@ public final class ComponentTransformController {
         lastX = mouseX;
         lastY = mouseY;
         dragging = true;
+    }
+
+    public MeshGeometry applyMove(MeshGeometry source, java.util.Set<Integer> ids, ModelNode node,
+                                  ViewportProjector projector, double totalDx, double totalDy,
+                                  int viewportWidth, int viewportHeight,
+                                  ComponentTransformGizmo.Axis constraintAxis,
+                                  boolean planeConstraint, boolean proportional,
+                                  double proportionalRadius, boolean snap, double snapIncrement) {
+        if (!dragging || source == null || ids == null || ids.isEmpty() || node == null || pivot == null) {
+            return source;
+        }
+
+        ComponentTransformGizmo.Axis constrainedAxis =
+                constraintAxis != null && constraintAxis != ComponentTransformGizmo.Axis.NONE
+                        ? constraintAxis : axis;
+
+        if (planeConstraint && constrainedAxis != ComponentTransformGizmo.Axis.NONE) {
+            ComponentTransformGizmo.Axis a1 = constrainedAxis == ComponentTransformGizmo.Axis.X
+                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
+            ComponentTransformGizmo.Axis a2 = constrainedAxis == ComponentTransformGizmo.Axis.Z
+                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
+
+            double amount1 = gizmo.amount(a1, projector, node, pivot,
+                    viewportWidth / 2, viewportHeight / 2, totalDx, totalDy);
+            double amount2 = gizmo.amount(a2, projector, node, pivot,
+                    viewportWidth / 2, viewportHeight / 2, totalDx, totalDy);
+
+            if (snap) {
+                amount1 = snap(amount1, snapIncrement);
+                amount2 = snap(amount2, snapIncrement);
+            }
+
+            int excluded = constrainedAxis == ComponentTransformGizmo.Axis.X ? 0
+                    : constrainedAxis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
+            double dx = excluded == 0 ? 0 : (a1 == ComponentTransformGizmo.Axis.X ? amount1 : amount2);
+            double dy = excluded == 1 ? 0 : (a1 == ComponentTransformGizmo.Axis.Y ? amount1 : amount2);
+            double dz = excluded == 2 ? 0 : (a1 == ComponentTransformGizmo.Axis.Z ? amount1 : amount2);
+
+            return proportional
+                    ? MeshComponentTransforms.translateProportional(source, ids, pivot, proportionalRadius, dx, dy, dz)
+                    : MeshComponentTransforms.translate(source, ids, dx, dy, dz);
+        }
+
+        double amount = gizmo.amount(constrainedAxis, projector, node, pivot,
+                viewportWidth / 2, viewportHeight / 2, totalDx, totalDy);
+        if (snap) amount = snap(amount, snapIncrement);
+
+        int axisIndex = constrainedAxis == ComponentTransformGizmo.Axis.X ? 0
+                : constrainedAxis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
+        double dx = axisIndex == 0 ? amount : 0;
+        double dy = axisIndex == 1 ? amount : 0;
+        double dz = axisIndex == 2 ? amount : 0;
+
+        return proportional
+                ? MeshComponentTransforms.translateProportional(source, ids, pivot, proportionalRadius, dx, dy, dz)
+                : MeshComponentTransforms.translate(source, ids, dx, dy, dz);
+    }
+
+    private static double snap(double value, double increment) {
+        if (increment <= 0.0) return value;
+        return Math.round(value / increment) * increment;
     }
 
     public void updateMouse(double mouseX, double mouseY) {
