@@ -13,6 +13,17 @@ import whitevoid.create.model.ModelNode;
 public final class CreateScreen extends Screen {
     private final CreateCore core;
     private final CreateViewportInteractionState interaction = new CreateViewportInteractionState();
+
+    // Foundational viewport/editor objects first; dependent controllers follow.
+    private final ViewportGizmo gizmo = new ViewportGizmo();
+    private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
+    private final ComponentTransformController componentTransform = new ComponentTransformController(componentGizmo);
+    private final ComponentTransformInputController componentTransformInput = new ComponentTransformInputController(componentTransform);
+    private final ComponentTransformMouseController componentTransformMouse = new ComponentTransformMouseController(componentTransform);
+    private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
+    private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
+    private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
+
     private final CreateViewportSelectionController selectionController = new CreateViewportSelectionController();
     private final CreateTopologyPathInteractionController topologyPathController = new CreateTopologyPathInteractionController(selectionController);
     private final CreateMeshComponentInteractionController meshComponentInteraction =
@@ -29,27 +40,21 @@ public final class CreateScreen extends Screen {
             new CreateComponentBoxSelectionController();
     private final CreateViewportNodeSelectionController nodeSelection =
             new CreateViewportNodeSelectionController();
+    private final CreateViewportHoverController hoverController =
+            new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
+    private final CreateComponentTransformInteractionController componentTransformInteraction =
+            new CreateComponentTransformInteractionController(
+                    componentTransformMouse, componentTransformInput, componentTransform);
+    private final CreateViewportOverlayRenderer overlayRenderer = new CreateViewportOverlayRenderer();
+    private final ViewportRenderer viewportRenderer = new ViewportRenderer();
+    private final CreateViewportInput viewportInput;
+
     private final CreateMeshModelingController meshModeling;
     private final CreateNodeActionController nodeActions;
     private final CreateSelectionHotkeyController selectionHotkeys;
     private final CreateTransformHotkeyController transformHotkeys;
     private final CreateModelingHotkeyController modelingHotkeys;
     private final CreateResetController resetController;
-    private final CreateViewportHoverController hoverController =
-            new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
-    private final ViewportRenderer viewportRenderer = new ViewportRenderer();
-    private final CreateViewportInput viewportInput;
-    private final ViewportGizmo gizmo = new ViewportGizmo();
-    private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
-    private final ComponentTransformController componentTransform = new ComponentTransformController(componentGizmo);
-    private final ComponentTransformInputController componentTransformInput = new ComponentTransformInputController(componentTransform);
-    private final ComponentTransformMouseController componentTransformMouse = new ComponentTransformMouseController(componentTransform);
-    private final CreateComponentTransformInteractionController componentTransformInteraction =
-            new CreateComponentTransformInteractionController(componentTransformMouse, componentTransformInput, componentTransform);
-    private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
-    private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
-    private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
-    private final CreateViewportOverlayRenderer overlayRenderer = new CreateViewportOverlayRenderer();
 
     private final CubeFaceEditorController cubeFaceEditor;
 
