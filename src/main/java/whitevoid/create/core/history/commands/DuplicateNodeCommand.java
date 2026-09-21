@@ -1,5 +1,6 @@
 package whitevoid.create.core.history.commands;
 
+import java.util.Objects;
 import java.util.UUID;
 import whitevoid.create.core.history.Command;
 import whitevoid.create.core.history.SelectionHistoryCommand;
@@ -15,14 +16,18 @@ public final class DuplicateNodeCommand implements Command, SelectionHistoryComm
     private int index = -1;
 
     public DuplicateNodeCommand(Model model, ModelNode source) {
-        this.model = model;
-        this.source = source;
+        this.model = Objects.requireNonNull(model, "model");
+        this.source = Objects.requireNonNull(source, "source");
+        if (!model.allNodes().contains(source)) {
+            throw new IllegalArgumentException("Source node does not belong to the model");
+        }
     }
 
     @Override public void execute() {
         if (parent == null) {
             parent = source.parent();
             if (parent == null) throw new IllegalStateException("Cannot duplicate the model root");
+            if (parent.indexOfChild(source) < 0) throw new IllegalStateException("Source node is not attached to its parent");
         } else if (source.parent() != parent) {
             throw new IllegalStateException("Duplicate source changed parent");
         }
@@ -38,7 +43,11 @@ public final class DuplicateNodeCommand implements Command, SelectionHistoryComm
             throw new IllegalStateException("Duplicate node was reparented outside this command");
         }
 
-        if (index < 0) index = parent.indexOfChild(source) + 1;
+        if (index < 0) {
+            int sourceIndex = parent.indexOfChild(source);
+            if (sourceIndex < 0) throw new IllegalStateException("Source node is not attached to its parent");
+            index = sourceIndex + 1;
+        }
         if (duplicate.parent() != null) throw new IllegalStateException("Duplicate node is already attached");
         parent.addChild(Math.min(index, parent.children().size()), duplicate);
     }
