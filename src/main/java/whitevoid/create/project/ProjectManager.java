@@ -40,12 +40,15 @@ public final class ProjectManager {
         if (!Files.exists(file)) return Optional.empty();
         ProjectMetadata metadata = serializer.deserializeMetadata(Files.readString(file));
         Path modelFile = file.getParent().resolve("model.json");
-        if (!Files.exists(modelFile)) {
-            throw new IOException("CREATE project is missing model.json: " + id);
+        CreateProject project;
+        if (Files.exists(modelFile)) {
+            project = new CreateProject(
+                    metadata,
+                    serializer.deserializeModel(Files.readString(modelFile)));
+        } else {
+            // Projects created before model persistence receive the current default model.
+            project = new CreateProject(metadata);
         }
-        CreateProject project = new CreateProject(
-                metadata,
-                serializer.deserializeModel(Files.readString(modelFile)));
         activeProject = project;
         return Optional.of(project);
     }
