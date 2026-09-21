@@ -106,8 +106,7 @@ public final class CreateMeshModelingController {
             MeshOperations.OperationResult result =
                     MeshOperations.extrudeEdgesResult(oldMesh, selected, amount);
             core.editorContext().history().execute(
-                    new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
-                        MeshMaterialOperations.apply(node.materialAssignment(), result)));
+                    new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
             selection.applySelectionHint(node, result);
             return;
         }
@@ -177,7 +176,8 @@ public final class CreateMeshModelingController {
         if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
+                MeshMaterialOperations.apply(node.materialAssignment(), result)));
         selection.applySelectionHint(node, result);
         viewport.geometryFaceSelection().clear();
     }
@@ -198,7 +198,8 @@ public final class CreateMeshModelingController {
         if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
+                MeshMaterialOperations.apply(node.materialAssignment(), result)));
         selection.applySelectionHint(node, result);
         viewport.geometryFaceSelection().clear();
     }
@@ -228,7 +229,8 @@ public final class CreateMeshModelingController {
         if (result.createdFaces().isEmpty()) return;
 
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
+                MeshMaterialOperations.apply(node.materialAssignment(), result)));
         selection.applySelectionHint(node, result);
         viewport.geometryFaceSelection().clear();
     }
