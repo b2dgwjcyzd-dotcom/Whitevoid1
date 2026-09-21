@@ -62,5 +62,18 @@ public final class ViewportRenderer {
                 left + 10, top + 25, 0xFFAAAAAA);
     }
 
+    private void drawGizmo(DrawContext context, ViewportProjector projector, ModelNode node, TransformMode mode,
+                           int cx, int cy, int left, int top, int right, int bottom,
+                           ViewportGizmo.Axis hoveredAxis) {
+        gizmoRenderer.render(context, projector, node, mode, cx, cy, left, top, right, bottom, hoveredAxis);
+    }
 
+    private void drawComponentGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
+                                    ViewportContext viewport, int cx, int cy, int left, int top, int right, int bottom,
+                                    ComponentTransformGizmo.Axis hoveredAxis, Operation operation,
+                                    ComponentTransformGizmo.PivotMode pivotMode) {
+        componentGizmoRenderer.render(context, projector, node, viewport, cx, cy, left, top, right, bottom,
+                hoveredAxis, operation, pivotMode);
+    }
+}
 
