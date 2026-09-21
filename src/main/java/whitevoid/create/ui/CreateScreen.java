@@ -33,6 +33,7 @@ public final class CreateScreen extends Screen {
     private final ViewportGizmo gizmo = new ViewportGizmo();
     private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
     private final ComponentTransformController componentTransform = new ComponentTransformController(componentGizmo);
+    private final ComponentTransformInputController componentTransformInput = new ComponentTransformInputController(componentTransform);
     private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
     private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
     private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
@@ -59,15 +60,11 @@ public final class CreateScreen extends Screen {
     private boolean componentDragging;
     private ComponentTransformGizmo.Axis hoveredComponentAxis = ComponentTransformGizmo.Axis.NONE;
     private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
-    private boolean componentKeyboardTransformArmed;
-    private boolean componentNumericEntry;
     private boolean topologyPathPickArmed;
     private boolean topologyPathSecondPick;
     private boolean topologyPathHasStart;
     private int topologyPathStartIndex = -1;
 
-    private StringBuilder componentNumericBuffer = new StringBuilder();
-    private boolean componentNumericNegative;
     private boolean proportionalEditing;
     private double proportionalRadius = 3.0;
     private boolean mirrorArmed;
@@ -106,54 +103,18 @@ public final class CreateScreen extends Screen {
             return true;
         }
 
-        if (componentKeyboardTransformArmed && viewport.transform().mode() == TransformMode.GEOMETRY
-                && viewport.meshComponentSelection().size() > 0) {
-            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+        if (componentTransformInput.armed() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
             topologyPathPickArmed = false;
             topologyPathSecondPick = false;
             topologyPathHasStart = false;
             topologyPathStartIndex = -1;
-                componentKeyboardTransformArmed = false;
-                componentTransform.clearConstraint();
-                componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS);
-                componentNumericEntry = false;
-                componentNumericBuffer.setLength(0);
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_MINUS || keyCode == GLFW.GLFW_KEY_KP_SUBTRACT) {
-                componentNumericNegative = !componentNumericNegative;
-                componentNumericEntry = true;
-                return true;
-            }
-            if (keyCode == GLFW.GLFW_KEY_PERIOD || keyCode == GLFW.GLFW_KEY_KP_DECIMAL) {
-                if (!componentNumericBuffer.toString().contains(".")) componentNumericBuffer.append('.');
-                componentNumericEntry = true;
-                return true;
-            }
-            int digit = switch (keyCode) {
-                case GLFW.GLFW_KEY_0, GLFW.GLFW_KEY_KP_0 -> 0;
-                case GLFW.GLFW_KEY_1, GLFW.GLFW_KEY_KP_1 -> 1;
-                case GLFW.GLFW_KEY_2, GLFW.GLFW_KEY_KP_2 -> 2;
-                case GLFW.GLFW_KEY_3, GLFW.GLFW_KEY_KP_3 -> 3;
-                case GLFW.GLFW_KEY_4, GLFW.GLFW_KEY_KP_4 -> 4;
-                case GLFW.GLFW_KEY_5, GLFW.GLFW_KEY_KP_5 -> 5;
-                case GLFW.GLFW_KEY_6, GLFW.GLFW_KEY_KP_6 -> 6;
-                case GLFW.GLFW_KEY_7, GLFW.GLFW_KEY_KP_7 -> 7;
-                case GLFW.GLFW_KEY_8, GLFW.GLFW_KEY_KP_8 -> 8;
-                case GLFW.GLFW_KEY_9, GLFW.GLFW_KEY_KP_9 -> 9;
-                default -> -1;
-            };
-            if (digit >= 0) {
-                componentNumericBuffer.append((char)('0' + digit));
-                componentNumericEntry = true;
-                return true;
-            }
         }
-if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER)
-                && componentNumericEntry && componentKeyboardTransformArmed) {
-            applyNumericComponentTransform();
+
+        if (componentTransformInput.handleKey(keyCode, viewport, hasShiftDown(),
+                proportionalEditing, proportionalRadius, core)) {
             return true;
         }
+
 if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             var node = viewport.selection().first(core.editorContext().model());
             if (node != null) {
