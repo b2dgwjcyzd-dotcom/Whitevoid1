@@ -770,7 +770,17 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                         && componentKeyboardTransformArmed
                         && componentConstraintAxis != ComponentTransformGizmo.Axis.NONE) {
                     componentAxis = componentConstraintAxis;
-                    componentDragging = true;
+                    componentTransform.setOperation(componentOperation);
+                    componentTransform.setAxis(componentAxis);
+                    componentTransform.setConstraintMode(componentPlaneConstraint
+                            ? ComponentTransformController.ConstraintMode.PLANE
+                            : ComponentTransformController.ConstraintMode.AXIS);
+                    componentTransform.begin(selected, meshMode,
+                            viewport.meshComponentSelection().vertexIndices(),
+                            viewport.meshComponentSelection().edgeIndices(),
+                            viewport.meshComponentSelection().faceIndices(),
+                            viewport.meshComponentSelection(), mouseX, mouseY);
+                    componentDragging = componentTransform.dragging();
                     componentKeyboardTransformArmed = false;
                     componentDragStartX = mouseX;
                     componentDragStartY = mouseY;
@@ -778,11 +788,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     componentDragLastY = mouseY;
                     componentDragOldMesh = selected.ensureMeshGeometry();
                     if (componentDragOldMesh != null) componentDragOldMesh = componentDragOldMesh.copy();
-                    componentDragPivot = componentGizmo.localPivot(selected, meshMode,
-                            viewport.meshComponentSelection().vertexIndices(),
-                            viewport.meshComponentSelection().edgeIndices(),
-                            viewport.meshComponentSelection().faceIndices(), componentPivotMode,
-                            viewport.meshComponentSelection());
+                    componentDragPivot = componentTransform.pivot();
                     return true;
                 }
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
@@ -793,17 +799,24 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             projector, mouseX, mouseY, cx, cy, componentOperation, componentPivotMode,
                             viewport.meshComponentSelection());
                     if (componentAxis != ComponentTransformGizmo.Axis.NONE) {
-                        componentDragging = true;
+                        componentTransform.setOperation(componentOperation);
+                        componentTransform.setAxis(componentAxis);
+                        componentTransform.setConstraintMode(componentPlaneConstraint
+                                ? ComponentTransformController.ConstraintMode.PLANE
+                                : ComponentTransformController.ConstraintMode.AXIS);
+                        componentTransform.begin(selected, meshMode,
+                                viewport.meshComponentSelection().vertexIndices(),
+                                viewport.meshComponentSelection().edgeIndices(),
+                                viewport.meshComponentSelection().faceIndices(),
+                                viewport.meshComponentSelection(), mouseX, mouseY);
+                        componentDragging = componentTransform.dragging();
                         componentDragStartX = mouseX;
                         componentDragStartY = mouseY;
                         componentDragLastX = mouseX;
                         componentDragLastY = mouseY;
                         componentDragOldMesh = selected.ensureMeshGeometry();
                         if (componentDragOldMesh != null) componentDragOldMesh = componentDragOldMesh.copy();
-                        componentDragPivot = componentGizmo.localPivot(selected, meshMode,
-                                viewport.meshComponentSelection().vertexIndices(),
-                                viewport.meshComponentSelection().edgeIndices(),
-                                viewport.meshComponentSelection().faceIndices(), componentPivotMode, viewport.meshComponentSelection());
+                        componentDragPivot = componentTransform.pivot();
                         return true;
                     }
                 }
@@ -895,11 +908,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (componentDragging && button == 0) {
             ModelNode node=core.editorContext().viewport().selection().first(core.editorContext().model());
-            if(node!=null && componentDragOldMesh!=null){
-                var current=node.ensureMeshGeometry();
-                if(current!=null && !componentDragOldMesh.equals(current))
-                    core.editorContext().history().recordExecuted(new SetMeshGeometryCommand(node,componentDragOldMesh,current.copy()));
-            }
+            componentTransform.finish(core, node);
             componentDragging=false;
             componentKeyboardTransformArmed=false;
             componentConstraintAxis=ComponentTransformGizmo.Axis.NONE;
@@ -999,36 +1008,11 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     double totalDy = mouseY - componentDragStartY;
 
                     if(componentOperation==ComponentTransformGizmo.Operation.MOVE){
-                        if (componentPlaneConstraint && constrainedAxis != ComponentTransformGizmo.Axis.NONE) {
-                            ComponentTransformGizmo.Axis a1 = constrainedAxis == ComponentTransformGizmo.Axis.X
-                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
-                            ComponentTransformGizmo.Axis a2 = constrainedAxis == ComponentTransformGizmo.Axis.Z
-                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
-                            double amount1 = componentGizmo.amount(a1, projector, node, pivot,
-                                    width / 2, height / 2, totalDx, totalDy);
-                            double amount2 = componentGizmo.amount(a2, projector, node, pivot,
-                                    width / 2, height / 2, totalDx, totalDy);
-                            if (hasControlDown()) {
-                                amount1 = snapScalar(amount1, MOVE_SNAP_INCREMENT);
-                                amount2 = snapScalar(amount2, MOVE_SNAP_INCREMENT);
-                            }
-                            int excluded = constrainedAxis == ComponentTransformGizmo.Axis.X ? 0
-                                    : constrainedAxis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
-                            double dx = excluded == 0 ? 0 : (a1 == ComponentTransformGizmo.Axis.X ? amount1 : amount2);
-                            double dy = excluded == 1 ? 0 : (a1 == ComponentTransformGizmo.Axis.Y ? amount1 : amount2);
-                            double dz = excluded == 2 ? 0 : (a1 == ComponentTransformGizmo.Axis.Z ? amount1 : amount2);
-                            updated = proportionalEditing
-                                ? MeshComponentTransforms.translateProportional(updated, ids, pivot, proportionalRadius, dx, dy, dz)
-                                : MeshComponentTransforms.translate(updated, ids, dx, dy, dz);
-                        } else {
-                        double amount=componentGizmo.amount(constrainedAxis,projector,node,pivot,
-                                width / 2,height / 2,totalDx,totalDy);
-                        if (hasControlDown()) amount = snapScalar(amount, MOVE_SNAP_INCREMENT);
-                        double dx=axis==0?amount:0, dy=axis==1?amount:0, dz=axis==2?amount:0;
-                        updated=proportionalEditing
-                                ? MeshComponentTransforms.translateProportional(updated, ids, pivot, proportionalRadius, dx, dy, dz)
-                                : MeshComponentTransforms.translate(updated,ids,dx,dy,dz);
-                        }
+                        updated = componentTransform.applyMove(
+                                updated, ids, node, projector, totalDx, totalDy,
+                                width, height, componentConstraintAxis, componentPlaneConstraint,
+                                proportionalEditing, proportionalRadius, hasControlDown(),
+                                MOVE_SNAP_INCREMENT);
                     } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
                         double degrees=componentGizmo.rotationAmount(constrainedAxis, node, pivot,
                                 componentDragStartX, componentDragStartY, mouseX, mouseY,
