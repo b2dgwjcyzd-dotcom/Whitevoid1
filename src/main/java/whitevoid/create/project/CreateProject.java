@@ -1,11 +1,13 @@
 package whitevoid.create.project;
 
+import java.time.Instant;
 import java.util.Objects;
 import whitevoid.create.model.Model;
 
 public final class CreateProject {
     private ProjectMetadata metadata;
     private Model model;
+    private boolean dirty;
 
     public CreateProject(ProjectMetadata metadata) {
         this(metadata, Model.withDefaultCube());
@@ -24,15 +26,28 @@ public final class CreateProject {
         return model;
     }
 
+    public boolean dirty() {
+        return dirty;
+    }
+
     public void setModel(Model model) {
         this.model = Objects.requireNonNull(model, "model");
+        markDirty();
+    }
+
+    public void markDirty() {
+        dirty = true;
         touch();
+    }
+
+    public void markSaved() {
+        dirty = false;
     }
 
     public void touch() {
         metadata = new ProjectMetadata(
                 metadata.id(), metadata.name(), metadata.type(),
-                metadata.createdAt(), java.time.Instant.now()
+                metadata.createdAt(), Instant.now()
         );
     }
 }
