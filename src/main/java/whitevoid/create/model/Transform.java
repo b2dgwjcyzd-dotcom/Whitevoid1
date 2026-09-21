@@ -22,14 +22,32 @@ public final class Transform {
     public double scaleZ() { return scaleZ; }
 
     public void position(double x, double y, double z) {
+        requireFinite(x, "x");
+        requireFinite(y, "y");
+        requireFinite(z, "z");
         this.x = x; this.y = y; this.z = z;
     }
 
     public void rotation(double x, double y, double z) {
+        requireFinite(x, "rotationX");
+        requireFinite(y, "rotationY");
+        requireFinite(z, "rotationZ");
         rotationX = x; rotationY = y; rotationZ = z;
     }
 
     public void scale(double x, double y, double z) {
+        requireFinite(x, "scaleX");
+        requireFinite(y, "scaleY");
+        requireFinite(z, "scaleZ");
+        if (x == 0.0 || y == 0.0 || z == 0.0) {
+            throw new IllegalArgumentException("Scale components must be non-zero");
+        }
         scaleX = x; scaleY = y; scaleZ = z;
+    }
+
+    private static void requireFinite(double value, String name) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite");
+        }
     }
 }
