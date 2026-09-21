@@ -34,10 +34,19 @@ public final class AddCubeCommand implements Command, SelectionHistoryCommand {
             created.setGeometry(geometry);
             created.transform().position(x, y, z);
         }
+        if (created.parent() != null && created.parent() != parent) {
+            throw new IllegalStateException("Created cube was reparented outside this command");
+        }
+        if (created.parent() == parent) {
+            throw new IllegalStateException("Created cube is already attached");
+        }
         parent.addChild(Math.min(index, parent.children().size()), created);
     }
 
     @Override public void undo() {
+        if (created == null || created.parent() != parent) {
+            throw new IllegalStateException("Created cube is not attached to its expected parent");
+        }
         parent.removeChild(created);
     }
 
