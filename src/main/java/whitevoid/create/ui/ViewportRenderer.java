@@ -15,6 +15,7 @@ public final class ViewportRenderer {
     private final CreateViewportSelectionOverlayRenderer selectionOverlayRenderer = new CreateViewportSelectionOverlayRenderer();
     private final CreateViewportGizmoRenderer gizmoRenderer = new CreateViewportGizmoRenderer();
     private final CreateViewportComponentGizmoRenderer componentGizmoRenderer = new CreateViewportComponentGizmoRenderer();
+    private final CreateViewportGeometryHandlesRenderer geometryHandlesRenderer = new CreateViewportGeometryHandlesRenderer();
 
     public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model,
                        ViewportGizmo.Axis hoveredAxis, GeometryFace hoveredFace, GeometryFace selectedFace,
@@ -49,7 +50,7 @@ public final class ViewportRenderer {
                     centerX, centerY, left, top, right, bottom,
                     hoveredComponentAxis, componentOperation, componentPivotMode);
             if (selected.meshGeometry() == null) {
-                drawGeometryHandles(context, projector, selected,
+                geometryHandlesRenderer.render(context, projector, selected,
                         centerX, centerY, left, top, right, bottom, hoveredAxis);
             }
         }
@@ -63,33 +64,3 @@ public final class ViewportRenderer {
 
 
 
-    private void drawGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
-                           TransformMode mode, int cx, int cy, int left, int top, int right, int bottom,
-                           ViewportGizmo.Axis hoveredAxis) {
-        gizmoRenderer.render(context, projector, node, mode, cx, cy, left, top, right, bottom, hoveredAxis);
-    }
-
-    private void drawComponentGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
-                                    ViewportContext viewport, int cx, int cy, int left, int top, int right, int bottom,
-                                    ComponentTransformGizmo.Axis hoveredAxis, Operation operation,
-                                    ComponentTransformGizmo.PivotMode pivotMode) {
-        componentGizmoRenderer.render(context, projector, node, viewport,
-                cx, cy, left, top, right, bottom, hoveredAxis, operation, pivotMode);
-    }
-
-
-    private void drawLine(DrawContext context, Point a, Point b, int left, int top,
-                          int right, int bottom, int color) {
-        int x0=(int)Math.round(a.x()), y0=(int)Math.round(a.y());
-        int x1=(int)Math.round(b.x()), y1=(int)Math.round(b.y());
-        int dx=Math.abs(x1-x0), dy=Math.abs(y1-y0);
-        int sx=x0<x1?1:-1, sy=y0<y1?1:-1, err=dx-dy;
-        while(true) {
-            if(x0>=left&&x0<right&&y0>=top&&y0<bottom) context.fill(x0,y0,x0+1,y0+1,color);
-            if(x0==x1&&y0==y1) break;
-            int e2=2*err;
-            if(e2>-dy){err-=dy;x0+=sx;}
-            if(e2<dx){err+=dx;y0+=sy;}
-        }
-    }
-}
