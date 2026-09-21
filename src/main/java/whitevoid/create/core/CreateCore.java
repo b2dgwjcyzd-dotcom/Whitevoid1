@@ -2,6 +2,8 @@ package whitevoid.create.core;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import whitevoid.create.project.CreateProject;
+import whitevoid.create.project.ProjectType;
 import net.fabricmc.loader.api.FabricLoader;
 import whitevoid.create.core.registry.CreateRegistry;
 import whitevoid.create.project.ProjectManager;
@@ -29,7 +31,36 @@ public final class CreateCore {
         }
     }
 
+    public CreateProject ensureActiveProject() {
+        OptionalProject project = new OptionalProject(projectManager.activeProject());
+        if (project.value() != null) {
+            editorContext.setModel(project.value().model());
+            return project.value();
+        }
+
+        try {
+            CreateProject created = projectManager.create("Untitled", ProjectType.MODEL);
+            editorContext.setModel(created.model());
+            return created;
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to create default CREATE project", exception);
+        }
+    }
+
+    public void saveActiveProject() {
+        CreateProject project = projectManager.activeProject()
+                .orElseThrow(() -> new IllegalStateException("No active CREATE project"));
+        project.setModel(editorContext.model());
+        try {
+            projectManager.save(project);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to save CREATE project", exception);
+        }
+    }
+
     public CreateRegistry registry() { return registry; }
     public EditorContext editorContext() { return editorContext; }
     public ProjectManager projectManager() { return projectManager; }
+
+    private record OptionalProject(CreateProject value) {}
 }
