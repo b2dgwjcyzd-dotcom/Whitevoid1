@@ -29,9 +29,9 @@ public final class ProjectSerializer {
     public ProjectMetadata deserializeMetadata(String json) {
         JsonObject document = parseDocument(json);
         int version = readVersion(document);
-        if (version > CURRENT_FORMAT_VERSION) {
+        if (version < 0 || version > CURRENT_FORMAT_VERSION) {
             throw new IllegalArgumentException(
-                    "Unsupported CREATE project format version: " + version);
+                    "Invalid CREATE project format version: " + version);
         }
 
         ProjectMetadata metadata;
