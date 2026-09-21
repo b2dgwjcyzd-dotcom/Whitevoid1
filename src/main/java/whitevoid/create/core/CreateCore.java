@@ -23,7 +23,7 @@ public final class CreateCore {
         this.editorContext = new EditorContext(this::markProjectDirty);
         Path projects = FabricLoader.getInstance().getConfigDir().resolve("whitevoid").resolve("create").resolve("projects");
         this.projectManager = new ProjectManager(projects);
-        this.autosave = new ProjectAutosave(projectManager, Duration.ofSeconds(30));
+        this.autosave = new ProjectAutosave(projectManager, Duration.ofSeconds(30), editorContext.history()::markSaved);
     }
 
     public void initialize() {
