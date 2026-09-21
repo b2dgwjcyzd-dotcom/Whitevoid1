@@ -55,6 +55,7 @@ public final class CreateScreen extends Screen {
     private final CreateTransformHotkeyController transformHotkeys;
     private final CreateModelingHotkeyController modelingHotkeys;
     private final CreateResetController resetController;
+    private final CreateViewportReleaseController viewportReleaseController;
 
     private final CubeFaceEditorController cubeFaceEditor;
 
@@ -68,6 +69,14 @@ public final class CreateScreen extends Screen {
         this.modelingHotkeys = new CreateModelingHotkeyController(core, meshModeling);
         this.resetController = new CreateResetController(componentTransformInput, componentTransform);
         this.cubeFaceEditor = new CubeFaceEditorController(gizmo);
+        this.viewportReleaseController = new CreateViewportReleaseController(
+                componentTransformInteraction,
+                componentBoxSelection,
+                meshComponentDragFinish,
+                cubeFaceEditor,
+                transformGizmoInteraction,
+                selectionController,
+                meshComponentDrag);
         this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
     }
 
@@ -208,40 +217,20 @@ public final class CreateScreen extends Screen {
     }
 
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (interaction.componentDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (componentTransformInteraction.finish(
-                    core, interaction, node, core.editorContext().viewport().transform().mode())) {
-                return true;
-            }
-        }
-        if (interaction.componentBoxSelecting && button == 0) {
-            if (componentBoxSelection.finish(
-                    core, interaction,
-                    core.editorContext().viewport().selection().first(core.editorContext().model()),
-                    core.editorContext().viewport(),
-                    mouseX, mouseY, width, height, hasAltDown(), hasShiftDown(),
-                    selectionController)) {
-                return true;
-            }
-        }
-        if ((interaction.vertexDragging || interaction.edgeDragging) && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (meshComponentDragFinish.finish(core, interaction, node, meshComponentDrag)) {
-                return true;
-            }
-        }
-        if (cubeFaceEditor.dragging() && button == 0) {
-            cubeFaceEditor.finish(core);
+        if (viewportReleaseController.handle(
+                core,
+                interaction,
+                core.editorContext().viewport(),
+                mouseX,
+                mouseY,
+                button,
+                width,
+                height,
+                hasAltDown(),
+                hasShiftDown())) {
             return true;
         }
-        if (interaction.gizmoDragging && button == 0) {
-            ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (transformGizmoInteraction.finish(
-                    core, interaction, node, core.editorContext().viewport().transform().mode())) {
-                return true;
-            }
-        }
+
         if (viewportInput.mouseReleased(mouseX, mouseY, button)) return true;
         return super.mouseReleased(mouseX, mouseY, button);
     }
