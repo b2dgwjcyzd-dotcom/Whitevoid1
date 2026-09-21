@@ -30,6 +30,7 @@ public final class CreateScreen extends Screen {
     private final CreateCore core;
     private final CreateViewportInteractionState interaction = new CreateViewportInteractionState();
     private final CreateViewportSelectionController selectionController = new CreateViewportSelectionController();
+    private final CreateTopologyPathInteractionController topologyPathController = new CreateTopologyPathInteractionController(selectionController);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -649,33 +650,10 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
     private void viewportContextHistoryRedo() { core.editorContext().history().redo(); }
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && interaction.topologyPathPickArmed && interaction.topologyPathSecondPick) {
-            ViewportContext viewport = core.editorContext().viewport();
-            ModelNode node = viewport.selection().first(core.editorContext().model());
-            if (node != null && viewport.transform().mode() == TransformMode.GEOMETRY
-                    && viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX) {
-                MeshGeometry mesh = node.ensureMeshGeometry();
-                if (mesh != null) {
-                    int hit = selectionController.hitTestMeshVertex(node, mesh, viewport, mouseX, mouseY, width, height);
-                    if (hit >= 0) {
-                        if (!interaction.topologyPathHasStart) {
-                            viewport.meshComponentSelection().selectVertex(node, hit);
-                            interaction.topologyPathHasStart = true;
-                            interaction.topologyPathStartIndex = hit;
-                            return true;
-                        }
-                        viewport.meshComponentSelection().selectShortestVertexPath(
-                                node, interaction.topologyPathStartIndex, hit);
-                        interaction.topologyPathPickArmed = false;
-                        interaction.topologyPathSecondPick = false;
-                        interaction.topologyPathHasStart = false;
-                        interaction.topologyPathStartIndex = -1;
-                        return true;
-                    }
-                }
-            }
+        if (button == 0 && topologyPathController.handleLeftClick(
+                core, interaction, mouseX, mouseY, width, height)) {
+            return true;
         }
-
 
         if (viewportInput.mouseClicked(mouseX, mouseY, button)) return true;
         if (button == 0) {
