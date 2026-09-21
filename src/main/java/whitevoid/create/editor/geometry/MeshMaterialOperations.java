@@ -20,10 +20,6 @@ public final class MeshMaterialOperations {
         if (source == null) return null;
         Objects.requireNonNull(result, "result");
 
-        if (source.faceMaterials().size() != result.faceMapping().size()) {
-            throw new IllegalArgumentException("Source material assignment does not match operation input");
-        }
-
         List<Integer> materials = new ArrayList<>(result.mesh().faces().size());
         for (int i = 0; i < result.mesh().faces().size(); i++) materials.add(0);
 
