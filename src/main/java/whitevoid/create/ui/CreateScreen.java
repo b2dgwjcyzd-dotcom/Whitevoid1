@@ -772,38 +772,10 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
         }
         if (interaction.gizmoDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null) {
-                if (core.editorContext().viewport().transform().mode() == TransformMode.GEOMETRY
-                        && interaction.dragOldGeometry != null && node.geometry() != null) {
-                    var t = node.transform();
-                    boolean geometryChanged = !interaction.dragOldGeometry.equals(node.geometry());
-                    boolean positionChanged = interaction.dragOldX != t.x() || interaction.dragOldY != t.y() || interaction.dragOldZ != t.z();
-                    if (geometryChanged || positionChanged) {
-                        core.editorContext().history().recordExecuted(
-                                new ResizeCubeFaceCommand(node,
-                                        interaction.dragOldGeometry, node.geometry(),
-                                        interaction.dragOldX, interaction.dragOldY, interaction.dragOldZ,
-                                        t.x(), t.y(), t.z()));
-                    }
-                    interaction.dragOldGeometry = null;
-                    interaction.gizmoDragging=false;
-                    interaction.activeAxis=ViewportGizmo.Axis.NONE;
-                    return true;
-                }
-
-                var t=node.transform();
-                boolean changed = interaction.dragOldX!=t.x() || interaction.dragOldY!=t.y() || interaction.dragOldZ!=t.z() ||
-                        interaction.dragOldRx!=t.rotationX() || interaction.dragOldRy!=t.rotationY() || interaction.dragOldRz!=t.rotationZ() ||
-                        interaction.dragOldSx!=t.scaleX() || interaction.dragOldSy!=t.scaleY() || interaction.dragOldSz!=t.scaleZ();
-                if (changed) {
-                    core.editorContext().history().recordExecuted(new SetTransformCommand(node,
-                            interaction.dragOldX,interaction.dragOldY,interaction.dragOldZ,interaction.dragOldRx,interaction.dragOldRy,interaction.dragOldRz,interaction.dragOldSx,interaction.dragOldSy,interaction.dragOldSz,
-                            t.x(),t.y(),t.z(),t.rotationX(),t.rotationY(),t.rotationZ(),t.scaleX(),t.scaleY(),t.scaleZ(),true));
-                }
+            if (transformGizmoInteraction.finish(
+                    core, interaction, node, core.editorContext().viewport().transform().mode())) {
+                return true;
             }
-            interaction.gizmoDragging=false;
-            interaction.activeAxis=ViewportGizmo.Axis.NONE;
-            return true;
         }
         if (viewportInput.mouseReleased(mouseX, mouseY, button)) return true;
         return super.mouseReleased(mouseX, mouseY, button);
