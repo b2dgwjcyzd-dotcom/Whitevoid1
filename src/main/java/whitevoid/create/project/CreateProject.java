@@ -44,6 +44,10 @@ public final class CreateProject {
         dirty = false;
     }
 
+    public void markClean() {
+        dirty = false;
+    }
+
     public void touch() {
         metadata = new ProjectMetadata(
                 metadata.id(), metadata.name(), metadata.type(),
