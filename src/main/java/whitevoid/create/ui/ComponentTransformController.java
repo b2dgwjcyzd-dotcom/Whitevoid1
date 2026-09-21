@@ -23,6 +23,7 @@ public final class ComponentTransformController {
     private ComponentTransformGizmo.Operation operation = ComponentTransformGizmo.Operation.MOVE;
     private ComponentTransformGizmo.PivotMode pivotMode = ComponentTransformGizmo.PivotMode.MEDIAN;
     private ConstraintMode constraintMode = ConstraintMode.AXIS;
+    private ComponentTransformGizmo.Axis constraintAxis = ComponentTransformGizmo.Axis.NONE;
     private MeshGeometry oldMesh;
     private TransformMath.Point pivot;
     private double lastX;
@@ -37,6 +38,8 @@ public final class ComponentTransformController {
     public ComponentTransformGizmo.Operation operation() { return operation; }
     public ComponentTransformGizmo.PivotMode pivotMode() { return pivotMode; }
     public ConstraintMode constraintMode() { return constraintMode; }
+    public ComponentTransformGizmo.Axis constraintAxis() { return constraintAxis; }
+    public boolean planeConstraint() { return constraintMode == ConstraintMode.PLANE; }
     public TransformMath.Point pivot() { return pivot; }
     public boolean dragging() { return dragging; }
     public double startX() { return lastX; }
@@ -56,6 +59,15 @@ public final class ComponentTransformController {
 
     public void setConstraintMode(ConstraintMode mode) {
         if (mode != null) constraintMode = mode;
+    }
+
+    public void setConstraintAxis(ComponentTransformGizmo.Axis axis) {
+        constraintAxis = axis == null ? ComponentTransformGizmo.Axis.NONE : axis;
+    }
+
+    public void clearConstraint() {
+        constraintAxis = ComponentTransformGizmo.Axis.NONE;
+        constraintMode = ConstraintMode.AXIS;
     }
 
     public void begin(ModelNode node, MeshSelectionMode mode,
@@ -302,6 +314,8 @@ public final class ComponentTransformController {
         oldMesh = null;
         pivot = null;
         axis = ComponentTransformGizmo.Axis.NONE;
+        constraintAxis = ComponentTransformGizmo.Axis.NONE;
+        constraintMode = ConstraintMode.AXIS;
         lastX = 0.0;
         lastY = 0.0;
     }
