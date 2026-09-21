@@ -40,6 +40,7 @@ public final class CreateScreen extends Screen {
     private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
     private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
     private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
+    private final CreateViewportOverlayRenderer overlayRenderer = new CreateViewportOverlayRenderer();
 
     private final CubeFaceEditorController cubeFaceEditor;
 
@@ -1015,53 +1016,18 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 interaction.hoveredMeshVertex, interaction.hoveredMeshEdgeA, interaction.hoveredMeshEdgeB,
                 interaction.hoveredComponentAxis, componentTransform.operation(), componentTransform.pivotMode(), interaction.selectThrough);
 
-        ViewportContext activeViewport = core.editorContext().viewport();
-        if (activeViewport.transform().mode() == TransformMode.GEOMETRY
-                && activeViewport.meshComponentSelection().size() > 0) {
-            var textRenderer = MinecraftClient.getInstance().textRenderer;
-            String mode = activeViewport.meshComponentSelection().mode().name();
-            String operation = componentTransform.operation().name();
-            String axis = componentTransform.axis() == ComponentTransformGizmo.Axis.NONE
-                    ? (interaction.hoveredComponentAxis == ComponentTransformGizmo.Axis.NONE
-                    ? "" : " " + interaction.hoveredComponentAxis.name())
-                    : " " + componentTransform.axis().name();
-            String pivot = componentTransform.pivotMode().name().replace('_', ' ');
-            String active = switch (activeComponentLabel(activeViewport.meshComponentSelection())) {
-                case null -> "";
-                case String value -> " • Active " + value;
-            };
-            String constraint = componentTransform.constraintAxis() == ComponentTransformGizmo.Axis.NONE ? "" : " • " + (componentTransform.planeConstraint() ? "PLANE " : "") + componentTransform.constraintAxis().name();
-            String snap = hasControlDown() ? " • SNAP" : "";
-            String numeric = componentTransformInput.numericEntry() ? " • Value " + (componentTransformInput.numericNegative() ? "-" : "") + componentTransformInput.numericBuffer() : "";
-            String proportional = interaction.proportionalEditing ? " • PROP " + String.format(java.util.Locale.ROOT, "%.1f", interaction.proportionalRadius) : "";
-            String hover = interaction.hoveredMeshVertex >= 0 ? " • Hover V" + interaction.hoveredMeshVertex
-                    : interaction.hoveredMeshEdgeA >= 0 ? " • Hover E" + interaction.hoveredMeshEdgeA + "-" + interaction.hoveredMeshEdgeB
-                    : interaction.hoveredMeshFace >= 0 ? " • Hover F" + interaction.hoveredMeshFace : "";
-            String xray = interaction.selectThrough ? " • X-RAY" : "";
-            String topology = interaction.topologyPathPickArmed ? " • PATH: " + (interaction.topologyPathHasStart ? "pick target" : "pick start") : "";
-            context.drawTextWithShadow(textRenderer,
-                    operation + axis + constraint + " • " + mode + " • Pivot " + pivot + active + snap + numeric + proportional + hover + xray + topology,
-                    26, height - 30, 0xFFE8E8E8);
-        }
-        if (interaction.componentBoxSelecting) {
-            int left = (int) Math.round(Math.min(interaction.boxStartX, interaction.boxCurrentX));
-            int top = (int) Math.round(Math.min(interaction.boxStartY, interaction.boxCurrentY));
-            int right = (int) Math.round(Math.max(interaction.boxStartX, interaction.boxCurrentX));
-            int bottom = (int) Math.round(Math.max(interaction.boxStartY, interaction.boxCurrentY));
-            context.fill(left, top, right, top + 1, 0xFFFFFFFF);
-            context.fill(left, bottom, right, bottom + 1, 0xFFFFFFFF);
-            context.fill(left, top, left + 1, bottom, 0xFFFFFFFF);
-            context.fill(right, top, right + 1, bottom, 0xFFFFFFFF);
-        }
+        overlayRenderer.renderStatus(
+                context,
+                width,
+                height,
+                core,
+                interaction,
+                componentTransform,
+                componentTransformInput,
+                hasControlDown()
+        );
+        overlayRenderer.renderComponentSelectionBox(context, interaction);
         super.render(context, mouseX, mouseY, delta);
-    }
-
-    private static String activeComponentLabel(whitevoid.create.editor.geometry.MeshComponentSelection selection) {
-        return switch (selection.mode()) {
-            case VERTEX -> selection.activeVertex() >= 0 ? "V" + selection.activeVertex() : null;
-            case EDGE -> selection.activeEdgeA() >= 0 ? "E" + selection.activeEdgeA() + "-" + selection.activeEdgeB() : null;
-            case FACE -> selection.activeFace() >= 0 ? "F" + selection.activeFace() : null;
-        };
     }
 
     private static double snapScalar(double value, double increment) {
