@@ -111,6 +111,8 @@ public final class CreateScreen extends Screen {
         ModelNode selectedNode = core.editorContext().viewport().selection().first(core.editorContext().model());
         meshComponentDrag.abort(selectedNode);
         componentTransform.abort(core, selectedNode);
+        transformGizmoInteraction.abort(interaction, selectedNode);
+        if (cubeFaceEditor.dragging()) cubeFaceEditor.abort(core);
         core.editorContext().setEditing(false);
         core.saveActiveProject();
         super.close();
@@ -144,6 +146,14 @@ public final class CreateScreen extends Screen {
             interaction.activeEdgeB = -1;
             return true;
         }
+
+        if (interaction.gizmoDragging) {
+            transformGizmoInteraction.abort(
+                    interaction,
+                    viewport.selection().first(core.editorContext().model()));
+            return true;
+        }
+
 
         if (componentTransformInput.armed() && keyCode == GLFW.GLFW_KEY_ESCAPE) {
             resetController.clearArmedTopology(interaction);
