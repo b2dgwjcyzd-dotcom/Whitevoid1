@@ -74,7 +74,9 @@ public final class CreateCore {
     public void saveActiveProject() {
         CreateProject project = projectManager.activeProject()
                 .orElseThrow(() -> new IllegalStateException("No active CREATE project"));
-        project.setModel(editorContext.model());
+        if (project.model() != editorContext.model()) {
+            project.setModel(editorContext.model());
+        }
         try {
             projectManager.save(project);
         } catch (IOException exception) {
