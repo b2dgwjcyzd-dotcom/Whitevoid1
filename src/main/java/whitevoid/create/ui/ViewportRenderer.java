@@ -5,8 +5,6 @@ import net.minecraft.client.gui.DrawContext;
 import whitevoid.create.editor.viewport.ViewportContext;
 import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
-import whitevoid.create.model.MeshGeometry;
-import whitevoid.create.model.ModelRenderer;
 import whitevoid.create.model.TransformMath;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.geometry.GeometryFace;
@@ -15,7 +13,7 @@ import whitevoid.create.ui.ComponentTransformGizmo.Operation;
 import whitevoid.create.ui.ViewportProjector.Point;
 
 public final class ViewportRenderer {
-    private final ModelRenderer modelRenderer = new ModelRenderer();
+    private final CreateViewportModelRenderer modelRenderer = new CreateViewportModelRenderer();
     private final CreateViewportGridRenderer gridRenderer = new CreateViewportGridRenderer();
 
     public void render(DrawContext context, int width, int height, ViewportContext viewport, Model model,
@@ -34,9 +32,8 @@ public final class ViewportRenderer {
         }
         gridRenderer.renderAxes(context, projector, centerX, centerY, left, top, right, bottom);
 
-        modelRenderer.renderMesh(model, (node, mesh) ->
-                drawModelMesh(context, projector, node, mesh, viewport,
-                        centerX, centerY, left, top, right, bottom));
+        modelRenderer.render(context, projector, model, viewport,
+                centerX, centerY, left, top, right, bottom);
 
         ModelNode selected = viewport.selection().first(model);
         if (selected != null && viewport.transform().mode() != whitevoid.create.editor.transform.TransformMode.SELECT) {
@@ -88,102 +85,7 @@ public final class ViewportRenderer {
                 left + 10, top + 25, 0xFFAAAAAA);
     }
 
-    private void drawModelMesh(DrawContext context, ViewportProjector projector, ModelNode node,
-                               MeshGeometry mesh, ViewportContext viewport,
-                               int cx, int cy, int left, int top, int right, int bottom) {
-        Point[] points = new Point[mesh.vertices().size()];
-        for (int i = 0; i < points.length; i++) {
-            MeshGeometry.Vertex v = mesh.vertices().get(i);
-            TransformMath.Point world = TransformMath.applyHierarchy(
-                    new TransformMath.Point(v.x(), v.y(), v.z()), node);
-            points[i] = projector.project(world.x(), world.y(), world.z(), cx, cy, 300.0);
-        }
 
-        boolean selected = viewport.selection().selection().contains(node.id());
-        int color = selected ? 0xFFFFFFFF : 0xFFBFC3CC;
-
-        for (int[] edge : ModelRenderer.meshEdges(mesh)) {
-            Point a = points[edge[0]], b = points[edge[1]];
-            if (a == null || b == null) continue;
-            drawLine(context, a, b, left, top, right, bottom, color);
-        }
-
-        if (selected && viewport.transform().mode() == whitevoid.create.editor.transform.TransformMode.GEOMETRY) {
-            var components = viewport.meshComponentSelection();
-            if (components.matches(node)) {
-                if (components.mode() == whitevoid.create.editor.geometry.MeshSelectionMode.VERTEX) {
-                    for (int index : components.vertexIndices()) {
-                        if (index < 0 || index >= points.length || points[index] == null) continue;
-                        Point point = points[index];
-                        int x=(int)Math.round(point.x()), y=(int)Math.round(point.y());
-                        int marker = index == components.activeVertex() ? 0xFFFFFFFF : 0xFFD6D9E2;
-                        context.fill(x-3,y-3,x+4,y+4,marker);
-                        if (index == components.activeVertex()) {
-                            context.fill(x-5,y-1,x+6,y+1,0xFFFFFFFF);
-                            context.fill(x-1,y-5,x+1,y+6,0xFFFFFFFF);
-                        }
-                    }
-                } else if (components.mode() == whitevoid.create.editor.geometry.MeshSelectionMode.EDGE) {
-                    for (int[] edge : components.edgeIndices()) {
-                        if (edge[0] < 0 || edge[1] < 0 || edge[0] >= points.length || edge[1] >= points.length) continue;
-                        Point a=points[edge[0]], b=points[edge[1]];
-                        if(a==null||b==null) continue;
-                        boolean active = edge[0] == components.activeEdgeA() && edge[1] == components.activeEdgeB()
-                                || edge[0] == components.activeEdgeB() && edge[1] == components.activeEdgeA();
-                        int edgeColor = active ? 0xFFFFFFFF : 0xFFD6D9E2;
-                        drawLine(context,a,b,left,top,right,bottom,edgeColor);
-                        drawLine(context,new Point(a.x()+1,a.y(),a.depth()),new Point(b.x()+1,b.y(),b.depth()),
-                                left,top,right,bottom,active ? 0xFFFFFFFF : 0xFFE7E9EF);
-                    }
-                }
-            } else if (selected) {
-                for (Point point : points) {
-                    if (point == null) continue;
-                    int x=(int)Math.round(point.x()), y=(int)Math.round(point.y());
-                    context.fill(x-2,y-2,x+3,y+3,0xFFFFFFFF);
-                }
-            }
-        } else if (selected) {
-            for (Point point : points) {
-                if (point == null) continue;
-                int x = (int) Math.round(point.x());
-                int y = (int) Math.round(point.y());
-                context.fill(x - 2, y - 2, x + 3, y + 3, 0xFFFFFFFF);
-            }
-        }
-    }
-
-    private void drawModelNode(DrawContext context, ViewportProjector projector, ModelNode node,
-                               TransformMath.Point[] corners, ViewportContext viewport,
-                               int cx, int cy, int left, int top, int right, int bottom) {
-        Point[] points = new Point[8];
-        for (int i = 0; i < corners.length; i++) {
-            TransformMath.Point p = corners[i];
-            points[i] = projector.project(p.x(), p.y(), p.z(), cx, cy, 300.0);
-        }
-
-        boolean selected = viewport.selection().selection().contains(node.id());
-        int color = selected ? 0xFFFFFFFF : 0xFFBFC3CC;
-        for (int[] edge : ModelRenderer.edges()) {
-            Point a = points[edge[0]], b = points[edge[1]];
-            if (a == null || b == null) continue;
-            drawLine(context, a, b, left, top, right, bottom, color);
-            if (selected) {
-                drawLine(context, new Point(a.x()+1,a.y(),a.depth()),
-                        new Point(b.x()+1,b.y(),b.depth()), left,top,right,bottom,0xFFE7E9EF);
-                drawLine(context, new Point(a.x()-1,a.y(),a.depth()),
-                        new Point(b.x()-1,b.y(),b.depth()), left,top,right,bottom,0xFFE7E9EF);
-            }
-        }
-
-        if (selected) {
-            for (Point point : points) {
-                if (point == null) continue;
-                int x=(int)Math.round(point.x()), y=(int)Math.round(point.y());
-                context.fill(x-2,y-2,x+3,y+3,0xFFFFFFFF);
-            }
-        }
-    }
 
     private void drawGizmo(DrawContext context, ViewportProjector projector, ModelNode node,
                            TransformMode mode,
