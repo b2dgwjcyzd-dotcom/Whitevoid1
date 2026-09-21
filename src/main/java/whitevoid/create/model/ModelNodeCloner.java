@@ -20,6 +20,9 @@ public final class ModelNodeCloner {
         if (source.meshGeometry() != null) {
             copy.setMeshGeometry(source.meshGeometry().copy());
         }
+        if (source.materialAssignment() != null) {
+            copy.setMaterialAssignment(source.materialAssignment().copy());
+        }
 
         copy.transform().position(
                 source.transform().x(),
