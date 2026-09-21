@@ -42,6 +42,7 @@ public final class CreateScreen extends Screen {
     private final CreateMeshModelingController meshModeling;
     private final CreateNodeActionController nodeActions;
     private final CreateSelectionHotkeyController selectionHotkeys;
+    private final CreateTransformHotkeyController transformHotkeys;
     private final CreateViewportHoverController hoverController =
             new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
@@ -70,6 +71,7 @@ public final class CreateScreen extends Screen {
         this.meshModeling = new CreateMeshModelingController(core, componentGizmo, componentTransform);
         this.nodeActions = new CreateNodeActionController(core);
         this.selectionHotkeys = new CreateSelectionHotkeyController(core, componentTransform);
+        this.transformHotkeys = new CreateTransformHotkeyController(core, meshModeling);
         this.cubeFaceEditor = new CubeFaceEditorController(gizmo);
         this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
     }
@@ -225,21 +227,8 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     return true;
 }
 
-        if (keyCode == 90 && hasControlDown()) {
-            if (hasShiftDown()) viewportContextHistoryRedo();
-            else viewportContextHistoryUndo();
-            return true;
-        }
-        if (keyCode == 89 && hasControlDown()) {
-            viewportContextHistoryRedo();
-            return true;
-        }
-
-        if (keyCode == GLFW.GLFW_KEY_T && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            interaction.selectThrough = !interaction.selectThrough;
-            interaction.throughLastIndex = -1;
-            interaction.throughLastX = Double.NaN;
-            interaction.throughLastY = Double.NaN;
+        ModelNode node = viewport.selection().first(core.editorContext().model());
+        if (transformHotkeys.handle(interaction, viewport, node, keyCode, hasShiftDown(), hasControlDown())) {
             return true;
         }
 
@@ -263,65 +252,9 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             return true;
         }
 
-        ModelNode node = viewport.selection().first(core.editorContext().model());
-        if (node != null) {
-            if (viewport.transform().mode() == TransformMode.GEOMETRY
-                    && viewport.meshComponentSelection().matches(node)
-                    && (viewport.meshComponentSelection().mode() == MeshSelectionMode.VERTEX
-                        || viewport.meshComponentSelection().mode() == MeshSelectionMode.EDGE)) {
-                double step = hasShiftDown() ? 0.1 : 0.25;
-                if (keyCode == GLFW.GLFW_KEY_LEFT) { meshModeling.moveSelectedComponents(-step, 0, 0); return true; }
-                if (keyCode == GLFW.GLFW_KEY_RIGHT) { meshModeling.moveSelectedComponents(step, 0, 0); return true; }
-                if (keyCode == GLFW.GLFW_KEY_DOWN) { meshModeling.moveSelectedComponents(0, 0, step); return true; }
-                if (keyCode == GLFW.GLFW_KEY_UP) { meshModeling.moveSelectedComponents(0, 0, -step); return true; }
-                if (keyCode == GLFW.GLFW_KEY_SPACE) { meshModeling.moveSelectedComponents(0, step, 0); return true; }
-            }
-            double step = hasShiftDown() ? 0.1 : 1.0;
-            if (viewport.transform().mode() == TransformMode.MOVE) {
-                if (keyCode == 263) { transformMove(node, -step, 0, 0); return true; }
-                if (keyCode == 262) { transformMove(node, step, 0, 0); return true; }
-                if (keyCode == 264) { transformMove(node, 0, 0, step); return true; }
-                if (keyCode == 265) { transformMove(node, 0, 0, -step); return true; }
-                if (keyCode == 32) { transformMove(node, 0, step, 0); return true; }
-            }
-            if (viewport.transform().mode() == TransformMode.ROTATE) {
-                if (keyCode == 263) { transformRotate(node, 0, -5, 0); return true; }
-                if (keyCode == 262) { transformRotate(node, 0, 5, 0); return true; }
-                if (keyCode == 264) { transformRotate(node, -5, 0, 0); return true; }
-                if (keyCode == 265) { transformRotate(node, 5, 0, 0); return true; }
-            }
-            if (viewport.transform().mode() == TransformMode.SCALE) {
-                if (keyCode == 263 || keyCode == 264) { transformScale(node, -0.1, -0.1, -0.1); return true; }
-                if (keyCode == 262 || keyCode == 265) { transformScale(node, 0.1, 0.1, 0.1); return true; }
-            }
-        }
-
         if (keyCode == 27) { resetThroughCycle(); componentTransformInput.disarm(); componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE); interaction.mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
-
-    private void transformMove(ModelNode node, double dx, double dy, double dz) {
-        var t=node.transform();
-        core.editorContext().history().execute(new SetTransformCommand(node,
-                t.x()+dx,t.y()+dy,t.z()+dz,t.rotationX(),t.rotationY(),t.rotationZ(),t.scaleX(),t.scaleY(),t.scaleZ()));
-    }
-
-    private void transformRotate(ModelNode node, double dx, double dy, double dz) {
-        var t=node.transform();
-        core.editorContext().history().execute(new SetTransformCommand(node,
-                t.x(),t.y(),t.z(),t.rotationX()+dx,t.rotationY()+dy,t.rotationZ()+dz,t.scaleX(),t.scaleY(),t.scaleZ()));
-    }
-
-    private void transformScale(ModelNode node, double dx, double dy, double dz) {
-        var t=node.transform();
-        core.editorContext().history().execute(new SetTransformCommand(node,
-                t.x(),t.y(),t.z(),t.rotationX(),t.rotationY(),t.rotationZ(),
-                Math.max(.01,t.scaleX()+dx),Math.max(.01,t.scaleY()+dy),Math.max(.01,t.scaleZ()+dz)));
-    }
-
-
-    private void viewportContextHistoryUndo() { core.editorContext().history().undo(); }
-    private void viewportContextHistoryRedo() { core.editorContext().history().redo(); }
 
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0 && topologyPathController.handleLeftClick(
