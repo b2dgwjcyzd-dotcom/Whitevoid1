@@ -9,6 +9,9 @@ import java.util.Set;
 import java.util.UUID;
 import whitevoid.create.model.CubeGeometry;
 import whitevoid.create.model.MeshGeometry;
+import whitevoid.create.model.MeshMaterialAssignment;
+import whitevoid.create.model.MaterialColor;
+import whitevoid.create.model.MaterialPalette;
 import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.Transform;
@@ -71,6 +74,14 @@ public final class ModelSerializer {
                 faces.add(new MeshFaceData(face.vertices()));
             }
             data.mesh = new MeshData(vertices, faces);
+            MeshMaterialAssignment materials = node.materialAssignment();
+            if (materials != null) {
+                List<Integer> palette = new ArrayList<>();
+                for (MaterialColor color : materials.palette().colors()) {
+                    palette.add(color.argb());
+                }
+                data.materials = new MaterialData(palette, materials.faceMaterials());
+            }
         }
 
         data.children = new ArrayList<>();
@@ -103,6 +114,21 @@ public final class ModelSerializer {
             for (MeshFaceData face : data.mesh.faces) {
                 if (face == null || face.vertices == null) {
                     throw new IllegalArgumentException("Invalid CREATE mesh face");
+                }
+            }
+            if (data.materials != null) {
+                if (data.materials.palette == null || data.materials.palette.isEmpty()
+                        || data.materials.faceMaterials == null
+                        || data.materials.faceMaterials.size() != data.mesh.faces.size()) {
+                    throw new IllegalArgumentException("Invalid CREATE material assignment");
+                }
+                for (Integer color : data.materials.palette) {
+                    if (color == null) throw new IllegalArgumentException("Invalid CREATE material color");
+                }
+                for (Integer index : data.materials.faceMaterials) {
+                    if (index == null || index < 0 || index >= data.materials.palette.size()) {
+                        throw new IllegalArgumentException("Invalid CREATE material index");
+                    }
                 }
             }
         }
@@ -148,6 +174,14 @@ public final class ModelSerializer {
                 }
             }
             node.setMeshGeometry(new MeshGeometry(vertices, faces));
+            if (data.materials != null) {
+                List<MaterialColor> colors = new ArrayList<>();
+                for (Integer color : data.materials.palette) {
+                    colors.add(new MaterialColor(color));
+                }
+                node.setMaterialAssignment(new MeshMaterialAssignment(
+                        new MaterialPalette(colors), data.materials.faceMaterials));
+            }
         }
 
         restoreChildren(node, data.children);
@@ -166,6 +200,7 @@ public final class ModelSerializer {
         TransformData transform;
         CubeData cube;
         MeshData mesh;
+        MaterialData materials;
         List<NodeData> children;
     }
 
@@ -177,6 +212,8 @@ public final class ModelSerializer {
     private record CubeData(double width, double height, double depth) {}
 
     private record MeshData(List<MeshVertexData> vertices, List<MeshFaceData> faces) {}
+
+    private record MaterialData(List<Integer> palette, List<Integer> faceMaterials) {}
 
     private record MeshVertexData(double x, double y, double z) {}
 
