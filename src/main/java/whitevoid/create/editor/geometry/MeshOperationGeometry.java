@@ -84,16 +84,18 @@ final class MeshOperationGeometry {
     }
 
     static boolean isSelectedEdge(MeshGeometry mesh, int a, int b, java.util.Set<Integer> selectedFaces) {
-        int count = 0;
-        for (int face : selectedFaces) {
-            int[] ids = mesh.faces().get(face).vertices();
-            for (int i = 0; i < ids.length; i++) {
-                if (sameEdge(ids[i], ids[(i + 1) % ids.length], a, b)) {
-                    count++;
-                    break;
-                }
-            }
+        List<Integer> adjacent = adjacentFaces(mesh, a, b);
+        if (adjacent.size() < 2) return false;
+
+        int selectedCount = 0;
+        for (int face : adjacent) {
+            if (selectedFaces.contains(face)) selectedCount++;
         }
-        return count >= 2;
+
+        // An edge is internal to the selected region only when every face
+        // incident to it is selected. On non-manifold topology, treating
+        // "two selected faces" as internal would hide the boundary against
+        // an unselected third face.
+        return selectedCount == adjacent.size();
     }
 }
