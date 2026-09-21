@@ -20,7 +20,7 @@ public final class CreateCore {
 
     public CreateCore() {
         this.registry = new CreateRegistry();
-        this.editorContext = new EditorContext();
+        this.editorContext = new EditorContext(this::markProjectDirty);
         Path projects = FabricLoader.getInstance().getConfigDir().resolve("whitevoid").resolve("create").resolve("projects");
         this.projectManager = new ProjectManager(projects);
         this.autosave = new ProjectAutosave(projectManager, Duration.ofSeconds(30));
