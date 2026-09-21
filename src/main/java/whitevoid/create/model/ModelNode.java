@@ -14,6 +14,7 @@ public final class ModelNode {
     private final Transform transform = new Transform();
     private CubeGeometry geometry;
     private MeshGeometry meshGeometry;
+    private MeshMaterialAssignment materialAssignment;
 
     public ModelNode(String name) {
         this(name, UUID.randomUUID());
@@ -34,6 +35,8 @@ public final class ModelNode {
 
     public MeshGeometry meshGeometry() { return meshGeometry; }
 
+    public MeshMaterialAssignment materialAssignment() { return materialAssignment; }
+
     /**
      * Returns the editable mesh, creating a mesh representation from the
      * legacy cube geometry on first access.
@@ -46,7 +49,25 @@ public final class ModelNode {
     }
 
     public void setMeshGeometry(MeshGeometry meshGeometry) {
+        if (meshGeometry == null) {
+            this.meshGeometry = null;
+            this.materialAssignment = null;
+            return;
+        }
+        if (materialAssignment != null
+                && materialAssignment.faceMaterials().size() != meshGeometry.faces().size()) {
+            this.materialAssignment = null;
+        }
         this.meshGeometry = meshGeometry;
+    }
+
+    public void setMaterialAssignment(MeshMaterialAssignment materialAssignment) {
+        if (materialAssignment != null
+                && meshGeometry != null
+                && materialAssignment.faceMaterials().size() != meshGeometry.faces().size()) {
+            throw new IllegalArgumentException("Material assignment must match mesh face count");
+        }
+        this.materialAssignment = materialAssignment == null ? null : materialAssignment.copy();
     }
 
     public void setGeometry(CubeGeometry geometry) {
