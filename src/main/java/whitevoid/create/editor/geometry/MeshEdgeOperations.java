@@ -244,6 +244,20 @@ public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> sel
         }
         if (valid.isEmpty()) return mesh.copy();
 
+        // Multi-edge bevel currently creates independent offset pairs per edge.
+        // Adjacent selected edges would therefore overwrite a shared face vertex
+        // and produce disconnected/invalid bevel geometry. Reject that case until
+        // the shared-vertex bevel algorithm is implemented explicitly.
+        java.util.Set<Integer> selectedVertices = new java.util.HashSet<>();
+        for (long key : valid) {
+            int a = (int) (key >>> 32);
+            int b = (int) key;
+            if (!selectedVertices.add(a) || !selectedVertices.add(b)) {
+                throw new IllegalArgumentException(
+                        "Bevel currently requires selected edges to have no shared vertices");
+            }
+        }
+
         List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
         java.util.Map<Long, int[]> faceCopies = new java.util.LinkedHashMap<>();
 
