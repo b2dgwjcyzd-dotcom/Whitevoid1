@@ -49,6 +49,16 @@ public final class CreateCore {
         }
     }
 
+    public Optional<CreateProject> openProject(java.util.UUID id) {
+        try {
+            Optional<CreateProject> opened = projectManager.open(id);
+            opened.ifPresent(project -> editorContext.setModel(project.model()));
+            return opened;
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to open CREATE project", exception);
+        }
+    }
+
     public void saveActiveProject() {
         CreateProject project = projectManager.activeProject()
                 .orElseThrow(() -> new IllegalStateException("No active CREATE project"));
