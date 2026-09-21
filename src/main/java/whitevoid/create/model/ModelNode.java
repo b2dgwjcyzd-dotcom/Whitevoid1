@@ -73,6 +73,7 @@ public final class ModelNode {
     public void setGeometry(CubeGeometry geometry) {
         this.geometry = geometry;
         this.meshGeometry = geometry == null ? null : MeshGeometry.fromCube(geometry);
+        this.materialAssignment = null;
     }
 
     public void addChild(ModelNode child) {
