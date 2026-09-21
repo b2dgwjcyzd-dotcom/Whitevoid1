@@ -48,7 +48,7 @@ public final class CubeFaceEditorController {
 
         ModelNode node = selectedNode(core);
         if (node == null || node.geometry() == null) {
-            cancel();
+            abort(core);
             return;
         }
 
@@ -86,6 +86,11 @@ public final class CubeFaceEditorController {
         if (!dragging) return;
 
         ModelNode node = selectedNode(core);
+        if (node == null || oldGeometry == null || node.geometry() == null) {
+            abort(core);
+            return;
+        }
+
         if (node != null && oldGeometry != null && node.geometry() != null) {
             var transform = node.transform();
             boolean changed = !oldGeometry.equals(node.geometry())
