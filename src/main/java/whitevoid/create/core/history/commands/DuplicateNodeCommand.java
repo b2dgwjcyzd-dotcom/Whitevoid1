@@ -39,6 +39,7 @@ public final class DuplicateNodeCommand implements Command, SelectionHistoryComm
         }
 
         if (index < 0) index = parent.indexOfChild(source) + 1;
+        if (duplicate.parent() != null) throw new IllegalStateException("Duplicate node is already attached");
         parent.addChild(Math.min(index, parent.children().size()), duplicate);
     }
 
