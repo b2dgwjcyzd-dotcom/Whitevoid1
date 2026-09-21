@@ -1014,13 +1014,12 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                                 proportionalEditing, proportionalRadius, hasControlDown(),
                                 MOVE_SNAP_INCREMENT);
                     } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
-                        double degrees=componentGizmo.rotationAmount(constrainedAxis, node, pivot,
+                        updated = componentTransform.applyRotate(
+                                updated, ids, node, projector,
                                 componentDragStartX, componentDragStartY, mouseX, mouseY,
-                                projector, width / 2, height / 2);
-                        if (hasControlDown()) degrees = snapScalar(degrees, ROTATE_SNAP_INCREMENT);
-                        updated=proportionalEditing
-                            ? MeshComponentTransforms.rotateProportional(updated, ids, pivot, proportionalRadius, axis, degrees)
-                            : MeshComponentTransforms.rotate(updated,ids,pivot,axis,degrees);
+                                width, height, componentConstraintAxis,
+                                proportionalEditing, proportionalRadius, hasControlDown(),
+                                ROTATE_SNAP_INCREMENT);
                     } else {
                         if (componentPlaneConstraint && constrainedAxis != ComponentTransformGizmo.Axis.NONE) {
                             ComponentTransformGizmo.Axis a1 = constrainedAxis == ComponentTransformGizmo.Axis.X
