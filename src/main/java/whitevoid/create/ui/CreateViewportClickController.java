@@ -82,8 +82,6 @@ public final class CreateViewportClickController {
                     interaction.componentDragging = true;
                     return true;
                 }
-            }
-
             if (meshComponentInteraction.handleClick(
                     core, interaction, selected, viewport, mouseX, mouseY, cx, cy,
                     interaction.selectThrough, altDown, shiftDown, controlDown)) {
