@@ -4,9 +4,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public final class Model {
-    private final ModelNode root = new ModelNode("Root");
+    private final ModelNode root;
+
+    public Model() {
+        this(UUID.randomUUID());
+    }
+
+    public Model(UUID rootId) {
+        root = new ModelNode("Root", Objects.requireNonNull(rootId, "rootId"));
+    }
 
     public static Model withDefaultCube() {
         Model model = new Model();
