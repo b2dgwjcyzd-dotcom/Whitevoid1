@@ -41,12 +41,16 @@ public final class CreateCore {
         if (active.isPresent()) {
             CreateProject project = active.get();
             editorContext.setModel(project.model());
+            editorContext.history().markSaved();
+            project.markClean();
             return project;
         }
 
         try {
             CreateProject created = projectManager.create("Untitled", ProjectType.MODEL);
             editorContext.setModel(created.model());
+            editorContext.history().markSaved();
+            created.markClean();
             return created;
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to create default CREATE project", exception);
@@ -56,7 +60,11 @@ public final class CreateCore {
     public Optional<CreateProject> openProject(java.util.UUID id) {
         try {
             Optional<CreateProject> opened = projectManager.open(id);
-            opened.ifPresent(project -> editorContext.setModel(project.model()));
+            opened.ifPresent(project -> {
+                editorContext.setModel(project.model());
+                editorContext.history().markSaved();
+                project.markClean();
+            });
             return opened;
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to open CREATE project", exception);
@@ -64,7 +72,10 @@ public final class CreateCore {
     }
 
     public void markProjectDirty() {
-        projectManager.activeProject().ifPresent(CreateProject::markDirty);
+        projectManager.activeProject().ifPresent(project -> {
+            if (editorContext.history().isAtSavedState()) project.markClean();
+            else project.markDirty();
+        });
     }
 
     public void tickAutosave() {
@@ -79,6 +90,7 @@ public final class CreateCore {
         }
         try {
             projectManager.save(project);
+            editorContext.history().markSaved();
         } catch (IOException exception) {
             throw new IllegalStateException("Unable to save CREATE project", exception);
         }
