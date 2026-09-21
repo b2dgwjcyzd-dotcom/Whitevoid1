@@ -1,11 +1,13 @@
 package whitevoid.create.core.history.commands;
 
+import java.util.UUID;
 import whitevoid.create.core.history.Command;
+import whitevoid.create.core.history.SelectionHistoryCommand;
 import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
 import whitevoid.create.model.ModelNodeCloner;
 
-public final class DuplicateNodeCommand implements Command {
+public final class DuplicateNodeCommand implements Command, SelectionHistoryCommand {
     private final Model model;
     private final ModelNode source;
     private ModelNode duplicate;
@@ -18,8 +20,12 @@ public final class DuplicateNodeCommand implements Command {
     }
 
     @Override public void execute() {
-        parent = source.parent();
-        if (parent == null) throw new IllegalStateException("Cannot duplicate the model root");
+        if (parent == null) {
+            parent = source.parent();
+            if (parent == null) throw new IllegalStateException("Cannot duplicate the model root");
+        } else if (source.parent() != parent) {
+            throw new IllegalStateException("Duplicate source changed parent");
+        }
 
         if (duplicate == null) {
             duplicate = ModelNodeCloner.deepCopy(source);
@@ -41,6 +47,9 @@ public final class DuplicateNodeCommand implements Command {
     }
 
     @Override public String name() { return "Duplicate Node"; }
+
+    @Override public UUID selectionAfterUndo() { return source.id(); }
+    @Override public UUID selectionAfterRedo() { return duplicate.id(); }
 
     public ModelNode duplicatedNode() { return duplicate; }
 }
