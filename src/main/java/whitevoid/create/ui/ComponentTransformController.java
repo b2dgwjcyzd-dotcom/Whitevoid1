@@ -133,6 +133,60 @@ public final class ComponentTransformController {
                 : MeshComponentTransforms.translate(source, ids, dx, dy, dz);
     }
 
+    public MeshGeometry applyNumeric(MeshGeometry source, java.util.Set<Integer> ids, double value,
+                                      boolean planeConstraint, boolean proportional, double proportionalRadius) {
+        if (source == null || ids == null || ids.isEmpty() || pivot == null
+                || axis == ComponentTransformGizmo.Axis.NONE) return source;
+
+        int axisIndex = axis == ComponentTransformGizmo.Axis.X ? 0
+                : axis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
+
+        return switch (operation) {
+            case MOVE -> {
+                MeshGeometry result = source;
+                if (planeConstraint) {
+                    ComponentTransformGizmo.Axis a1 = axis == ComponentTransformGizmo.Axis.X
+                            ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
+                    ComponentTransformGizmo.Axis a2 = axis == ComponentTransformGizmo.Axis.Z
+                            ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
+                    result = MeshComponentTransforms.translate(result, ids,
+                            a1 == ComponentTransformGizmo.Axis.X ? value : 0,
+                            a1 == ComponentTransformGizmo.Axis.Y ? value : 0,
+                            a1 == ComponentTransformGizmo.Axis.Z ? value : 0);
+                    result = MeshComponentTransforms.translate(result, ids,
+                            a2 == ComponentTransformGizmo.Axis.X ? value : 0,
+                            a2 == ComponentTransformGizmo.Axis.Y ? value : 0,
+                            a2 == ComponentTransformGizmo.Axis.Z ? value : 0);
+                } else {
+                    result = proportional
+                            ? MeshComponentTransforms.translateProportional(result, ids, pivot, proportionalRadius,
+                                axisIndex == 0 ? value : 0, axisIndex == 1 ? value : 0, axisIndex == 2 ? value : 0)
+                            : MeshComponentTransforms.translate(result, ids,
+                                axisIndex == 0 ? value : 0, axisIndex == 1 ? value : 0, axisIndex == 2 ? value : 0);
+                }
+                yield result;
+            }
+            case ROTATE -> proportional
+                    ? MeshComponentTransforms.rotateProportional(source, ids, pivot, proportionalRadius, axisIndex, value)
+                    : MeshComponentTransforms.rotate(source, ids, pivot, axisIndex, value);
+            case SCALE -> {
+                double factor = Math.max(0.01, value);
+                MeshGeometry result = source;
+                if (planeConstraint) {
+                    int a1 = axisIndex == 0 ? 1 : 0;
+                    int a2 = axisIndex == 2 ? 1 : 2;
+                    result = MeshComponentTransforms.scale(result, ids, pivot, a1, factor);
+                    result = MeshComponentTransforms.scale(result, ids, pivot, a2, factor);
+                } else {
+                    result = proportional
+                            ? MeshComponentTransforms.scaleProportional(result, ids, pivot, proportionalRadius, axisIndex, factor)
+                            : MeshComponentTransforms.scale(result, ids, pivot, axisIndex, factor);
+                }
+                yield result;
+            }
+        };
+    }
+
     private static double snap(double value, double increment) {
         if (increment <= 0.0) return value;
         return Math.round(value / increment) * increment;
