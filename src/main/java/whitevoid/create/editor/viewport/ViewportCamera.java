@@ -31,6 +31,12 @@ public final class ViewportCamera {
         mode = ViewportMode.PERSPECTIVE;
     }
 
+    public void toggleMode() {
+        mode = mode == ViewportMode.PERSPECTIVE
+                ? ViewportMode.ORTHOGRAPHIC
+                : ViewportMode.PERSPECTIVE;
+    }
+
     public double yaw() { return yaw; }
     public double pitch() { return pitch; }
     public double distance() { return distance; }
