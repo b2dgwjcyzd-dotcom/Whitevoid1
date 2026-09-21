@@ -819,7 +819,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
     @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
         if (componentDragging && button == 0) {
             ModelNode node=core.editorContext().viewport().selection().first(core.editorContext().model());
-            componentTransform.finish(core, node);
+            componentTransformMouse.finish(core, node);
             componentDragging=false;
             componentTransformInput.disarm();
             componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE);
