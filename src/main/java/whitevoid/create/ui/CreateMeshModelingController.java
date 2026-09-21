@@ -106,7 +106,8 @@ public final class CreateMeshModelingController {
             MeshOperations.OperationResult result =
                     MeshOperations.extrudeEdgesResult(oldMesh, selected, amount);
             core.editorContext().history().execute(
-                    new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
+                    new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
+                            MeshMaterialOperations.apply(node.materialAssignment(), result)));
             selection.applySelectionHint(node, result);
             return;
         }
@@ -115,10 +116,15 @@ public final class CreateMeshModelingController {
         int b = selection.indexB();
         if (a < 0 || b < 0) return;
 
-        var newMesh = MeshOperations.extrudeEdge(oldMesh, a, b, amount);
+        MeshOperations.OperationResult result =
+                MeshOperations.extrudeEdgesResult(
+                        oldMesh,
+                        java.util.Set.of(MeshTopologySelection.edgeKey(a, b)),
+                        amount);
         core.editorContext().history().execute(
-                new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-        selection.selectEdge(node, newMesh.vertices().size() - 2, newMesh.vertices().size() - 1);
+                new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
+                        MeshMaterialOperations.apply(node.materialAssignment(), result)));
+        selection.applySelectionHint(node, result);
     }
 
     public void bevelSelectedEdge(double amount) {
@@ -150,10 +156,15 @@ public final class CreateMeshModelingController {
                 int b = selection.indexB();
                 if (a < 0 || b < 0) return;
 
-                var newMesh = MeshOperations.bevelEdge(oldMesh, a, b, amount);
+                MeshOperations.OperationResult result =
+                        MeshOperations.bevelEdgesResult(
+                                oldMesh,
+                                java.util.Set.of(MeshTopologySelection.edgeKey(a, b)),
+                                amount);
                 core.editorContext().history().execute(
-                        new SetMeshGeometryCommand(node, oldMesh.copy(), newMesh));
-                selection.clear();
+                        new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
+                                MeshMaterialOperations.apply(node.materialAssignment(), result)));
+                selection.applySelectionHint(node, result);
             }
         } catch (IllegalArgumentException ignored) {
             // Bevel requires manifold selected edges with exactly two adjacent faces.
