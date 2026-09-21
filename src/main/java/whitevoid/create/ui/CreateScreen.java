@@ -41,6 +41,7 @@ public final class CreateScreen extends Screen {
             new CreateViewportNodeSelectionController();
     private final CreateMeshModelingController meshModeling;
     private final CreateNodeActionController nodeActions;
+    private final CreateSelectionHotkeyController selectionHotkeys;
     private final CreateViewportHoverController hoverController =
             new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
@@ -68,6 +69,7 @@ public final class CreateScreen extends Screen {
         this.core = core;
         this.meshModeling = new CreateMeshModelingController(core, componentGizmo, componentTransform);
         this.nodeActions = new CreateNodeActionController(core);
+        this.selectionHotkeys = new CreateSelectionHotkeyController(core, componentTransform);
         this.cubeFaceEditor = new CubeFaceEditorController(gizmo);
         this.viewportInput = new CreateViewportInput(core.editorContext().viewport().viewport().camera());
     }
@@ -104,51 +106,8 @@ public final class CreateScreen extends Screen {
             return true;
         }
 
-if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            var node = viewport.selection().first(core.editorContext().model());
-            if (node != null) {
-                if (hasAltDown()) viewport.meshComponentSelection().clear();
-                else if (hasControlDown()) viewport.meshComponentSelection().invert(node);
-                else viewport.meshComponentSelection().selectAll(node);
-            }
-            return true;
-        }
-
-        if (viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
-            ComponentTransformGizmo.Axis requested = switch (keyCode) {
-                case GLFW.GLFW_KEY_X -> ComponentTransformGizmo.Axis.X;
-                case GLFW.GLFW_KEY_Y -> ComponentTransformGizmo.Axis.Y;
-                case GLFW.GLFW_KEY_Z -> ComponentTransformGizmo.Axis.Z;
-                default -> ComponentTransformGizmo.Axis.NONE;
-            };
-            if (requested != ComponentTransformGizmo.Axis.NONE && componentTransformInput.armed()) {
-                if (componentTransform.constraintAxis() == requested) {
-                    componentTransform.setConstraintMode(hasShiftDown() ? ComponentTransformController.ConstraintMode.PLANE : ComponentTransformController.ConstraintMode.AXIS);
-                    if (!hasShiftDown()) {
-                        componentTransform.clearConstraint();
-                        componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS);
-                    }
-                } else {
-                    componentTransform.setConstraintAxis(requested);
-                    componentTransform.setConstraintMode(hasShiftDown() ? ComponentTransformController.ConstraintMode.PLANE : ComponentTransformController.ConstraintMode.AXIS);
-                }
-                return true;
-            }
-        }
-        if (keyCode == 80 && viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
-            componentTransform.cyclePivotMode();
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_1 && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            setMeshSelectionMode(MeshSelectionMode.VERTEX);
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_2 && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            setMeshSelectionMode(MeshSelectionMode.EDGE);
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_3 && viewport.transform().mode() == TransformMode.GEOMETRY) {
-            setMeshSelectionMode(MeshSelectionMode.FACE);
+        if (selectionHotkeys.handle(
+                interaction, viewport, keyCode, hasShiftDown(), hasAltDown(), hasControlDown())) {
             return true;
         }
 
@@ -339,13 +298,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
 
         if (keyCode == 27) { resetThroughCycle(); componentTransformInput.disarm(); componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE); interaction.mirrorArmed=false; viewport.transform().setMode(TransformMode.SELECT); }
         return super.keyPressed(keyCode, scanCode, modifiers);
-    }
-
-    private void setMeshSelectionMode(MeshSelectionMode mode) {
-        var selection = core.editorContext().viewport().meshComponentSelection();
-        selection.clear();
-        resetThroughCycle();
-        selection.setMode(mode);
     }
 
     private void transformMove(ModelNode node, double dx, double dy, double dz) {
