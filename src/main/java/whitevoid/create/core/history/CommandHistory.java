@@ -13,11 +13,11 @@ public final class CommandHistory {
     private final Deque<Command> redoStack = new ArrayDeque<>();
     private final int maxSize;
     private final Runnable mutationListener;
+    private Command lastUndone;
+    private Command lastRedone;
 
     public CommandHistory() { this(256, () -> {}); }
-
     public CommandHistory(int maxSize) { this(maxSize, () -> {}); }
-
     public CommandHistory(Runnable mutationListener) { this(256, mutationListener); }
 
     public CommandHistory(int maxSize, Runnable mutationListener) {
@@ -31,15 +31,18 @@ public final class CommandHistory {
         command.execute();
         undoStack.push(command);
         redoStack.clear();
+        lastUndone = null;
+        lastRedone = null;
         trim();
         mutationListener.run();
     }
 
-    /** Records a command whose state change has already been applied by an interactive editor operation. */
     public void recordExecuted(Command command) {
         Objects.requireNonNull(command, "command");
         undoStack.push(command);
         redoStack.clear();
+        lastUndone = null;
+        lastRedone = null;
         trim();
         mutationListener.run();
     }
@@ -49,6 +52,8 @@ public final class CommandHistory {
         Command command = undoStack.pop();
         command.undo();
         redoStack.push(command);
+        lastUndone = command;
+        lastRedone = null;
         mutationListener.run();
         return true;
     }
@@ -58,14 +63,21 @@ public final class CommandHistory {
         Command command = redoStack.pop();
         command.redo();
         undoStack.push(command);
+        lastRedone = command;
+        lastUndone = null;
         trim();
         mutationListener.run();
         return true;
     }
 
+    public Command lastUndone() { return lastUndone; }
+    public Command lastRedone() { return lastRedone; }
+
     public void clear() {
         undoStack.clear();
         redoStack.clear();
+        lastUndone = null;
+        lastRedone = null;
     }
 
     public boolean canUndo() { return !undoStack.isEmpty(); }
