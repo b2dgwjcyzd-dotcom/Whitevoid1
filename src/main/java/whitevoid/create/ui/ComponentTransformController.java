@@ -159,6 +159,62 @@ public final class ComponentTransformController {
                 : MeshComponentTransforms.rotate(source, ids, pivot, axisIndex, degrees);
     }
 
+    public MeshGeometry applyScale(MeshGeometry source, java.util.Set<Integer> ids, ModelNode node,
+                                   ViewportProjector projector, double totalDx, double totalDy,
+                                   int viewportWidth, int viewportHeight,
+                                   ComponentTransformGizmo.Axis constraintAxis,
+                                   boolean planeConstraint, boolean proportional,
+                                   double proportionalRadius, boolean snap, double snapIncrement) {
+        if (!dragging || source == null || ids == null || ids.isEmpty() || node == null || pivot == null) {
+            return source;
+        }
+
+        ComponentTransformGizmo.Axis constrainedAxis =
+                constraintAxis != null && constraintAxis != ComponentTransformGizmo.Axis.NONE
+                        ? constraintAxis : axis;
+
+        if (planeConstraint && constrainedAxis != ComponentTransformGizmo.Axis.NONE) {
+            ComponentTransformGizmo.Axis a1 = constrainedAxis == ComponentTransformGizmo.Axis.X
+                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
+            ComponentTransformGizmo.Axis a2 = constrainedAxis == ComponentTransformGizmo.Axis.Z
+                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
+
+            double factor1 = gizmo.scaleFactor(a1, projector, node, pivot,
+                    viewportWidth / 2, viewportHeight / 2, totalDx, totalDy);
+            double factor2 = gizmo.scaleFactor(a2, projector, node, pivot,
+                    viewportWidth / 2, viewportHeight / 2, totalDx, totalDy);
+
+            if (snap) {
+                factor1 = snapScaleFactor(factor1, snapIncrement);
+                factor2 = snapScaleFactor(factor2, snapIncrement);
+            }
+
+            source = scaleAxis(source, ids, pivot, proportional, proportionalRadius, a1, factor1);
+            return scaleAxis(source, ids, pivot, proportional, proportionalRadius, a2, factor2);
+        }
+
+        double factor = gizmo.scaleFactor(constrainedAxis, projector, node, pivot,
+                viewportWidth / 2, viewportHeight / 2, totalDx, totalDy);
+        if (snap) factor = snapScaleFactor(factor, snapIncrement);
+        return scaleAxis(source, ids, pivot, proportional, proportionalRadius, constrainedAxis, factor);
+    }
+
+    private static MeshGeometry scaleAxis(MeshGeometry source, java.util.Set<Integer> ids,
+                                          TransformMath.Point pivot, boolean proportional,
+                                          double proportionalRadius,
+                                          ComponentTransformGizmo.Axis axis, double factor) {
+        int axisIndex = axis == ComponentTransformGizmo.Axis.X ? 0
+                : axis == ComponentTransformGizmo.Axis.Y ? 1 : 2;
+        return proportional
+                ? MeshComponentTransforms.scaleProportional(source, ids, pivot, proportionalRadius, axisIndex, factor)
+                : MeshComponentTransforms.scale(source, ids, pivot, axisIndex, factor);
+    }
+
+    private static double snapScaleFactor(double factor, double increment) {
+        if (increment <= 0.0) return factor;
+        return Math.max(0.01, Math.round(factor / increment) * increment);
+    }
+
     public void updateMouse(double mouseX, double mouseY) {
         if (!dragging) return;
         lastX = mouseX;
