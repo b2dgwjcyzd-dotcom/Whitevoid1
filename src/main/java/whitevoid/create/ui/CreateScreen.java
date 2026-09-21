@@ -45,6 +45,8 @@ public final class CreateScreen extends Screen {
             new CreateComponentBoxSelectionController();
     private final CreateViewportNodeSelectionController nodeSelection =
             new CreateViewportNodeSelectionController();
+    private final CreateViewportHoverController hoverController =
+            new CreateViewportHoverController(gizmo, componentGizmo, componentTransform, meshEditorHover);
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -828,35 +830,9 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
 
     @Override public void mouseMoved(double mouseX, double mouseY) {
         if (!interaction.gizmoDragging && !interaction.componentDragging) {
-            ViewportContext viewport=core.editorContext().viewport();
-            ModelNode selected=viewport.selection().first(core.editorContext().model());
-            if(selected!=null && viewport.transform().mode()==TransformMode.GEOMETRY) {
-                interaction.hoveredAxis=gizmo.geometryHit(selected,new ViewportProjector(viewport.viewport().camera()),
-                        mouseX,mouseY,width/2,height/2);
-                if (viewport.meshComponentSelection().matches(selected) && viewport.meshComponentSelection().size()>0) {
-                    var projector=new ViewportProjector(viewport.viewport().camera());
-                    interaction.hoveredComponentAxis=componentGizmo.hover(selected,
-                            viewport.meshComponentSelection().mode(),
-                            viewport.meshComponentSelection().vertexIndices(),
-                            viewport.meshComponentSelection().edgeIndices(),
-                            viewport.meshComponentSelection().faceIndices(),
-                            projector,mouseX,mouseY,width/2,height/2,componentTransform.operation(),componentTransform.pivotMode(),
-                            viewport.meshComponentSelection());
-                } else interaction.hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
-                MeshEditorHoverController.HoverResult meshHover = meshEditorHover.resolve(
-                        selected, viewport, mouseX, mouseY, width / 2, height / 2,
-                        interaction.hoveredAxis, interaction.hoveredComponentAxis);
-                interaction.hoveredMeshFace = meshHover.face();
-                interaction.hoveredMeshVertex = meshHover.vertex();
-                interaction.hoveredMeshEdgeA = meshHover.edgeA();
-                interaction.hoveredMeshEdgeB = meshHover.edgeB();
-                interaction.hoveredFace = meshEditorHover.primitiveFace(
-                        selected, viewport, mouseX, mouseY, width / 2, height / 2,
-                        interaction.hoveredAxis, interaction.hoveredComponentAxis);
-            } else if(selected!=null && viewport.transform().mode()!=TransformMode.SELECT) {
-                interaction.hoveredAxis=gizmo.hoveredAxis(selected,viewport.transform().mode(),
-                        new ViewportProjector(viewport.viewport().camera()),mouseX,mouseY,width/2,height/2);
-            } else interaction.hoveredAxis=ViewportGizmo.Axis.NONE;
+            ViewportContext viewport = core.editorContext().viewport();
+            ModelNode selected = viewport.selection().first(core.editorContext().model());
+            hoverController.update(interaction, viewport, selected, mouseX, mouseY, width, height);
         }
         super.mouseMoved(mouseX, mouseY);
     }
