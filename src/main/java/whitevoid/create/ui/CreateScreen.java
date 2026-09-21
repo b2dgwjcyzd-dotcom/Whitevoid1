@@ -61,10 +61,6 @@ public final class CreateScreen extends Screen {
     private ComponentTransformGizmo.Operation componentOperation = ComponentTransformGizmo.Operation.MOVE;
     private ComponentTransformGizmo.PivotMode componentPivotMode = ComponentTransformGizmo.PivotMode.MEDIAN;
     private ComponentTransformGizmo.Axis hoveredComponentAxis = ComponentTransformGizmo.Axis.NONE;
-    private MeshGeometry componentDragOldMesh;
-    private double componentDragLastX, componentDragLastY;
-    private double componentDragStartX, componentDragStartY;
-    private TransformMath.Point componentDragPivot;
     private ComponentTransformGizmo.Axis mirrorAxis = ComponentTransformGizmo.Axis.X;
     private ComponentTransformGizmo.Axis componentConstraintAxis = ComponentTransformGizmo.Axis.NONE;
     private boolean componentPlaneConstraint;
@@ -782,13 +778,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             viewport.meshComponentSelection(), mouseX, mouseY);
                     componentDragging = componentTransform.dragging();
                     componentKeyboardTransformArmed = false;
-                    componentDragStartX = mouseX;
-                    componentDragStartY = mouseY;
-                    componentDragLastX = mouseX;
-                    componentDragLastY = mouseY;
-                    componentDragOldMesh = selected.ensureMeshGeometry();
-                    if (componentDragOldMesh != null) componentDragOldMesh = componentDragOldMesh.copy();
-                    componentDragPivot = componentTransform.pivot();
                     return true;
                 }
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
@@ -915,12 +904,6 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
             componentPlaneConstraint=false;
             componentAxis=ComponentTransformGizmo.Axis.NONE;
             hoveredComponentAxis=ComponentTransformGizmo.Axis.NONE;
-            componentDragOldMesh=null;
-            componentDragPivot=null;
-            componentDragStartX=0.0;
-            componentDragStartY=0.0;
-            componentDragLastX=0.0;
-            componentDragLastY=0.0;
             return true;
         }
         if (componentBoxSelecting && button == 0) {
@@ -998,8 +981,8 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     java.util.Set<Integer> ids=MeshComponentTransforms.affectedVertices(mesh,selection.mode(),
                             selection.vertexIndices(),selection.edgeIndices(),selection.faceIndices());
                     var projector=new ViewportProjector(core.editorContext().viewport().viewport().camera());
-                    var updated=componentDragOldMesh.copy();
-                    var pivot=componentDragPivot;
+                    var updated=node.ensureMeshGeometry().copy();
+                    var pivot=componentTransform.pivot();
                     ComponentTransformGizmo.Axis constrainedAxis = componentConstraintAxis != ComponentTransformGizmo.Axis.NONE
                             ? componentConstraintAxis : componentAxis;
                     int axis=constrainedAxis==ComponentTransformGizmo.Axis.X?0
@@ -1016,7 +999,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                     } else if(componentOperation==ComponentTransformGizmo.Operation.ROTATE){
                         updated = componentTransform.applyRotate(
                                 updated, ids, node, projector,
-                                componentDragStartX, componentDragStartY, mouseX, mouseY,
+                                componentTransform.startX(), componentTransform.startY(), mouseX, mouseY,
                                 width, height, componentConstraintAxis,
                                 proportionalEditing, proportionalRadius, hasControlDown(),
                                 ROTATE_SNAP_INCREMENT);
