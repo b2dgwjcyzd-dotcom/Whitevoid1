@@ -1,24 +1,14 @@
 package whitevoid.create.ui;
 
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 import whitevoid.create.core.CreateCore;
-import whitevoid.create.core.history.commands.SetTransformCommand;
-import whitevoid.create.core.history.commands.ResizeCubeFaceCommand;
-import whitevoid.create.core.history.commands.SetMeshGeometryCommand;
-import whitevoid.create.editor.geometry.MeshOperations;
-import whitevoid.create.editor.geometry.MeshComponentTransforms;
-import whitevoid.create.editor.geometry.MeshComponentSnapper;
-import whitevoid.create.editor.geometry.MeshSelectionMode;
 import whitevoid.create.editor.geometry.GeometryFace;
 import whitevoid.create.editor.transform.TransformMode;
 import whitevoid.create.editor.viewport.ViewportContext;
 import whitevoid.create.model.ModelNode;
-import whitevoid.create.model.MeshGeometry;
-import whitevoid.create.model.TransformMath;
 
 public final class CreateScreen extends Screen {
     private final CreateCore core;
@@ -62,10 +52,6 @@ public final class CreateScreen extends Screen {
     private final CreateViewportOverlayRenderer overlayRenderer = new CreateViewportOverlayRenderer();
 
     private final CubeFaceEditorController cubeFaceEditor;
-
-    private static final double MOVE_SNAP_INCREMENT = 0.25;
-    private static final double ROTATE_SNAP_INCREMENT = 5.0;
-    private static final double SCALE_SNAP_INCREMENT = 0.05;
 
     public CreateScreen(CreateCore core) {
         super(Text.literal("CREATE"));
@@ -164,8 +150,6 @@ public final class CreateScreen extends Screen {
             if (selected != null && viewport.transform().mode() == TransformMode.GEOMETRY) {
                 int cx=width/2, cy=height/2;
                 ViewportProjector projector = new ViewportProjector(viewport.viewport().camera());
-                var meshMode = viewport.meshComponentSelection().mode();
-
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0
                         && componentTransformInput.armed()
                         && componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
@@ -341,17 +325,6 @@ public final class CreateScreen extends Screen {
         );
         overlayRenderer.renderComponentSelectionBox(context, interaction);
         super.render(context, mouseX, mouseY, delta);
-    }
-
-    private static double snapScalar(double value, double increment) {
-        if (increment <= 0.0) return value;
-        return Math.rint(value / increment) * increment;
-    }
-
-    private static double snapScaleFactor(double factor, double increment) {
-        if (increment <= 0.0) return Math.max(0.01, factor);
-        double delta = factor - 1.0;
-        return Math.max(0.01, 1.0 + Math.rint(delta / increment) * increment);
     }
 
     @Override public boolean shouldPause() { return false; }
