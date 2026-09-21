@@ -6,90 +6,26 @@ import whitevoid.create.model.MeshGeometry;
 
 /**
  * Vertex-focused mesh modeling operations for CREATE.
+ *
+ * <p>This class intentionally owns only vertex operations. Edge and face
+ * operations live in their dedicated operation classes.</p>
  */
 public final class MeshVertexOperations {
     private MeshVertexOperations() {}
 
     public static MeshGeometry moveVertex(MeshGeometry mesh, int vertexIndex,
-                                             double dx, double dy, double dz) {
+                                           double dx, double dy, double dz) {
         if (mesh == null) throw new IllegalArgumentException("Mesh cannot be null");
         if (vertexIndex < 0 || vertexIndex >= mesh.vertices().size()) {
             throw new IllegalArgumentException("Invalid vertex index: " + vertexIndex);
         }
 
         List<MeshGeometry.Vertex> vertices = new ArrayList<>(mesh.vertices());
-        var v = vertices.get(vertexIndex);
+        MeshGeometry.Vertex vertex = vertices.get(vertexIndex);
         vertices.set(vertexIndex, new MeshGeometry.Vertex(
-                v.x() + dx, v.y() + dy, v.z() + dz));
+                vertex.x() + dx,
+                vertex.y() + dy,
+                vertex.z() + dz));
         return new MeshGeometry(vertices, mesh.faces());
-    }
-
-        public static MeshGeometry extrudeEdge(MeshGeometry mesh, int a, int b, double amount) {
-        return MeshEdgeOperations.extrudeEdge(mesh, a, b, amount);
-    }
-
-        public static MeshGeometry bevelEdge(MeshGeometry mesh, int a, int b, double amount) {
-        return MeshEdgeOperations.bevelEdge(mesh, a, b, amount);
-    }
-
-    /**
-     * Extrudes multiple selected edges as one connected strip.
-     * Shared vertices are duplicated once and every selected edge receives
-     * a connecting quad, so edge loops/rings can be extruded together.
-     */
-        public static MeshGeometry extrudeEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
-        return MeshEdgeOperations.extrudeEdges(mesh, selectedEdges, amount);
-    }
-
-    /**
-     * Bevels a selected manifold edge region in one operation.
-     * Each selected edge must have exactly two adjacent faces.
-     */
-        public static OperationResult bevelEdgesResult(
-            MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
-        return MeshEdgeOperations.bevelEdgesResult(mesh, selectedEdges, amount);
-    }
-
-        public static MeshGeometry bevelEdges(MeshGeometry mesh, java.util.Set<Long> selectedEdges, double amount) {
-        return MeshEdgeOperations.bevelEdges(mesh, selectedEdges, amount);
-    }
-
-        public static OperationResult extrudeFacesResult(MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
-        return MeshFaceOperations.extrudeFacesResult(mesh, selectedFaces, amount);
-    }
-
-        public static OperationResult insetFacesResult(MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
-        return MeshFaceOperations.insetFacesResult(mesh, selectedFaces, amount);
-    }
-
-        public static OperationResult extrudeFaceResult(MeshGeometry mesh, int faceIndex, double amount) {
-        return MeshFaceOperations.extrudeFaceResult(mesh, faceIndex, amount);
-    }
-
-        public static MeshGeometry extrudeFace(MeshGeometry mesh, int faceIndex, double amount) {
-        return MeshFaceOperations.extrudeFace(mesh, faceIndex, amount);
-    }
-
-    /** Extrudes a selected face region as one connected operation. */
-        public static MeshGeometry extrudeFaces(MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
-        return MeshFaceOperations.extrudeFaces(mesh, selectedFaces, amount);
-    }
-
-
-    /**
-     * Insets a connected face region as one operation. Shared vertices are
-     * duplicated once, internal selected edges stay internal, and only the
-     * outer boundary receives the inset rim.
-     */
-        public static MeshGeometry insetFaces(MeshGeometry mesh, java.util.Set<Integer> selectedFaces, double amount) {
-        return MeshFaceOperations.insetFaces(mesh, selectedFaces, amount);
-    }
-
-        public static OperationResult insetFaceResult(MeshGeometry mesh, int faceIndex, double amount) {
-        return MeshFaceOperations.insetFaceResult(mesh, faceIndex, amount);
-    }
-
-        public static MeshGeometry insetFace(MeshGeometry mesh, int faceIndex, double amount) {
-        return MeshFaceOperations.insetFace(mesh, faceIndex, amount);
     }
 }
