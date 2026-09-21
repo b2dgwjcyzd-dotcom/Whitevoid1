@@ -107,6 +107,18 @@ public final class CubeFaceEditorController {
         cancel();
     }
 
+    /** Cancels the active drag and restores the state captured at begin(). */
+    public void abort(CreateCore core) {
+        if (!dragging) return;
+
+        ModelNode node = selectedNode(core);
+        if (node != null && oldGeometry != null) {
+            node.setGeometry(oldGeometry);
+            node.transform().position(oldX, oldY, oldZ);
+        }
+        cancel();
+    }
+
     public void cancel() {
         dragging = false;
         activeFace = GeometryFace.NONE;
