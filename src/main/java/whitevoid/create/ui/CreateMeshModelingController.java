@@ -3,6 +3,7 @@ package whitevoid.create.ui;
 import whitevoid.create.core.CreateCore;
 import whitevoid.create.core.history.commands.SetMeshGeometryCommand;
 import whitevoid.create.editor.geometry.MeshOperations;
+import whitevoid.create.editor.geometry.MeshMaterialOperations;
 import whitevoid.create.editor.geometry.MeshComponentTransforms;
 import whitevoid.create.editor.geometry.MeshSelectionMode;
 import whitevoid.create.editor.geometry.MeshTopologySelection;
@@ -105,7 +106,8 @@ public final class CreateMeshModelingController {
             MeshOperations.OperationResult result =
                     MeshOperations.extrudeEdgesResult(oldMesh, selected, amount);
             core.editorContext().history().execute(
-                    new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh()));
+                    new SetMeshGeometryCommand(node, oldMesh.copy(), result.mesh(),
+                        MeshMaterialOperations.apply(node.materialAssignment(), result)));
             selection.applySelectionHint(node, result);
             return;
         }
