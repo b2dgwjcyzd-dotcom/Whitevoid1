@@ -311,6 +311,16 @@ public final class ComponentTransformController {
         cancel();
     }
 
+    /** Cancels the active drag and restores the mesh snapshot captured at begin(). */
+    public void abort(CreateCore core, ModelNode node) {
+        if (!dragging) return;
+
+        if (node != null && oldMesh != null) {
+            node.setMeshGeometry(oldMesh.copy());
+        }
+        cancel();
+    }
+
     public void cancel() {
         dragging = false;
         oldMesh = null;
