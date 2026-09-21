@@ -13,7 +13,7 @@ public final class MeshComponentTopologySelectionController {
         if (selection == null || node == null) return;
         selection.setMode(MeshSelectionMode.EDGE);
         for (long edge : MeshTopologySelection.edgeLoop(node.ensureMeshGeometry(), a, b)) {
-            selection.addEdge(node, MeshTopologySelection.edgeA(edge), MeshTopologySelection.edgeB(edge));
+            selection.addEdge(node, (int) (edge >>> 32), (int) edge);
         }
     }
 
@@ -33,7 +33,7 @@ public final class MeshComponentTopologySelectionController {
         if (mesh == null) return;
         selection.setMode(MeshSelectionMode.EDGE);
         for (long edge : MeshTopologySelection.edgeRing(mesh, a, b)) {
-            selection.addEdge(node, MeshTopologySelection.edgeA(edge), MeshTopologySelection.edgeB(edge));
+            selection.addEdge(node, (int) (edge >>> 32), (int) edge);
         }
     }
 
@@ -61,7 +61,7 @@ public final class MeshComponentTopologySelectionController {
         MeshGeometry mesh = node.ensureMeshGeometry();
         if (mesh == null) return;
         selection.setMode(MeshSelectionMode.EDGE);
-        List<Long> path = MeshTopologySelection.shortestEdgePath(mesh, start, goal);
+        java.util.Set<Long> path = MeshTopologySelection.shortestEdgePath(mesh, start, goal);
         for (long edge : path) {
             selection.addEdge(node, MeshTopologySelection.edgeA(edge), MeshTopologySelection.edgeB(edge));
         }
@@ -69,7 +69,7 @@ public final class MeshComponentTopologySelectionController {
             List<Integer> vertices = MeshTopologySelection.shortestVertexPath(mesh, start, goal);
             if (vertices.size() >= 2) {
                 long edge = MeshTopologySelection.edgeKey(vertices.get(vertices.size() - 2), goal);
-                selection.addEdge(node, MeshTopologySelection.edgeA(edge), MeshTopologySelection.edgeB(edge));
+                selection.addEdge(node, (int) (edge >>> 32), (int) edge);
             }
         }
     }
