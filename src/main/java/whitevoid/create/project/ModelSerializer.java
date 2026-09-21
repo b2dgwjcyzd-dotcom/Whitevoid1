@@ -36,7 +36,6 @@ public final class ModelSerializer {
         Model model = new Model(root.id);
         restoreNodeData(model.root(), root);
         return model;
-        return model;
     }
 
     private static NodeData toData(ModelNode node) {
