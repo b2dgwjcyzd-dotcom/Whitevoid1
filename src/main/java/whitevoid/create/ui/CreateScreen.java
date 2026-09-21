@@ -128,7 +128,7 @@ public final class CreateScreen extends Screen {
         ViewportContext viewport = core.editorContext().viewport();
 
         if (keyCode == GLFW.GLFW_KEY_ESCAPE && cubeFaceEditor.dragging()) {
-            cubeFaceEditor.cancel();
+            cubeFaceEditor.abort(core);
             viewport.geometryFaceSelection().clear();
             return true;
         }
