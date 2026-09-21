@@ -784,7 +784,7 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                             viewport.meshComponentSelection());
                     if (componentTransform.axis() != ComponentTransformGizmo.Axis.NONE) {
                         componentTransform.setOperation(componentTransform.operation());
-                        componentTransform.setAxis(componentAxis);
+                        componentTransform.setAxis(componentTransform.axis());
                         componentTransform.setConstraintMode(componentTransform.planeConstraint()
                                 ? ComponentTransformController.ConstraintMode.PLANE
                                 : ComponentTransformController.ConstraintMode.AXIS);
