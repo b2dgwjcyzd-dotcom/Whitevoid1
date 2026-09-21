@@ -16,17 +16,15 @@ public final class CreateResetController {
         this.componentTransform = componentTransform;
     }
 
-    public boolean handleEscape(
-            CreateViewportInteractionState interaction,
-            ViewportContext viewport) {
-        if (componentTransformInput.armed()) {
-            interaction.topologyPathPickArmed = false;
-            interaction.topologyPathSecondPick = false;
-            interaction.topologyPathHasStart = false;
-            interaction.topologyPathStartIndex = -1;
-            return false;
-        }
+    public void clearArmedTopology(CreateViewportInteractionState interaction) {
+        if (!componentTransformInput.armed()) return;
+        interaction.topologyPathPickArmed = false;
+        interaction.topologyPathSecondPick = false;
+        interaction.topologyPathHasStart = false;
+        interaction.topologyPathStartIndex = -1;
+    }
 
+    public boolean resetOnEscape(CreateViewportInteractionState interaction, ViewportContext viewport) {
         reset(interaction, viewport);
         return true;
     }
@@ -38,11 +36,6 @@ public final class CreateResetController {
         componentTransformInput.disarm();
         componentTransform.setAxis(ComponentTransformGizmo.Axis.NONE);
         interaction.mirrorArmed = false;
-        interaction.gizmoDragging = false;
-        interaction.componentDragging = false;
-        interaction.vertexDragging = false;
-        interaction.edgeDragging = false;
-        interaction.componentBoxSelecting = false;
         interaction.topologyPathPickArmed = false;
         interaction.topologyPathSecondPick = false;
         interaction.topologyPathHasStart = false;
@@ -50,8 +43,6 @@ public final class CreateResetController {
         interaction.activeVertex = -1;
         interaction.activeEdgeA = -1;
         interaction.activeEdgeB = -1;
-        viewport.geometryFaceSelection().clear();
-        viewport.meshComponentSelection().clear();
         viewport.transform().setMode(TransformMode.SELECT);
     }
 
