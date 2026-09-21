@@ -65,12 +65,29 @@ public final class ModelNode {
         if (child == this) {
             throw new IllegalArgumentException("A node cannot parent itself");
         }
+        for (ModelNode cursor = this; cursor != null; cursor = cursor.parent) {
+            if (cursor == child) {
+                throw new IllegalArgumentException("Cannot add a node to its own subtree");
+            }
+        }
         if (index < 0 || index > children.size()) {
             throw new IndexOutOfBoundsException("index=" + index);
         }
 
-        if (child.parent != null) {
-            child.parent.children.remove(child);
+        ModelNode oldParent = child.parent;
+        if (oldParent == this) {
+            int oldIndex = children.indexOf(child);
+            if (oldIndex < 0) {
+                throw new IllegalStateException("Child parent link is inconsistent");
+            }
+            children.remove(oldIndex);
+            if (oldIndex < index) {
+                index--;
+            }
+        } else if (oldParent != null) {
+            if (!oldParent.children.remove(child)) {
+                throw new IllegalStateException("Child parent link is inconsistent");
+            }
         }
 
         child.parent = this;
