@@ -229,33 +229,15 @@ public final class MeshComponentSelection {
         topologySelection.selectFaceRing(this, node, faceIndex);
     }
 
-    /** Selects the shortest vertex path between two vertices. */
+    private final MeshComponentPathSelectionController pathSelection =
+            new MeshComponentPathSelectionController();
+
     public void selectShortestVertexPath(ModelNode node, int start, int goal) {
-        if (node == null) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        prepareForMultiSelect(node, MeshSelectionMode.VERTEX);
-        vertices.clear();
-        vertices.addAll(MeshTopologySelection.shortestVertexPath(mesh, start, goal));
-        activeVertex = goal;
-        if (vertices.isEmpty()) nodeId = null;
+        pathSelection.selectShortestVertexPath(this, node, start, goal);
     }
 
-    /** Selects the shortest edge path between two vertices. */
     public void selectShortestEdgePath(ModelNode node, int start, int goal) {
-        if (node == null) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        prepareForMultiSelect(node, MeshSelectionMode.EDGE);
-        edges.clear();
-        edges.addAll(MeshTopologySelection.shortestEdgePath(mesh, start, goal));
-        activeEdge = MeshTopologySelection.edgeKey(start, goal);
-        if (edges.isEmpty()) {
-            List<Integer> path = MeshTopologySelection.shortestVertexPath(mesh, start, goal);
-            if (path.size() >= 2) activeEdge = MeshTopologySelection.edgeKey(path.get(path.size() - 2), goal);
-            else activeEdge = -1L;
-            if (activeEdge < 0) nodeId = null;
-        }
+        pathSelection.selectShortestEdgePath(this, node, start, goal);
     }
 
     private final MeshComponentBoundarySelectionController boundarySelection =
@@ -266,15 +248,7 @@ public final class MeshComponentSelection {
     }
 
     public void selectShortestPathBetweenActiveAnd(ModelNode node, int targetIndex) {
-        if (node == null || !matches(node)) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        if (mode == MeshSelectionMode.VERTEX && activeVertex >= 0) {
-            selectShortestVertexPath(node, activeVertex, targetIndex);
-        } else if (mode == MeshSelectionMode.EDGE && activeEdgeA() >= 0) {
-            int start = activeEdgeA();
-            selectShortestEdgePath(node, start, targetIndex);
-        }
+        pathSelection.selectShortestPathBetweenActiveAnd(this, node, targetIndex);
     }
 
     public void selectBoundaryLoop(ModelNode node) {
