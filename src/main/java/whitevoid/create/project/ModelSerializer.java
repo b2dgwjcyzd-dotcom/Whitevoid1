@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import whitevoid.create.model.CubeGeometry;
 import whitevoid.create.model.MeshGeometry;
@@ -32,6 +34,9 @@ public final class ModelSerializer {
         if (root == null || root.id == null) {
             throw new IllegalArgumentException("Invalid CREATE model");
         }
+
+        Set<UUID> ids = new HashSet<>();
+        validateNodeData(root, ids, true);
 
         Model model = new Model(root.id);
         restoreNodeData(model.root(), root);
@@ -73,6 +78,37 @@ public final class ModelSerializer {
             data.children.add(toData(child));
         }
         return data;
+    }
+
+    private static void validateNodeData(NodeData data, Set<UUID> ids, boolean root) {
+        if (data == null || data.id == null) {
+            throw new IllegalArgumentException("Invalid CREATE model node");
+        }
+        if (!ids.add(data.id)) {
+            throw new IllegalArgumentException("Duplicate CREATE model node id: " + data.id);
+        }
+        if (data.transform != null) {
+            // Transform setters validate finite values and scale invariants during restore.
+        }
+        if (data.cube != null && (data.cube.width <= 0 || data.cube.height <= 0 || data.cube.depth <= 0)) {
+            throw new IllegalArgumentException("Invalid CREATE cube dimensions");
+        }
+        if (data.mesh != null) {
+            if (data.mesh.vertices == null || data.mesh.faces == null) {
+                throw new IllegalArgumentException("Invalid CREATE mesh data");
+            }
+            for (MeshVertexData vertex : data.mesh.vertices) {
+                if (vertex == null) throw new IllegalArgumentException("Invalid CREATE mesh vertex");
+            }
+            for (MeshFaceData face : data.mesh.faces) {
+                if (face == null || face.vertices == null) {
+                    throw new IllegalArgumentException("Invalid CREATE mesh face");
+                }
+            }
+        }
+        if (data.children != null) {
+            for (NodeData child : data.children) validateNodeData(child, ids, false);
+        }
     }
 
     private static void restoreChildren(ModelNode parent, List<NodeData> children) {
