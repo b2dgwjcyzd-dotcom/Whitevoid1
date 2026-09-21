@@ -45,7 +45,8 @@ public final class ComponentTransformInputController {
         transform.clearConstraint();
     }
 
-    public boolean handleKey(int keyCode, ViewportContext viewport, boolean shiftDown) {
+    public boolean handleKey(int keyCode, ViewportContext viewport, boolean shiftDown,
+                              boolean proportional, double proportionalRadius, CreateCore core) {
         if (viewport.transform().mode() != TransformMode.GEOMETRY
                 || viewport.meshComponentSelection().size() <= 0) {
             return false;
@@ -76,7 +77,7 @@ public final class ComponentTransformInputController {
 
             if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
                 if (numericEntry) {
-                    return true;
+                    return applyNumeric(core, viewport, proportional, proportionalRadius);
                 }
             }
         }
