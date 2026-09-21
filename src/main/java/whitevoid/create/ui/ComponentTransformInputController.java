@@ -54,6 +54,8 @@ public final class ComponentTransformInputController {
 
         if (armed) {
             if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                ModelNode node = viewport.selection().first(core.editorContext().model());
+                transform.abort(core, node);
                 disarm();
                 return true;
             }
