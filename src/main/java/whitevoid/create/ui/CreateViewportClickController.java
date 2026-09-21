@@ -16,6 +16,7 @@ public final class CreateViewportClickController {
     private final ViewportGizmo gizmo;
     private final CubeFaceEditorController cubeFaceEditor;
     private final CreateViewportInput viewportInput;
+    private final ComponentTransformInputController componentTransformInput;
 
     public CreateViewportClickController(
             CreateTopologyPathInteractionController topologyPathController,
@@ -26,7 +27,8 @@ public final class CreateViewportClickController {
             CreateViewportNodeSelectionController nodeSelection,
             ViewportGizmo gizmo,
             CubeFaceEditorController cubeFaceEditor,
-            CreateViewportInput viewportInput) {
+            CreateViewportInput viewportInput,
+            ComponentTransformInputController componentTransformInput) {
         this.topologyPathController = topologyPathController;
         this.meshComponentInteraction = meshComponentInteraction;
         this.componentTransformInteraction = componentTransformInteraction;
@@ -36,6 +38,7 @@ public final class CreateViewportClickController {
         this.gizmo = gizmo;
         this.cubeFaceEditor = cubeFaceEditor;
         this.viewportInput = viewportInput;
+        this.componentTransformInput = componentTransformInput;
     }
 
     public boolean handle(
@@ -67,9 +70,8 @@ public final class CreateViewportClickController {
 
             if (!shiftDown && !altDown
                     && viewport.meshComponentSelection().size() > 0
-                    && core.editorContext().model() != null) {
-                if (componentTransformInteraction.isKeyboardArmed(
-                        viewport, core, interaction)) {
+                    && componentTransformInput.armed()
+                && componentTransformInput.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
                     interaction.componentDragging = componentTransformInteraction.beginKeyboardArmed(
                             selected, viewport, mouseX, mouseY);
                     return true;
