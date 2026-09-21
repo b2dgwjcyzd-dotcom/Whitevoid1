@@ -3,6 +3,7 @@ package whitevoid.create.project;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -38,8 +39,8 @@ public final class ProjectManager {
         ProjectMetadata metadata = project.metadata();
         Path directory = root.resolve(metadata.id().toString());
         Files.createDirectories(directory);
-        Files.writeString(directory.resolve("project.json"), serializer.serializeMetadata(metadata));
-        Files.writeString(directory.resolve("model.json"), serializer.serializeModel(project.model()));
+        writeAtomic(directory.resolve("project.json"), serializer.serializeMetadata(metadata));
+        writeAtomic(directory.resolve("model.json"), serializer.serializeModel(project.model()));
         project.markSaved();
     }
 
@@ -98,6 +99,20 @@ public final class ProjectManager {
     }
 
     public Path root() { return root; }
+
+    private static void writeAtomic(Path target, String content) throws IOException {
+        Path temp = target.resolveSibling(target.getFileName() + ".tmp");
+        Files.writeString(temp, content);
+        try {
+            try {
+                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } finally {
+            Files.deleteIfExists(temp);
+        }
+    }
 
     private static final class ProjectLoadException extends RuntimeException {
         private final Path file;
