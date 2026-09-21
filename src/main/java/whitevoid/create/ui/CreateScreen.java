@@ -114,8 +114,8 @@ public final class CreateScreen extends Screen {
             topologyPathHasStart = false;
             topologyPathStartIndex = -1;
                 componentKeyboardTransformArmed = false;
-                componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE;
-                componentTransform.planeConstraint() = false;
+                componentTransform.clearConstraint();
+                componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS);
                 componentNumericEntry = false;
                 componentNumericBuffer.setLength(0);
                 return true;
@@ -163,9 +163,9 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             }
             return true;
         }
-        if (keyCode == 71) { componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint() = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.operation()=ComponentTransformGizmo.Operation.MOVE; else viewport.transform().setMode(TransformMode.MOVE); return true; }
-        if (keyCode == 82) { componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint() = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.operation()=ComponentTransformGizmo.Operation.ROTATE; else viewport.transform().setMode(TransformMode.ROTATE); return true; }
-        if (keyCode == 83) { componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE; componentTransform.planeConstraint() = false; componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.operation()=ComponentTransformGizmo.Operation.SCALE; else viewport.transform().setMode(TransformMode.SCALE); return true; }
+        if (keyCode == 71) { componentTransform.clearConstraint(); componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS); componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.setOperation(ComponentTransformGizmo.Operation.MOVE); else viewport.transform().setMode(TransformMode.MOVE); return true; }
+        if (keyCode == 82) { componentTransform.clearConstraint(); componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS); componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.setOperation(ComponentTransformGizmo.Operation.ROTATE); else viewport.transform().setMode(TransformMode.ROTATE); return true; }
+        if (keyCode == 83) { componentTransform.clearConstraint(); componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS); componentKeyboardTransformArmed = viewport.transform().mode()==TransformMode.GEOMETRY && viewport.meshComponentSelection().size()>0; if (componentKeyboardTransformArmed) componentTransform.setOperation(ComponentTransformGizmo.Operation.SCALE); else viewport.transform().setMode(TransformMode.SCALE); return true; }
 
         if (viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
             ComponentTransformGizmo.Axis requested = switch (keyCode) {
@@ -176,20 +176,20 @@ if (keyCode == 65 && viewport.transform().mode() == TransformMode.GEOMETRY) {
             };
             if (requested != ComponentTransformGizmo.Axis.NONE && componentKeyboardTransformArmed) {
                 if (componentTransform.constraintAxis() == requested) {
-                    componentTransform.planeConstraint() = !componentTransform.planeConstraint() && hasShiftDown();
+                    componentTransform.setConstraintMode(hasShiftDown() ? ComponentTransformController.ConstraintMode.PLANE : ComponentTransformController.ConstraintMode.AXIS);
                     if (!hasShiftDown()) {
-                        componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE;
-                        componentTransform.planeConstraint() = false;
+                        componentTransform.clearConstraint();
+                        componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS);
                     }
                 } else {
-                    componentTransform.constraintAxis() = requested;
-                    componentTransform.planeConstraint() = hasShiftDown();
+                    componentTransform.setConstraintAxis(requested);
+                    componentTransform.setConstraintMode(hasShiftDown() ? ComponentTransformController.ConstraintMode.PLANE : ComponentTransformController.ConstraintMode.AXIS);
                 }
                 return true;
             }
         }
         if (keyCode == 80 && viewport.transform().mode() == TransformMode.GEOMETRY && viewport.meshComponentSelection().size() > 0) {
-            componentTransform.pivotMode() = componentTransform.pivotMode().next();
+            componentTransform.cyclePivotMode();
             return true;
         }
         if (keyCode == GLFW.GLFW_KEY_1 && viewport.transform().mode() == TransformMode.GEOMETRY) {
@@ -1223,8 +1223,8 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
         componentNumericBuffer.setLength(0);
         componentNumericNegative = false;
         componentKeyboardTransformArmed = false;
-        componentTransform.constraintAxis() = ComponentTransformGizmo.Axis.NONE;
-        componentTransform.planeConstraint() = false;
+        componentTransform.clearConstraint();
+        componentTransform.setConstraintMode(ComponentTransformController.ConstraintMode.AXIS);
     }
 
     private static String activeComponentLabel(whitevoid.create.editor.geometry.MeshComponentSelection selection) {
