@@ -39,7 +39,7 @@ public final class ReparentNodeCommand implements Command, SelectionHistoryComma
             if (oldIndex < 0) {
                 throw new IllegalStateException("Node is not attached to its parent");
             }
-        } else if (node.parent() != null && node.parent() != oldParent && node.parent() != newParent) {
+        } else if (node.parent() != oldParent && node.parent() != newParent) {
             throw new IllegalStateException("Node parent changed outside this command");
         }
 
@@ -66,8 +66,7 @@ public final class ReparentNodeCommand implements Command, SelectionHistoryComma
             throw new IllegalStateException("Node parent changed outside this command");
         }
 
-        if (node.parent() != newParent) throw new IllegalStateException("Node parent changed outside this command");
-        node.parent().removeChild(node);
+        newParent.removeChild(node);
         int index = Math.max(0, Math.min(oldIndex, oldParent.children().size()));
         oldParent.addChild(index, node);
     }
