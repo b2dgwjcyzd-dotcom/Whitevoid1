@@ -421,79 +421,15 @@ public final class MeshComponentSelection {
         if (isEmpty()) nodeId = null;
     }
 
-    /** Grow the current selection by exactly one topology ring. */
+    private final MeshComponentSelectionExpansionController expansionSelection =
+            new MeshComponentSelectionExpansionController();
+
     public void extend(ModelNode node) {
-        if (node == null || !matches(node)) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        if (mode == MeshSelectionMode.VERTEX) {
-            Set<Integer> current = new LinkedHashSet<>(vertices);
-            vertices.clear();
-            vertices.addAll(MeshTopologySelection.growVertices(mesh, current));
-            activeVertex = first(vertices);
-        } else if (mode == MeshSelectionMode.EDGE) {
-            Set<Long> current = new LinkedHashSet<>(edges);
-            edges.clear();
-            edges.addAll(MeshTopologySelection.growEdges(mesh, current));
-            activeEdge = firstLong(edges);
-        } else {
-            Set<Integer> current = new LinkedHashSet<>(faces);
-            faces.clear();
-            faces.addAll(MeshTopologySelection.growFaces(mesh, current));
-            activeFace = first(faces);
-        }
+        expansionSelection.extend(this, node);
     }
 
     public void shrink(ModelNode node) {
-        if (node == null || !matches(node)) return;
-        MeshGeometry mesh = node.ensureMeshGeometry();
-        if (mesh == null || size() == 0) return;
-        if (mode == MeshSelectionMode.VERTEX) {
-            Set<Integer> next = new LinkedHashSet<>();
-            for (int v : vertices) {
-                boolean boundary = false;
-                for (int neighbor : MeshTopologySelection.vertexNeighbors(mesh, v)) {
-                    if (!vertices.contains(neighbor)) { boundary = true; break; }
-                }
-                if (!boundary) next.add(v);
-            }
-            vertices.clear(); vertices.addAll(next); activeVertex = first(vertices);
-        } else if (mode == MeshSelectionMode.EDGE) {
-            Set<Long> next = new LinkedHashSet<>();
-            for (long edge : edges) {
-                boolean exposed = false;
-                for (long neighbor : MeshTopologySelection.edgeNeighbors(mesh, edge)) {
-                    if (!edges.contains(neighbor)) {
-                        exposed = true;
-                        break;
-                    }
-                }
-                if (!exposed) next.add(edge);
-            }
-            edges.clear();
-            edges.addAll(next);
-            activeEdge = firstLong(edges);
-        } else {
-            Set<Integer> next = new LinkedHashSet<>();
-            for (int face : faces) {
-                boolean exposed = false;
-                int[] fv = mesh.faces().get(face).vertices();
-                for (int other = 0; other < mesh.faces().size(); other++) {
-                    if (faces.contains(other)) continue;
-                    int[] ov = mesh.faces().get(other).vertices();
-                    if (sharesEdge(fv, ov)) { exposed = true; break; }
-                }
-                if (!exposed) next.add(face);
-            }
-            faces.clear(); faces.addAll(next); activeFace = first(faces);
-        }
-        if (isEmpty()) nodeId = null;
-    }
-
-    private static boolean sharesEdge(int[] a, int[] b) {
-        int shared = 0;
-        for (int x : a) for (int y : b) if (x == y) shared++;
-        return shared >= 2;
+        expansionSelection.shrink(this, node);
     }
 
     public void selectShortestPathBetweenActiveAnd(ModelNode node, int targetIndex) {
@@ -527,25 +463,7 @@ public final class MeshComponentSelection {
     }
 
     public void selectLinked(ModelNode node) {
-        if (node == null || !matches(node)) return;
-        var mesh = node.ensureMeshGeometry();
-        if (mesh == null) return;
-        if (mode == MeshSelectionMode.VERTEX) {
-            Set<Integer> seeds = new LinkedHashSet<>(vertices);
-            vertices.clear();
-            vertices.addAll(MeshTopologySelection.linkedVertices(mesh, seeds));
-            activeVertex = first(vertices);
-        } else if (mode == MeshSelectionMode.EDGE) {
-            Set<Long> seeds = new LinkedHashSet<>(edges);
-            edges.clear();
-            edges.addAll(MeshTopologySelection.linkedEdges(mesh, seeds));
-            activeEdge = firstLong(edges);
-        } else {
-            Set<Integer> seeds = new LinkedHashSet<>(faces);
-            faces.clear();
-            faces.addAll(MeshTopologySelection.linkedFaces(mesh, seeds));
-            activeFace = first(faces);
-        }
+        expansionSelection.selectLinked(this, node);
     }
 
     public boolean containsVertex(int i) { return vertices.contains(i); }
