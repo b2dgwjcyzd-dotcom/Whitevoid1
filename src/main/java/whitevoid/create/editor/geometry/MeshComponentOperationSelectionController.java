@@ -35,14 +35,14 @@ public final class MeshComponentOperationSelectionController {
                 selection.selectVertex(node, mapped);
                 for (int index : vertices) {
                     Integer next = result.vertexMapping().get(index);
-                    if (next != null && next != mapped) selection.addVertex(node, next);
+                    if (next != null && next.intValue() != mapped.intValue()) selection.addVertex(node, next);
                 }
             }
         } else if (mode == MeshSelectionMode.EDGE) {
             for (int[] edge : edges) {
                 Integer a = result.vertexMapping().get(edge[0]);
                 Integer b = result.vertexMapping().get(edge[1]);
-                if (a != null && b != null && a != b
+                if (a != null && b != null && !a.equals(b)
                         && a >= 0 && b >= 0
                         && Math.max(a, b) < result.mesh().vertices().size()) {
                     selection.addEdge(node, a, b);
@@ -57,21 +57,25 @@ public final class MeshComponentOperationSelectionController {
                 for (int[] edge : edges) {
                     Integer ea = result.vertexMapping().get(edge[0]);
                     Integer eb = result.vertexMapping().get(edge[1]);
-                    if (ea != null && eb != null && !(ea == a && eb == b)) {
+                    if (ea != null && eb != null
+                            && !(ea.intValue() == a.intValue() && eb.intValue() == b.intValue())) {
                         selection.addEdge(node, ea, eb);
                     }
                 }
             }
         } else {
+            Integer mappedActiveFace = result.faceMapping().get(activeFace);
+            if (mappedActiveFace != null
+                    && mappedActiveFace >= 0
+                    && mappedActiveFace < result.mesh().faces().size()) {
+                selection.selectFace(node, mappedActiveFace);
+            }
             for (int index : faces) {
                 Integer mapped = result.faceMapping().get(index);
-                if (mapped != null && mapped >= 0 && mapped < result.mesh().faces().size()) {
+                if (mapped != null && mapped >= 0 && mapped < result.mesh().faces().size()
+                        && (mappedActiveFace == null || mapped.intValue() != mappedActiveFace.intValue())) {
                     selection.addFace(node, mapped);
                 }
-            }
-            Integer mapped = result.faceMapping().get(activeFace);
-            if (mapped != null && selection.containsFace(mapped)) {
-                selection.selectFace(node, mapped);
             }
         }
     }
