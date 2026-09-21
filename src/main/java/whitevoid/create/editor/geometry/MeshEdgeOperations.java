@@ -80,8 +80,8 @@ public static MeshOperations.OperationResult extrudeEdgesResult(
             faces.add(new MeshGeometry.Face(a, b, db, da));
             createdFaces.add(faceIndex);
             createdEdges.add(MeshTopology.edgeKey(da, db));
-            createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(a, da));
-            createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(b, db));
+            createdEdges.add(MeshTopology.edgeKey(a, da));
+            createdEdges.add(MeshTopology.edgeKey(b, db));
         }
 
         java.util.Map<Integer, Integer> vertexMapping = new java.util.LinkedHashMap<>();
@@ -218,7 +218,7 @@ public static MeshOperations.OperationResult bevelEdgesResult(
         for (int faceIndex : createdFaces) {
             int[] ids = result.faces().get(faceIndex).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshTopology.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
 
