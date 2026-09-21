@@ -41,6 +41,8 @@ public final class ComponentTransformController {
     public ComponentTransformGizmo.Axis constraintAxis() { return constraintAxis; }
     public boolean planeConstraint() { return constraintMode == ConstraintMode.PLANE; }
     public TransformMath.Point pivot() { return pivot; }
+    public ComponentTransformGizmo gizmo() { return gizmo; }
+
     public boolean dragging() { return dragging; }
     public double startX() { return lastX; }
     public double startY() { return lastY; }
