@@ -41,7 +41,7 @@ public final class CreateCore {
         }
 
         try {
-            CreateProject created = projectManager.create("Untitled", ProjectType.COSMETIC);
+            CreateProject created = projectManager.create("Untitled", ProjectType.MODEL);
             editorContext.setModel(created.model());
             return created;
         } catch (IOException exception) {
