@@ -34,6 +34,7 @@ public final class CreateScreen extends Screen {
     private final ComponentTransformGizmo componentGizmo = new ComponentTransformGizmo();
     private final ComponentTransformController componentTransform = new ComponentTransformController(componentGizmo);
     private final ComponentTransformInputController componentTransformInput = new ComponentTransformInputController(componentTransform);
+    private final ComponentTransformMouseController componentTransformMouse = new ComponentTransformMouseController(componentTransform);
     private final MeshEditorController meshEditor = new MeshEditorController(gizmo);
     private final MeshEditorHoverController meshEditorHover = new MeshEditorHoverController(gizmo);
     private final MeshComponentDragController meshComponentDrag = new MeshComponentDragController(gizmo);
@@ -718,41 +719,16 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0
                         && componentTransformInput.armed()
                         && componentTransform.constraintAxis() != ComponentTransformGizmo.Axis.NONE) {
-                    componentTransform.setAxis(componentTransform.constraintAxis());
-                    componentTransform.setOperation(componentTransform.operation());
-                    componentTransform.setAxis(componentTransform.axis());
-                    componentTransform.setConstraintMode(componentTransform.planeConstraint()
-                            ? ComponentTransformController.ConstraintMode.PLANE
-                            : ComponentTransformController.ConstraintMode.AXIS);
-                    componentTransform.begin(selected, meshMode,
-                            viewport.meshComponentSelection().vertexIndices(),
-                            viewport.meshComponentSelection().edgeIndices(),
-                            viewport.meshComponentSelection().faceIndices(),
-                            viewport.meshComponentSelection(), mouseX, mouseY);
-                    componentDragging = componentTransform.dragging();
+                    componentDragging = componentTransformMouse.beginKeyboardArmed(
+                            selected, viewport, mouseX, mouseY);
                     componentTransformInput.disarm();
                     return true;
                 }
                 if (!hasShiftDown() && !hasAltDown() && viewport.meshComponentSelection().size() > 0) {
-                    componentTransform.setAxis(componentGizmo.hover(selected, meshMode,
-                            viewport.meshComponentSelection().vertexIndices(),
-                            viewport.meshComponentSelection().edgeIndices(),
-                            viewport.meshComponentSelection().faceIndices(),
-                            projector, mouseX, mouseY, cx, cy, componentTransform.operation(), componentTransform.pivotMode(),
-                            viewport.meshComponentSelection());
-                    if (componentTransform.axis() != ComponentTransformGizmo.Axis.NONE) {
-                        componentTransform.setOperation(componentTransform.operation());
-                        componentTransform.setAxis(componentTransform.axis());
-                        componentTransform.setConstraintMode(componentTransform.planeConstraint()
-                                ? ComponentTransformController.ConstraintMode.PLANE
-                                : ComponentTransformController.ConstraintMode.AXIS);
-                        componentTransform.begin(selected, meshMode,
-                                viewport.meshComponentSelection().vertexIndices(),
-                                viewport.meshComponentSelection().edgeIndices(),
-                                viewport.meshComponentSelection().faceIndices(),
-                                viewport.meshComponentSelection(), mouseX, mouseY);
-                        componentDragging = componentTransform.dragging();
-                                                                                                                                                                                                return true;
+                    if (componentTransformMouse.beginFromGizmo(
+                            selected, viewport, projector, mouseX, mouseY, cx, cy)) {
+                        componentDragging = true;
+                        return true;
                     }
                 }
                 MeshEditorController.PickResult meshPick = meshEditor.pickAndSelect(
