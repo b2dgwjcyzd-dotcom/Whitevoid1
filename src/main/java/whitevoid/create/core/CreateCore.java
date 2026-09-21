@@ -8,18 +8,22 @@ import whitevoid.create.project.ProjectType;
 import net.fabricmc.loader.api.FabricLoader;
 import whitevoid.create.core.registry.CreateRegistry;
 import whitevoid.create.project.ProjectManager;
+import whitevoid.create.project.ProjectAutosave;
+import java.time.Duration;
 
 /** Entry point for the CREATE subsystem. */
 public final class CreateCore {
     private final CreateRegistry registry;
     private final EditorContext editorContext;
     private final ProjectManager projectManager;
+    private final ProjectAutosave autosave;
 
     public CreateCore() {
         this.registry = new CreateRegistry();
         this.editorContext = new EditorContext();
         Path projects = FabricLoader.getInstance().getConfigDir().resolve("whitevoid").resolve("create").resolve("projects");
         this.projectManager = new ProjectManager(projects);
+        this.autosave = new ProjectAutosave(projectManager, Duration.ofSeconds(30));
     }
 
     public void initialize() {
@@ -59,6 +63,14 @@ public final class CreateCore {
         }
     }
 
+    public void markProjectDirty() {
+        projectManager.activeProject().ifPresent(CreateProject::markDirty);
+    }
+
+    public void tickAutosave() {
+        autosave.tick();
+    }
+
     public void saveActiveProject() {
         CreateProject project = projectManager.activeProject()
                 .orElseThrow(() -> new IllegalStateException("No active CREATE project"));
@@ -73,5 +85,6 @@ public final class CreateCore {
     public CreateRegistry registry() { return registry; }
     public EditorContext editorContext() { return editorContext; }
     public ProjectManager projectManager() { return projectManager; }
+    public ProjectAutosave autosave() { return autosave; }
 
 }
