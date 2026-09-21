@@ -37,6 +37,7 @@ public final class CreateScreen extends Screen {
             new CreateTransformGizmoInteractionController(gizmo);
     private final CreateTransformGizmoDragController transformGizmoDrag =
             new CreateTransformGizmoDragController(gizmo);
+    private final CreateVertexDragController vertexDrag = new CreateVertexDragController();
     private final ViewportRenderer viewportRenderer = new ViewportRenderer();
     private final CreateViewportInput viewportInput;
     private final ViewportGizmo gizmo = new ViewportGizmo();
@@ -801,29 +802,10 @@ private void moveSelectedComponents(double dx, double dy, double dz) {
         }
         if (interaction.vertexDragging && button == 0) {
             ModelNode node = core.editorContext().viewport().selection().first(core.editorContext().model());
-            if (node != null && interaction.activeVertex >= 0) {
-                var mesh = node.ensureMeshGeometry();
-                if (mesh != null && interaction.activeVertex < mesh.vertices().size()) {
-                    var camera = core.editorContext().viewport().viewport().camera();
-                    double yaw = Math.toRadians(camera.yaw());
-                    double pitch = Math.toRadians(camera.pitch());
-                    double cy = Math.cos(yaw);
-                    double sy = Math.sin(yaw);
-                    double cp = Math.cos(pitch);
-                    double sp = Math.sin(pitch);
-                    double worldPerPixel = Math.max(0.0005, camera.distance() / 300.0);
-                    double rightX = cy;
-                    double rightZ = -sy;
-                    double upX = -sy * sp;
-                    double upY = cp;
-                    double upZ = -cy * sp;
-                    double dx = (deltaX * rightX - deltaY * upX) * worldPerPixel;
-                    double dy = (-deltaY * upY) * worldPerPixel;
-                    double dz = (deltaX * rightZ - deltaY * upZ) * worldPerPixel;
-                    node.setMeshGeometry(MeshOperations.moveVertex(mesh, interaction.activeVertex, dx, dy, dz));
-                }
+            if (vertexDrag.update(
+                    interaction, node, core.editorContext().viewport(), deltaX, deltaY)) {
+                return true;
             }
-            return true;
         }
         if (cubeFaceEditor.dragging()) {
             cubeFaceEditor.update(core, deltaX, deltaY);
