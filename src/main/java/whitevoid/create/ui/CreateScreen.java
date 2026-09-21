@@ -102,6 +102,7 @@ public final class CreateScreen extends Screen {
     }
 
     @Override protected void init() {
+        core.ensureActiveProject();
         core.editorContext().setEditing(true);
     }
 
@@ -109,6 +110,7 @@ public final class CreateScreen extends Screen {
         viewportInput.cancelDrag();
         componentTransform.cancel();
         core.editorContext().setEditing(false);
+        core.saveActiveProject();
         super.close();
     }
 
