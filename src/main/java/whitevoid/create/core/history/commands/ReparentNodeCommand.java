@@ -1,7 +1,9 @@
 package whitevoid.create.core.history.commands;
 
-import java.util.Objects;\nimport java.util.UUID;\nimport whitevoid.create.core.history.SelectionHistoryCommand;
+import java.util.Objects;
+import java.util.UUID;
 import whitevoid.create.core.history.Command;
+import whitevoid.create.core.history.SelectionHistoryCommand;
 import whitevoid.create.model.ModelNode;
 
 /**
@@ -37,6 +39,8 @@ public final class ReparentNodeCommand implements Command, SelectionHistoryComma
             if (oldIndex < 0) {
                 throw new IllegalStateException("Node is not attached to its parent");
             }
+        } else if (node.parent() != null && node.parent() != oldParent && node.parent() != newParent) {
+            throw new IllegalStateException("Node parent changed outside this command");
         }
 
         ModelNode currentParent = node.parent();
@@ -58,11 +62,11 @@ public final class ReparentNodeCommand implements Command, SelectionHistoryComma
         if (oldParent == null) {
             throw new IllegalStateException("Reparent command has not been executed");
         }
-
-        if (node.parent() != null) {
-            node.parent().removeChild(node);
+        if (node.parent() != newParent) {
+            throw new IllegalStateException("Node parent changed outside this command");
         }
 
+        node.parent().removeChild(node);
         int index = Math.max(0, Math.min(oldIndex, oldParent.children().size()));
         oldParent.addChild(index, node);
     }
@@ -72,7 +76,13 @@ public final class ReparentNodeCommand implements Command, SelectionHistoryComma
         return "Reparent Node";
     }
 
-    @Override\n    public UUID selectionAfterUndo() { return node.id(); }\n\n    @Override\n    public UUID selectionAfterRedo() { return node.id(); }\n\n    public ModelNode node() {
+    @Override
+    public UUID selectionAfterUndo() { return node.id(); }
+
+    @Override
+    public UUID selectionAfterRedo() { return node.id(); }
+
+    public ModelNode node() {
         return node;
     }
 
