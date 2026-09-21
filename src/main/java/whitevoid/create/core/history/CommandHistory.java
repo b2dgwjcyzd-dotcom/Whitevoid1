@@ -15,6 +15,8 @@ public final class CommandHistory {
     private final Runnable mutationListener;
     private Command lastUndone;
     private Command lastRedone;
+    private java.util.List<Command> savedUndo = java.util.List.of();
+    private java.util.List<Command> savedRedo = java.util.List.of();
 
     public CommandHistory() { this(256, () -> {}); }
     public CommandHistory(int maxSize) { this(maxSize, () -> {}); }
@@ -78,6 +80,19 @@ public final class CommandHistory {
         redoStack.clear();
         lastUndone = null;
         lastRedone = null;
+        savedUndo = java.util.List.of();
+        savedRedo = java.util.List.of();
+    }
+
+    /** Captures the current history position as the persisted state. */
+    public void markSaved() {
+        savedUndo = java.util.List.copyOf(undoStack);
+        savedRedo = java.util.List.copyOf(redoStack);
+    }
+
+    public boolean isAtSavedState() {
+        return savedUndo.equals(java.util.List.copyOf(undoStack))
+                && savedRedo.equals(java.util.List.copyOf(redoStack));
     }
 
     public boolean canUndo() { return !undoStack.isEmpty(); }
