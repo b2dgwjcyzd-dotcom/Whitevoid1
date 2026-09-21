@@ -46,7 +46,7 @@ public static MeshOperations.OperationResult extrudeFacesResult(
         for (int faceIndex : createdFaces) {
             int[] ids = result.faces().get(faceIndex).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
         java.util.Set<Integer> focusFaces = new java.util.LinkedHashSet<>();
@@ -93,7 +93,7 @@ public static MeshOperations.OperationResult insetFacesResult(
         for (int faceIndex : createdFaces) {
             int[] ids = result.faces().get(faceIndex).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
         java.util.Set<Integer> focusFaces = new java.util.LinkedHashSet<>();
@@ -137,7 +137,7 @@ public static MeshOperations.OperationResult extrudeFaceResult(MeshGeometry mesh
         for (int created : createdFaces) {
             int[] ids = result.faces().get(created).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
 
@@ -376,7 +376,7 @@ public static MeshOperations.OperationResult insetFaceResult(MeshGeometry mesh, 
         for (int created : createdFaces) {
             int[] ids = result.faces().get(created).vertices();
             for (int i = 0; i < ids.length; i++) {
-                createdEdges.add(MeshTopology.MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
+                createdEdges.add(MeshOperationGeometry.edgeKey(ids[i], ids[(i + 1) % ids.length]));
             }
         }
 
