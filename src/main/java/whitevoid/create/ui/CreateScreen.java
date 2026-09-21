@@ -1021,37 +1021,11 @@ if (keyCode == GLFW.GLFW_KEY_COMMA && viewport.transform().mode() == TransformMo
                                 proportionalEditing, proportionalRadius, hasControlDown(),
                                 ROTATE_SNAP_INCREMENT);
                     } else {
-                        if (componentPlaneConstraint && constrainedAxis != ComponentTransformGizmo.Axis.NONE) {
-                            ComponentTransformGizmo.Axis a1 = constrainedAxis == ComponentTransformGizmo.Axis.X
-                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.X;
-                            ComponentTransformGizmo.Axis a2 = constrainedAxis == ComponentTransformGizmo.Axis.Z
-                                    ? ComponentTransformGizmo.Axis.Y : ComponentTransformGizmo.Axis.Z;
-                            double factor1 = componentGizmo.scaleFactor(a1, projector, node, pivot,
-                                    width / 2, height / 2, totalDx, totalDy);
-                            double factor2 = componentGizmo.scaleFactor(a2, projector, node, pivot,
-                                    width / 2, height / 2, totalDx, totalDy);
-                            if (hasControlDown()) {
-                                factor1 = snapScaleFactor(factor1, SCALE_SNAP_INCREMENT);
-                                factor2 = snapScaleFactor(factor2, SCALE_SNAP_INCREMENT);
-                            }
-                            updated = proportionalEditing
-                                ? MeshComponentTransforms.scaleProportional(updated, ids, pivot, proportionalRadius,
-                                    a1 == ComponentTransformGizmo.Axis.X ? 0 : a1 == ComponentTransformGizmo.Axis.Y ? 1 : 2, factor1)
-                                : MeshComponentTransforms.scale(updated, ids, pivot,
-                                    a1 == ComponentTransformGizmo.Axis.X ? 0 : a1 == ComponentTransformGizmo.Axis.Y ? 1 : 2, factor1);
-                            updated = proportionalEditing
-                                ? MeshComponentTransforms.scaleProportional(updated, ids, pivot, proportionalRadius,
-                                    a2 == ComponentTransformGizmo.Axis.X ? 0 : a2 == ComponentTransformGizmo.Axis.Y ? 1 : 2, factor2)
-                                : MeshComponentTransforms.scale(updated, ids, pivot,
-                                    a2 == ComponentTransformGizmo.Axis.X ? 0 : a2 == ComponentTransformGizmo.Axis.Y ? 1 : 2, factor2);
-                        } else {
-                            double factor=componentGizmo.scaleFactor(constrainedAxis,projector,node,pivot,
-                                    width / 2,height / 2,totalDx,totalDy);
-                            if (hasControlDown()) factor = snapScaleFactor(factor, SCALE_SNAP_INCREMENT);
-                            updated=proportionalEditing
-                                ? MeshComponentTransforms.scaleProportional(updated, ids, pivot, proportionalRadius, axis, factor)
-                                : MeshComponentTransforms.scale(updated,ids,pivot,axis,factor);
-                        }
+                        updated = componentTransform.applyScale(
+                                updated, ids, node, projector, totalDx, totalDy,
+                                width, height, componentConstraintAxis, componentPlaneConstraint,
+                                proportionalEditing, proportionalRadius, hasControlDown(),
+                                SCALE_SNAP_INCREMENT);
                     }
                     node.setMeshGeometry(updated);
                 }
