@@ -7,7 +7,6 @@ import java.util.Set;
 import java.util.UUID;
 import whitevoid.create.model.Model;
 import whitevoid.create.model.ModelNode;
-import whitevoid.create.model.MeshGeometry;
 
 public final class MeshComponentSelection {
     private UUID nodeId;
@@ -28,14 +27,12 @@ public final class MeshComponentSelection {
     public void toggleEdge(ModelNode node, int a, int b) { toggle(node, MeshSelectionMode.EDGE, a, b); }
     public void toggleFace(ModelNode node, int index) { toggle(node, MeshSelectionMode.FACE, index, -1); }
 
-    /** Adds a component without removing or toggling existing selection. */
     public void addVertex(ModelNode node, int index) {
         prepareForMultiSelect(node, MeshSelectionMode.VERTEX);
         vertices.add(index);
         activeVertex = index;
     }
 
-    /** Adds an edge without removing or toggling existing selection. */
     public void addEdge(ModelNode node, int a, int b) {
         prepareForMultiSelect(node, MeshSelectionMode.EDGE);
         long key = edgeKey(a, b);
@@ -43,7 +40,6 @@ public final class MeshComponentSelection {
         activeEdge = key;
     }
 
-    /** Adds a face without removing or toggling existing selection. */
     public void addFace(ModelNode node, int index) {
         prepareForMultiSelect(node, MeshSelectionMode.FACE);
         faces.add(index);
@@ -165,17 +161,6 @@ public final class MeshComponentSelection {
     public int activeEdgeA() { return activeEdge < 0 ? -1 : (int)(activeEdge >>> 32); }
     public int activeEdgeB() { return activeEdge < 0 ? -1 : (int)activeEdge; }
     public int activeFace() { return activeFace; }
-
-    /** Keeps the legacy single-face bridge synchronized with this component selection. */
-    public void syncLegacyFaceSelection(ModelNode node, MeshFaceSelection legacy) {
-        if (legacy == null) return;
-        if (node == null || !matches(node, MeshSelectionMode.FACE) || activeFace < 0) {
-            legacy.clear();
-            return;
-        }
-        legacy.select(node, activeFace);
-    }
-
 
     public MeshSelectionMode mode() { return mode; }
     public int indexA() {
